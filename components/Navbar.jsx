@@ -1,15 +1,17 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, ShoppingCart, Menu, X } from 'lucide-react';
+import { Search, ShoppingCart, Menu, X, Hamburger, HamburgerIcon, AlignLeft } from 'lucide-react';
 import Link from 'next/link';
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const searchRef = useRef(null);
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
   const toggleSearch = () => setSearchOpen(true);
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   // Close search if clicked outside
   useEffect(() => {
@@ -24,7 +26,12 @@ const Navbar = () => {
 
   return (
     <div className="border-b shadow-sm sticky top-0 bg-white z-50">
-      <div className="flex justify-between items-center p-4 max-w-7xl mx-auto">
+      <div className="flex justify-between items-center p-4 mx-auto">
+        {/* Sidebar Toggle Button */}
+        <button onClick={toggleSidebar} className="mr-2">
+          {sidebarOpen ? <X /> : <Menu />}
+        </button>
+
         {/* Logo */}
         <h2 className="font-bold text-2xl">Trendzone</h2>
 
@@ -101,6 +108,39 @@ const Navbar = () => {
           <MobileDropdown label="Blog" mainLink="/blog" items={[]} />
         </div>
       )}
+
+      {/* Overlay Background */}
+      {/* {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-gray-900 bg-opacity-10 z-40 transition-opacity duration-500 ease-in-out"
+          onClick={toggleSidebar}
+        />
+      )} */}
+
+      {/* Sidebar */}
+      <div
+        className={`fixed top-0 left-0 h-full w-64 bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <button onClick={toggleSidebar} className="p-4">
+          <X />
+        </button>
+        <div className="flex flex-col gap-4 p-4">
+          <MobileDropdown label="Cloths" mainLink="/cloths" items={[
+            { name: 'T-Shirts', link: '/cloths/t-shirts' },
+            { name: 'Jeans', link: '/cloths/jeans' },
+          ]} />
+          <MobileDropdown label="Jewelry" mainLink="/jewelry" items={[
+            { name: 'Necklaces', link: '/jewelry/necklaces' },
+            { name: 'Rings', link: '/jewelry/rings' },
+          ]} />
+          <MobileDropdown label="Sunglasses" mainLink="/sunglasses" items={[
+            { name: 'Aviators', link: '/sunglasses/aviators' },
+            { name: 'Wayfarers', link: '/sunglasses/wayfarers' },
+          ]} />
+        </div>
+      </div>
     </div>
   );
 };
