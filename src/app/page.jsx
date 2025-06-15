@@ -1,11 +1,77 @@
 'use client'
 import Image from "next/image";
+import Link from "next/link";
+import HeroSlider from "../../components/HeroSlider";
+import Branding from "../../components/Branding";
+
+
+const slides = [
+
+  {
+    image: "Hero_Images/Hero_Image4.jpg",
+    title: "Welcome to our platform",
+    subtitle: "Explore the best products around you",
+  },
+  {
+    image: "Hero_Images/Hero_Image5.jpg",
+    title: "Welcome to our platform",
+    subtitle: "Explore the best products around you",
+  },
+  {
+    image: "Hero_Images/Hero_Image6.jpg",
+    title: "Welcome to our platform",
+    subtitle: "Explore the best products around you",
+  },
+  {
+    image: "Hero_Images/Hero_Image7.jpg",
+    title: "Welcome to our platform",
+    subtitle: "Explore the best products around you",
+  },
+]
+
+const brands = [
+  {
+    image: "/Brands Logo/Asos.png",
+    id: "asos",
+  },
+  {
+    image: "/Brands Logo/Etsy.png",
+    id: "etsy",
+  },
+  {
+    image: "/Brands Logo/Lois.png",
+    id: "lois",
+  },
+  {
+    image: "/Brands Logo/Nike.png",
+    id: "nike",
+  },
+  {
+    image: "/Brands Logo/Puma.png",
+    id: "puma",
+  },
+  {
+    image: "/Brands Logo/Reebok.png",
+    id: "reebok",
+  },
+  {
+    image: "/Brands Logo/Walmart.png",
+    id: "walmart",
+  },
+  {
+    image: "/Brands Logo/Zara.png",
+    id: "zara",
+  },
+]
+
+
 
 
 export default function Home() {
   return (
-   <div className="mx-auto container">
-    <h2>Lorem ipsum dolor sit amet consectetur adipisicing elit. Obcaecati amet eos corrupti ex, modi earum soluta animi dolore iure, optio, eum debitis. Accusantium commodi rerum blanditiis quis iusto sit eius accusamus asperiores doloribus est adipisci ratione dolor iure fugiat rem modi perferendis, reprehenderit eveniet distinctio pariatur. Iure ad aut recusandae nesciunt libero autem accusamus harum, nostrum rem distinctio! Aspernatur adipisci assumenda temporibus illo ullam officia amet dolor facere, iste sint laboriosam saepe illum, autem ipsam! Ipsum magnam minus et iste dolorum? Harum, alias aliquam. Quos numquam hic commodi autem, obcaecati inventore aspernatur? Distinctio reiciendis vero velit voluptatum dignissimos veritatis at iste nihil tempora eius minima quod, neque, dicta autem modi consectetur nisi consequatur laborum illum? Perspiciatis fugiat corporis possimus nam, nostrum beatae eveniet laboriosam ullam voluptatum, optio odio expedita rem sapiente. Explicabo eius distinctio cupiditate quod et voluptate optio! Cumque unde distinctio beatae amet ex? Excepturi atque rem nisi. Expedita rerum odit aperiam in suscipit vero. Repellendus sequi perferendis eveniet esse vel repudiandae reiciendis similique hic odio architecto ad at in nemo deserunt temporibus velit, rerum voluptatem beatae! Accusantium sunt perspiciatis iure, omnis ea aut sed aliquid laborum pariatur. At, magnam voluptatum. Ipsa nostrum ex blanditiis repellat cum impedit consectetur officia cupiditate totam, accusantium ab consequatur maiores labore earum quod odit dicta. Ad incidunt voluptatibus rem, assumenda rerum deserunt cupiditate, exercitationem expedita dolor cum facere distinctio enim quidem! Quasi, facere officiis mollitia id neque distinctio natus ipsum in quibusdam nihil? Dignissimos dicta, recusandae quo libero corrupti possimus rerum necessitatibus minus, eaque magnam consequatur nam voluptatem harum architecto ad voluptas quos maxime. Suscipit corrupti doloribus, odit eligendi, placeat iste aliquid at nemo culpa perspiciatis ex sed enim officia similique minus iusto asperiores commodi quo. Magnam quidem deserunt consequatur voluptate repellat quos. Explicabo voluptate excepturi non deleniti adipisci id maiores accusantium, doloremque suscipit libero, ad iure ipsa veritatis porro recusandae error doloribus, in iusto cum quibusdam quidem eaque velit! Expedita assumenda officiis, enim quae exercitationem, sequi reprehenderit vero sint fugit eius dolores. Ipsam tenetur aliquid totam voluptates ipsum quod et explicabo veritatis, eum asperiores. Amet, suscipit saepe velit rerum officiis nesciunt ratione eius asperiores nihil, inventore doloremque cumque provident similique dignissimos consequuntur adipisci fugit maxime ad optio perspiciatis! Molestiae dolorem deleniti magnam eos id debitis sunt itaque commodi non blanditiis, consectetur nihil quis. Libero cumque incidunt consectetur, aperiam sequi perferendis commodi similique laborum fuga maxime officiis rem. Sed, eveniet? Perferendis dicta, inventore sint sequi, aut fugit, porro qui iste voluptatum quisquam vitae labore reprehenderit ea voluptatem quos doloremque officia eaque suscipit molestiae aliquid quis aliquam iure fugiat. Dolore eveniet voluptas illum harum quod laboriosam asperiores consequatur sunt in. Ipsum suscipit excepturi voluptates molestiae exercitationem ad sapiente velit aut, eaque nostrum voluptatibus autem deserunt maiores? Obcaecati, nisi rerum totam delectus blanditiis quos odit enim expedita suscipit odio tenetur recusandae error nulla consequuntur perspiciatis eius temporibus repudiandae fuga illo! Velit alias dignissimos possimus ad eius placeat beatae ratione aspernatur tempora quo quod ex in, qui, perspiciatis ducimus, suscipit cum ipsam? Dolore fugit illo eum?</h2>
+   <div>
+    <HeroSlider slides={slides}></HeroSlider>
+    <Branding brands={brands}></Branding>
     </div>
   );
 }

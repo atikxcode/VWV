@@ -3,11 +3,20 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Search, ShoppingCart, Menu, X, Hamburger, HamburgerIcon, AlignLeft } from 'lucide-react';
 import Link from 'next/link';
 
+
 const Navbar = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const searchRef = useRef(null);
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openSubmenu, setOpenSubmenu] = useState(null);
+  const [isClosing, setIsClosing] = useState(false);
+  const toggleSubmenu = (label) => {
+    setOpenSubmenu(openSubmenu === label ? null : label);
+  };
+  
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
   const toggleSearch = () => setSearchOpen(true);
@@ -25,7 +34,7 @@ const Navbar = () => {
   }, []);
 
   return (
-    <div className="border-b shadow-sm sticky top-0 bg-white z-50">
+    <div className=" shadow-sm sticky top-0 bg-white z-50">
       <div className="flex justify-between items-center p-4 mx-auto">
         {/* Sidebar Toggle Button */}
         <button onClick={toggleSidebar} className="mr-2">
@@ -33,10 +42,10 @@ const Navbar = () => {
         </button>
 
         {/* Logo */}
-        <h2 className="font-bold text-2xl">Trendzone</h2>
+        <h2 className="font-bold text-2xl italic tracking-widest">Trendzone</h2>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex gap-6 text-sm">
+        <div className="hidden md:flex gap-6 text-sm italic tracking-wide">
           <NavLink label="Home" href="/" />
           <NavDropdown label="New Arrival" mainLink="/dummy" items={[
             { name: 'Men', link: '/new-arrivals/men' },
@@ -54,7 +63,7 @@ const Navbar = () => {
             { name: 'Our Story', link: '/about/story' },
             { name: 'Team', link: '/about/team' },
           ]} />
-          <NavLink label="Blog" href="/blog" />
+          <NavLink  label="Blog" href="/blog" />
         </div>
 
         {/* Icons */}
@@ -73,10 +82,18 @@ const Navbar = () => {
             />
           </div>
 
+        {/* Shopping Cart */}
           <Link href="/cart">
             <ShoppingCart />
           </Link>
-          <button className="bg-white border border-black rounded-3xl px-6 py-2 text-sm">Sign In</button>
+
+          {/* Sign In Button  */}
+          <Link
+            href="/AdminPanel"
+            className="hidden text-[15px] tracking-widest italic md:block bg-[#FEB130]  rounded-3xl px-6 py-2  text-gray-800 hover:bg-[#FF9F01]  transition-colors duration-200"
+          >
+            Sign In
+          </Link>
 
           {/* Mobile Menu Toggle */}
           <button className="md:hidden ml-2" onClick={toggleMobileMenu}>
@@ -86,28 +103,199 @@ const Navbar = () => {
       </div>
 
       {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden flex flex-col gap-3 p-4 bg-white border-t">
-          <MobileDropdown label="Home" mainLink="/" items={[]} />
-          <MobileDropdown label="New Arrival" mainLink="/new-arrivals" items={[
-            { name: 'Men', link: '/new-arrivals/men' },
-            { name: 'Women', link: '/new-arrivals/women' },
-          ]} />
-          <MobileDropdown label="Shop" mainLink="/shop" items={[
-            { name: 'Clothing', link: '/shop/clothing' },
-            { name: 'Accessories', link: '/shop/accessories' },
-          ]} />
-          <MobileDropdown label="Contact" mainLink="/contact" items={[
-            { name: 'Customer Support', link: '/contact/support' },
-            { name: 'Store Locations', link: '/contact/locations' },
-          ]} />
-          <MobileDropdown label="About Us" mainLink="/about" items={[
-            { name: 'Our Story', link: '/about/story' },
-            { name: 'Team', link: '/about/team' },
-          ]} />
-          <MobileDropdown label="Blog" mainLink="/blog" items={[]} />
+
+
+ {mobileMenuOpen && (
+    <div
+      className="fixed top-0 right-0 w-64 h-full bg-white shadow-xl transform transition-transform duration-300 ease-in-out z-50"
+      style={{
+        animation: isClosing ? 'slideOutRight 0.3s ease-in' : 'slideInRight 0.3s ease-out',
+      }}
+    >
+      <div className="flex justify-end p-4">
+        <button
+          onClick={() => {
+            setIsClosing(true);
+            setTimeout(() => {
+              setMobileMenuOpen(false);
+              setIsClosing(false);
+              setOpenSubmenu(null);
+            }, 300);
+          }}
+          className="text-gray-700 focus:outline-none"
+          aria-label="Close mobile menu"
+        >
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
+      <div className="flex flex-col p-4 space-y-2">
+        <a
+          href="/"
+          className="block mb-2 text-start w-full bg-[#FEB130] py-2 px-4 text-gray-800 hover:bg-[#FF9F01] italic transition-colors duration-200 rounded-md tracking-widest font-bold"
+          style={{ animation: 'fadeIn 0.4s ease-out' }}
+        >
+          Home
+        </a>
+        <div className="group">
+          <button
+            onClick={() => toggleSubmenu('New Arrival')}
+            className="block mb-2 text-start w-full bg-[#FEB130] py-2 px-4 text-gray-800 hover:bg-[#FF9F01] italic transition-colors duration-200 rounded-md tracking-widest font-bold"
+            style={{ animation: 'fadeIn 0.4s ease-out 0.1s' }}
+          >
+            New Arrival
+          </button>
+          {openSubmenu === 'New Arrival' && (
+            <div
+              className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
+              style={{
+                animation: openSubmenu === 'New Arrival' ? 'slideInRight 0.3s ease-out' : 'slideOutRight 0.3s ease-in',
+              }}
+            >
+              <a
+                href="/new-arrivals/men"
+                className="block border-[#FEB130] border-b-[2px] mb-3  py-1 px-4 text-sm text-black italic rounded-md transition-colors duration-200 hover:border-[#FF9F01]"
+                style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
+              >
+                Men
+              </a>
+              <a
+                href="/new-arrivals/women"
+                className="block border-[#FEB130] border-b-[2px] mb-3  py-1 px-4 text-sm text-black italic rounded-md transition-colors duration-200 hover:border-[#FF9F01]"
+                style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
+              >
+                Women
+              </a>
+            </div>
+          )}
         </div>
-      )}
+        <div className="group">
+          <button
+            onClick={() => toggleSubmenu('Shop')}
+            className="block mb-2 text-start w-full bg-[#FEB130] py-2 px-4 text-gray-800 hover:bg-[#FF9F01] italic transition-colors duration-200 rounded-md tracking-widest font-bold"
+            style={{ animation: 'fadeIn 0.4s ease-out 0.4s' }}
+          >
+            Shop
+          </button>
+          {openSubmenu === 'Shop' && (
+            <div
+              className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
+              style={{
+                animation: openSubmenu === 'Shop' ? 'slideInRight 0.3s ease-out' : 'slideOutRight 0.3s ease-in',
+              }}
+            >
+              <a
+                href="/shop/clothing"
+                className="block border-[#FEB130] border-b-[2px] mb-3  py-1 px-4 text-sm text-black italic rounded-md transition-colors duration-200 hover:border-[#FF9F01]"
+                style={{ animation: 'fadeIn 0.4s ease-out 0.5s' }}
+              >
+                Clothing
+              </a>
+              <a
+                href="/shop/accessories"
+                className="block border-[#FEB130] border-b-[2px] mb-3  py-1 px-4 text-sm text-black italic rounded-md transition-colors duration-200 hover:border-[#FF9F01]"
+                style={{ animation: 'fadeIn 0.4s ease-out 0.6s' }}
+              >
+                Accessories
+              </a>
+            </div>
+          )}
+        </div>
+        <div className="group">
+          <button
+            onClick={() => toggleSubmenu('Contact')}
+            className="block mb-2 text-start w-full bg-[#FEB130] py-2 px-4 text-gray-800 hover:bg-[#FF9F01] italic transition-colors duration-200 rounded-md tracking-widest font-bold"
+            style={{ animation: 'fadeIn 0.4s ease-out 0.7s' }}
+          >
+            Contact
+          </button>
+          {openSubmenu === 'Contact' && (
+            <div
+              className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
+              style={{
+                animation: openSubmenu === 'Contact' ? 'slideInRight 0.3s ease-out' : 'slideOutRight 0.3s ease-in',
+              }}
+            >
+              <a
+                href="/contact/support"
+                className="block border-[#FEB130] border-b-[2px] mb-3  py-1 px-4 text-sm text-black italic rounded-md transition-colors duration-200 hover:border-[#FF9F01]"
+                style={{ animation: 'fadeIn 0.4s ease-out 0.8s' }}
+              >
+                Customer Support
+              </a>
+              <a
+                href="/contact/locations"
+                className="block border-[#FEB130] border-b-[2px] mb-3  py-1 px-4 text-sm text-black italic rounded-md transition-colors duration-200 hover:border-[#FF9F01]"
+                style={{ animation: 'fadeIn 0.4s ease-out 0.9s' }}
+              >
+                Store Locations
+              </a>
+            </div>
+          )}
+        </div>
+        <div className="group">
+          <button
+            onClick={() => toggleSubmenu('About Us')}
+            className="block mb-2 text-start w-full bg-[#FEB130] py-2 px-4 text-gray-800 hover:bg-[#FF9F01] italic transition-colors duration-200 rounded-md tracking-widest font-bold"
+            style={{ animation: 'fadeIn 0.4s ease-out 1s' }}
+          >
+            About Us
+          </button>
+          {openSubmenu === 'About Us' && (
+            <div
+              className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
+              style={{
+                animation: openSubmenu === 'About Us' ? 'slideInRight 0.3s ease-out' : 'slideOutRight 0.3s ease-in',
+              }}
+            >
+              <a
+                href="/about/story"
+                className="block border-[#FEB130] border-b-[2px] mb-3  py-1 px-4 text-sm text-black italic rounded-md transition-colors duration-200 hover:border-[#FF9F01]"
+                style={{ animation: 'fadeIn 0.4s ease-out 1.1s' }}
+              >
+                Our Story
+              </a>
+              <a
+                href="/about/team"
+                className="block border-[#FEB130] border-b-[2px] mb-3  py-1 px-4 text-sm text-black italic rounded-md transition-colors duration-200 hover:border-[#FF9F01]"
+                style={{ animation: 'fadeIn 0.4s ease-out 1.2s' }}
+              >
+                Team
+              </a>
+            </div>
+          )}
+        </div>
+        <a
+          href="/blog"
+          className="block mb-2 text-start w-full bg-[#FEB130] py-2 px-4 text-gray-800 hover:bg-[#FF9F01] italic transition-colors duration-200 rounded-md tracking-widest font-bold"
+          style={{ animation: 'fadeIn 0.4s ease-out 1.3s' }}
+        >
+          Blog
+        </a>
+        <Link
+            href="/signin"
+            className="mt-4 italic font-bold text-center bg-[#FEB130]  rounded-3xl px-6 py-2 text-sm text-gray-800 hover:bg-[#FF9F01] hover:border-gray-600 transition-colors duration-300"
+          >
+            Sign In
+          </Link>
+      </div>
+    </div>
+  )}
+
+
+{/* Mobile Menu Off */}
 
       {/* Overlay Background */}
       {/* {sidebarOpen && (
