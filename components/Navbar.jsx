@@ -36,37 +36,106 @@ const Navbar = () => {
   return (
     <div className=" shadow-sm sticky top-0 bg-white z-50">
       <div className="flex justify-between items-center p-4 mx-auto">
-        {/* Sidebar Toggle Button */}
+        
+        
+        {/* Sidebar Toggle Button Start*/}
         <button onClick={toggleSidebar} className="mr-2">
           {sidebarOpen ? <X /> : <Menu />}
         </button>
 
-        {/* Logo */}
-        <h2 className="font-bold text-2xl italic tracking-widest">Trendzone</h2>
+        {/* Sidebar Toggle Button End*/}
 
-        {/* Desktop Navigation */}
+
+        {/* Logo Start*/}
+        <h2 className="font-bold text-2xl italic tracking-widest">Trendzone</h2>
+        {/* Logo End*/}
+
+
+        {/* Desktop Navigation start*/}
+
         <div className="hidden md:flex gap-6 text-sm italic tracking-wide">
-          <NavLink label="Home" href="/" />
-          <NavDropdown label="New Arrival" mainLink="/dummy" items={[
-            { name: 'Men', link: '/new-arrivals/men' },
-            { name: 'Women', link: '/new-arrivals/women' },
-          ]} />
-          <NavDropdown label="Shop" mainLink="/shop" items={[
-            { name: 'Clothing', link: '/shop/clothing' },
-            { name: 'Accessories', link: '/shop/accessories' },
-          ]} />
-          <NavDropdown label="Contact" mainLink="/contact" items={[
-            { name: 'Customer Support', link: '/contact/support' },
-            { name: 'Store Locations', link: '/contact/locations' },
-          ]} />
-          <NavDropdown label="About Us" mainLink="/about" items={[
-            { name: 'Our Story', link: '/about/story' },
-            { name: 'Team', link: '/about/team' },
-          ]} />
-          <NavLink  label="Blog" href="/blog" />
+          <a href="/" className="relative hover:text-gray-600 transition-colors group">
+            Home
+            <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+          </a>
+          
+          <div className="relative group">
+            <a href="/dummy" className="relative hover:text-gray-600 transition-colors">
+              New Arrival
+              <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+            </a>
+            <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
+              <a href="/new-arrivals/men" className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub">
+                Men
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              </a>
+              <a href="/new-arrivals/women" className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub">
+                Women
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              </a>
+            </div>
+          </div>
+          
+          <div className="relative group">
+            <a href="/shop" className="relative hover:text-gray-600 transition-colors">
+              Shop
+              <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+            </a>
+            <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
+              <a href="/shop/clothing" className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub">
+                Clothing
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              </a>
+              <a href="/shop/accessories" className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub">
+                Accessories
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              </a>
+            </div>
+          </div>
+          
+          <div className="relative group">
+            <a href="/contact" className="relative hover:text-gray-600 transition-colors">
+              Contact
+              <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+            </a>
+            <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
+              <a href="/contact/support" className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub">
+                Customer Support
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              </a>
+              <a href="/contact/locations" className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub">
+                Store Locations
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              </a>
+            </div>
+          </div>
+          
+          <div className="relative group">
+            <a href="/about" className="relative hover:text-gray-600 transition-colors">
+              About Us
+              <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+            </a>
+            <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
+              <a href="/about/story" className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub">
+                Our Story
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              </a>
+              <a href="/about/team" className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub">
+                Team
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              </a>
+            </div>
+          </div>
+          
+          <a href="/blog" className="relative hover:text-gray-600 transition-colors group">
+            Blog
+            <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+          </a>
         </div>
 
-        {/* Icons */}
+      {/* Desktop Navigation End */}
+
+        {/* Search Icons start*/}
         <div className="flex items-center gap-4 relative">
           <div ref={searchRef} className="relative">
             <button onClick={toggleSearch} className="p-2">
@@ -100,290 +169,343 @@ const Navbar = () => {
             {mobileMenuOpen ? <X /> : <Menu />}
           </button>
         </div>
-      </div>
-
-      {/* Mobile Menu */}
-
-
- {mobileMenuOpen && (
-    <div
-      className="fixed top-0 right-0 w-64 h-full bg-white shadow-xl transform transition-transform duration-300 ease-in-out z-50"
-      style={{
-        animation: isClosing ? 'slideOutRight 0.3s ease-in' : 'slideInRight 0.3s ease-out',
-      }}
-    >
-      <div className="flex justify-end p-4">
-        <button
-          onClick={() => {
-            setIsClosing(true);
-            setTimeout(() => {
-              setMobileMenuOpen(false);
-              setIsClosing(false);
-              setOpenSubmenu(null);
-            }, 300);
-          }}
-          className="text-gray-700 focus:outline-none"
-          aria-label="Close mobile menu"
-        >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-      </div>
-      <div className="flex flex-col p-4 space-y-2">
-        <a
-          href="/"
-          className="block mb-2 text-start w-full bg-[#FEB130] py-2 px-4 text-gray-800 hover:bg-[#FF9F01] italic transition-colors duration-200 rounded-md tracking-widest font-bold"
-          style={{ animation: 'fadeIn 0.4s ease-out' }}
-        >
-          Home
-        </a>
-        <div className="group">
-          <button
-            onClick={() => toggleSubmenu('New Arrival')}
-            className="block mb-2 text-start w-full bg-[#FEB130] py-2 px-4 text-gray-800 hover:bg-[#FF9F01] italic transition-colors duration-200 rounded-md tracking-widest font-bold"
-            style={{ animation: 'fadeIn 0.4s ease-out 0.1s' }}
-          >
-            New Arrival
-          </button>
-          {openSubmenu === 'New Arrival' && (
-            <div
-              className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
-              style={{
-                animation: openSubmenu === 'New Arrival' ? 'slideInRight 0.3s ease-out' : 'slideOutRight 0.3s ease-in',
-              }}
-            >
-              <a
-                href="/new-arrivals/men"
-                className="block border-[#FEB130] border-b-[2px] mb-3  py-1 px-4 text-sm text-black italic rounded-md transition-colors duration-200 hover:border-[#FF9F01]"
-                style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
-              >
-                Men
-              </a>
-              <a
-                href="/new-arrivals/women"
-                className="block border-[#FEB130] border-b-[2px] mb-3  py-1 px-4 text-sm text-black italic rounded-md transition-colors duration-200 hover:border-[#FF9F01]"
-                style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-              >
-                Women
-              </a>
-            </div>
-          )}
+        {/* Search Icons start*/}
         </div>
-        <div className="group">
-          <button
-            onClick={() => toggleSubmenu('Shop')}
-            className="block mb-2 text-start w-full bg-[#FEB130] py-2 px-4 text-gray-800 hover:bg-[#FF9F01] italic transition-colors duration-200 rounded-md tracking-widest font-bold"
-            style={{ animation: 'fadeIn 0.4s ease-out 0.4s' }}
+
+
+
+        {/* Mobile Menu start */}
+
+
+        {mobileMenuOpen && (
+          <div
+            className="fixed top-0 right-0 w-64 h-full bg-white shadow-xl transform transition-transform duration-300 ease-in-out z-50"
+            style={{
+              animation: isClosing ? 'slideOutRight 0.3s ease-in' : 'slideInRight 0.3s ease-out',
+            }}
           >
-            Shop
-          </button>
-          {openSubmenu === 'Shop' && (
-            <div
-              className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
-              style={{
-                animation: openSubmenu === 'Shop' ? 'slideInRight 0.3s ease-out' : 'slideOutRight 0.3s ease-in',
-              }}
-            >
-              <a
-                href="/shop/clothing"
-                className="block border-[#FEB130] border-b-[2px] mb-3  py-1 px-4 text-sm text-black italic rounded-md transition-colors duration-200 hover:border-[#FF9F01]"
-                style={{ animation: 'fadeIn 0.4s ease-out 0.5s' }}
+            <div className="flex justify-end p-4">
+              <button
+                onClick={() => {
+                  setIsClosing(true);
+                  setTimeout(() => {
+                    setMobileMenuOpen(false);
+                    setIsClosing(false);
+                    setOpenSubmenu(null);
+                  }, 300);
+                }}
+                className="text-gray-700 focus:outline-none"
+                aria-label="Close mobile menu"
               >
-                Clothing
-              </a>
-              <a
-                href="/shop/accessories"
-                className="block border-[#FEB130] border-b-[2px] mb-3  py-1 px-4 text-sm text-black italic rounded-md transition-colors duration-200 hover:border-[#FF9F01]"
-                style={{ animation: 'fadeIn 0.4s ease-out 0.6s' }}
-              >
-                Accessories
-              </a>
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
             </div>
-          )}
-        </div>
-        <div className="group">
-          <button
-            onClick={() => toggleSubmenu('Contact')}
-            className="block mb-2 text-start w-full bg-[#FEB130] py-2 px-4 text-gray-800 hover:bg-[#FF9F01] italic transition-colors duration-200 rounded-md tracking-widest font-bold"
-            style={{ animation: 'fadeIn 0.4s ease-out 0.7s' }}
-          >
-            Contact
-          </button>
-          {openSubmenu === 'Contact' && (
-            <div
-              className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
-              style={{
-                animation: openSubmenu === 'Contact' ? 'slideInRight 0.3s ease-out' : 'slideOutRight 0.3s ease-in',
-              }}
-            >
+            <div className="flex flex-col p-4 space-y-2 text-sm italic tracking-widest">
               <a
-                href="/contact/support"
-                className="block border-[#FEB130] border-b-[2px] mb-3  py-1 px-4 text-sm text-black italic rounded-md transition-colors duration-200 hover:border-[#FF9F01]"
-                style={{ animation: 'fadeIn 0.4s ease-out 0.8s' }}
+                href="/"
+                className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors group"
+                style={{ animation: 'fadeIn 0.4s ease-out' }}
               >
-                Customer Support
+                Home
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
+              <div className="group">
+                <button
+                  onClick={() => toggleSubmenu('New Arrival')}
+                  className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors"
+                  style={{ animation: 'fadeIn 0.4s ease-out 0.1s' }}
+                >
+                  New Arrival
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </button>
+                {openSubmenu === 'New Arrival' && (
+                  <div
+                    className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
+                    style={{
+                      animation: openSubmenu === 'New Arrival' ? 'slideInRight 0.3s ease-out' : 'slideOutRight 0.3s ease-in',
+                    }}
+                  >
+                    <a
+                      href="/new-arrivals/men"
+                      className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                      style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
+                    >
+                      Men
+                      <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                    </a>
+                    <a
+                      href="/new-arrivals/women"
+                      className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                      style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
+                    >
+                      Women
+                      <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                    </a>
+                  </div>
+                )}
+              </div>
+              <div className="group">
+                <button
+                  onClick={() => toggleSubmenu('Shop')}
+                  className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors"
+                  style={{ animation: 'fadeIn 0.4s ease-out 0.4s' }}
+                >
+                  Shop
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </button>
+                {openSubmenu === 'Shop' && (
+                  <div
+                    className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
+                    style={{
+                      animation: openSubmenu === 'Shop' ? 'slideInRight 0.3s ease-out' : 'slideOutRight 0.3s ease-in',
+                    }}
+                  >
+                    <a
+                      href="/shop/clothing"
+                      className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                      style={{ animation: 'fadeIn 0.4s ease-out 0.5s' }}
+                    >
+                      Clothing
+                      <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                    </a>
+                    <a
+                      href="/shop/accessories"
+                      className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                      style={{ animation: 'fadeIn 0.4s ease-out 0.6s' }}
+                    >
+                      Accessories
+                      <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                    </a>
+                  </div>
+                )}
+              </div>
+              <div className="group">
+                <button
+                  onClick={() => toggleSubmenu('Contact')}
+                  className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors"
+                  style={{ animation: 'fadeIn 0.4s ease-out 0.7s' }}
+                >
+                  Contact
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </button>
+                {openSubmenu === 'Contact' && (
+                  <div
+                    className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
+                    style={{
+                      animation: openSubmenu === 'Contact' ? 'slideInRight 0.3s ease-out' : 'slideOutRight 0.3s ease-in',
+                    }}
+                  >
+                    <a
+                      href="/contact/support"
+                      className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                      style={{ animation: 'fadeIn 0.4s ease-out 0.8s' }}
+                    >
+                      Customer Support
+                      <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                    </a>
+                    <a
+                      href="/contact/locations"
+                      className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                      style={{ animation: 'fadeIn 0.4s ease-out 0.9s' }}
+                    >
+                      Store Locations
+                      <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                    </a>
+                  </div>
+                )}
+              </div>
+              <div className="group">
+                <button
+                  onClick={() => toggleSubmenu('About Us')}
+                  className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors"
+                  style={{ animation: 'fadeIn 0.4s ease-out 1s' }}
+                >
+                  About Us
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </button>
+                {openSubmenu === 'About Us' && (
+                  <div
+                    className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
+                    style={{
+                      animation: openSubmenu === 'About Us' ? 'slideInRight 0.3s ease-out' : 'slideOutRight 0.3s ease-in',
+                    }}
+                  >
+                    <a
+                      href="/about/story"
+                      className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                      style={{ animation: 'fadeIn 0.4s ease-out 1.1s' }}
+                    >
+                      Our Story
+                      <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                    </a>
+                    <a
+                      href="/about/team"
+                      className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                      style={{ animation: 'fadeIn 0.4s ease-out 1.2s' }}
+                    >
+                      Team
+                      <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                    </a>
+                  </div>
+                )}
+              </div>
               <a
-                href="/contact/locations"
-                className="block border-[#FEB130] border-b-[2px] mb-3  py-1 px-4 text-sm text-black italic rounded-md transition-colors duration-200 hover:border-[#FF9F01]"
-                style={{ animation: 'fadeIn 0.4s ease-out 0.9s' }}
+                href="/blog"
+                className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors group"
+                style={{ animation: 'fadeIn 0.4s ease-out 1.3s' }}
               >
-                Store Locations
+                Blog
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
+              <Link
+                href="/signin"
+                className="mt-4 italic font-bold text-center bg-[#FEB130] rounded-3xl px-6 py-2 text-sm text-gray-800 hover:bg-[#FF9F01] hover:border-gray-600 transition-colors duration-300"
+              >
+                Sign In
+              </Link>
             </div>
-          )}
-        </div>
-        <div className="group">
-          <button
-            onClick={() => toggleSubmenu('About Us')}
-            className="block mb-2 text-start w-full bg-[#FEB130] py-2 px-4 text-gray-800 hover:bg-[#FF9F01] italic transition-colors duration-200 rounded-md tracking-widest font-bold"
-            style={{ animation: 'fadeIn 0.4s ease-out 1s' }}
-          >
-            About Us
-          </button>
-          {openSubmenu === 'About Us' && (
-            <div
-              className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
-              style={{
-                animation: openSubmenu === 'About Us' ? 'slideInRight 0.3s ease-out' : 'slideOutRight 0.3s ease-in',
-              }}
-            >
-              <a
-                href="/about/story"
-                className="block border-[#FEB130] border-b-[2px] mb-3  py-1 px-4 text-sm text-black italic rounded-md transition-colors duration-200 hover:border-[#FF9F01]"
-                style={{ animation: 'fadeIn 0.4s ease-out 1.1s' }}
-              >
-                Our Story
-              </a>
-              <a
-                href="/about/team"
-                className="block border-[#FEB130] border-b-[2px] mb-3  py-1 px-4 text-sm text-black italic rounded-md transition-colors duration-200 hover:border-[#FF9F01]"
-                style={{ animation: 'fadeIn 0.4s ease-out 1.2s' }}
-              >
-                Team
-              </a>
-            </div>
-          )}
-        </div>
-        <a
-          href="/blog"
-          className="block mb-2 text-start w-full bg-[#FEB130] py-2 px-4 text-gray-800 hover:bg-[#FF9F01] italic transition-colors duration-200 rounded-md tracking-widest font-bold"
-          style={{ animation: 'fadeIn 0.4s ease-out 1.3s' }}
-        >
-          Blog
-        </a>
-        <Link
-            href="/signin"
-            className="mt-4 italic font-bold text-center bg-[#FEB130]  rounded-3xl px-6 py-2 text-sm text-gray-800 hover:bg-[#FF9F01] hover:border-gray-600 transition-colors duration-300"
-          >
-            Sign In
-          </Link>
-      </div>
-    </div>
-  )}
+          </div>
+        )}
 
 
-{/* Mobile Menu Off */}
+        {/* Mobile Menu End */}
 
-      {/* Overlay Background */}
-      {/* {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-gray-900 bg-opacity-10 z-40 transition-opacity duration-500 ease-in-out"
-          onClick={toggleSidebar}
-        />
-      )} */}
 
-      {/* Sidebar */}
+
+      {/* Sidebar Start*/}
+      
       <div
-        className={`fixed top-0 left-0 h-full w-64 bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <button onClick={toggleSidebar} className="p-4">
-          <X />
-        </button>
-        <div className="flex flex-col gap-4 p-4">
-          <MobileDropdown label="Cloths" mainLink="/cloths" items={[
-            { name: 'T-Shirts', link: '/cloths/t-shirts' },
-            { name: 'Jeans', link: '/cloths/jeans' },
-          ]} />
-          <MobileDropdown label="Jewelry" mainLink="/jewelry" items={[
-            { name: 'Necklaces', link: '/jewelry/necklaces' },
-            { name: 'Rings', link: '/jewelry/rings' },
-          ]} />
-          <MobileDropdown label="Sunglasses" mainLink="/sunglasses" items={[
-            { name: 'Aviators', link: '/sunglasses/aviators' },
-            { name: 'Wayfarers', link: '/sunglasses/wayfarers' },
-          ]} />
-        </div>
+      className={`fixed top-0 left-0 h-full w-72 bg-white shadow-xl transform transition-transform duration-300 ease-in-out z-50 overflow-y-auto ${
+    sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+  }`}
+>
+  {/* Header */}
+  <div className="bg-[#232F3E] text-white flex items-center gap-2 p-4">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="white" className="w-6 h-6" viewBox="0 0 24 24">
+      <path d="M12 12c2.209 0 4-1.791 4-4s-1.791-4-4-4-4 1.791-4 4 1.791 4 4 4zm0 2c-2.671 0-8 1.337-8 4v2h16v-2c0-2.663-5.329-4-8-4z"/>
+    </svg>
+    <span className="font-medium">Hello, sign in</span>
+  </div>
+
+  {/* Menu Sections */}
+  <div className="flex flex-col text-sm text-gray-800">
+    {/* Section 1: Digital Content & Devices */}
+    <div className="border-b px-4 pt-4 pb-2">
+      <h3 className="text-base font-bold mb-2">Digital Content & Devices</h3>
+      <MobileDropdown  label="Prime Video" mainLink="/prime-video" items={[]} />
+      <MobileDropdown label="Amazon Music" mainLink="/amazon-music" items={[]} />
+      <MobileDropdown label="Kindle E-readers & Books" mainLink="/kindle" items={[]} />
+      <MobileDropdown label="Amazon Appstore" mainLink="/appstore" items={[]} />
+    </div>
+
+    {/* Section 2: Shop by Department */}
+    <div className="border-b px-4 pt-4 pb-2">
+      <h3 className="text-base font-bold mb-2">Shop by Department</h3>
+      <MobileDropdown label="Electronics" mainLink="/electronics" items={[]} />
+      <MobileDropdown label="Computers" mainLink="/computers" items={[]} />
+      <MobileDropdown label="Smart Home" mainLink="/smart-home" items={[]} />
+      <MobileDropdown label="Arts & Crafts" mainLink="/arts-crafts" items={[]} />
+      <a href="/departments" className="block p-2 text-gray-600 hover:text-black">
+        See all
+      </a>
+    </div>
+
+    {/* Section 3: Programs & Features */}
+    <div className="border-b px-4 pt-4 pb-2">
+      <h3 className="text-base font-bold mb-2">Programs & Features</h3>
+      <MobileDropdown label="Gift Cards" mainLink="/gift-cards" items={[]} />
+      <MobileDropdown label="Shop by Interest" mainLink="/shop-by-interest" items={[]} />
+      <MobileDropdown label="Amazon Live" mainLink="/amazon-live" items={[]} />
+      <MobileDropdown label="International Shopping" mainLink="/international" items={[]} />
+      <a href="/programs" className="block p-2 text-gray-600 hover:text-black">
+        See all
+      </a>
+    </div>
+
+    {/* Section 4: Help & Settings */}
+    <div className="px-4 pt-4 pb-6">
+      <h3 className="text-base font-bold mb-2">Help & Settings</h3>
+      <a href="/help" className="block p-2 text-gray-600 hover:text-black">
+        Help
+      </a>
+    </div>
+  </div>
+
+  {/* Close Button */}
+  <button
+    onClick={toggleSidebar}
+    className="absolute top-3 right-3 text-gray-500 hover:text-black text-2xl"
+  >
+    ✕
+  </button>
       </div>
+
+
+      {/* Sidebar End */}
     </div>
   );
 };
 
-const NavLink = ({ label, href }) => (
-  <Link href={href} className="hover:underline">
-    {label}
-  </Link>
-);
+// const NavLink = ({ label, href }) => (
+//   <Link href={href} className="hover:underline">
+//     {label}
+//   </Link>
+// );
 
-const NavDropdown = ({ label, items, mainLink }) => (
-  <div className="group relative cursor-pointer">
-    <Link href={mainLink} className="hover:underline">
-      {label}
-    </Link>
-    {items.length > 0 && (
-      <div className="absolute left-0 top-full mt-2 w-40 bg-white shadow-md rounded-md opacity-0 group-hover:opacity-100 scale-y-0 group-hover:scale-y-100 transform origin-top transition-all duration-300 ease-in-out z-10">
-        {items.map((item, index) => (
-          <Link href={item.link} key={index} className="block px-4 py-2 hover:bg-gray-100">
-            {item.name}
-          </Link>
-        ))}
-      </div>
-    )}
-  </div>
-);
+// const NavDropdown = ({ label, items, mainLink }) => (
+//   <div className="group relative cursor-pointer">
+//     <Link href={mainLink} className="hover:underline">
+//       {label}
+//     </Link>
+//     {items.length > 0 && (
+//       <div className="absolute left-0 top-full mt-2 w-40 bg-white shadow-md rounded-md opacity-0 group-hover:opacity-100 scale-y-0 group-hover:scale-y-100 transform origin-top transition-all duration-300 ease-in-out z-10">
+//         {items.map((item, index) => (
+//           <Link href={item.link} key={index} className="block px-4 py-2 hover:bg-gray-100">
+//             {item.name}
+//           </Link>
+//         ))}
+//       </div>
+//     )}
+//   </div>
+// );
 
-const MobileDropdown = ({ label, items, mainLink }) => {
-  const [open, setOpen] = useState(false);
+const MobileDropdown = ({ label, mainLink, items }) => {
+  const [isOpen, setIsOpen] = useState(false);
   return (
-    <div className="border-b pb-2">
-      <div className="flex justify-between items-center w-full">
-        <Link href={mainLink} className="text-base font-medium">
-          {label}
-        </Link>
-        {items.length > 0 && (
-          <button
-            onClick={() => setOpen(!open)}
-            className="transition-transform duration-300 ease-in-out"
-          >
-            <span className={`inline-block transform transition-transform duration-300 ${open ? 'rotate-45' : 'rotate-0'}`}>
-              +
-            </span>
-          </button>
-        )}
-      </div>
-      {items.length > 0 && (
-        <div className={`transition-all duration-300 ease-in-out overflow-hidden ${open ? 'max-h-40 mt-2' : 'max-h-0'}`}>
-          <div className="ml-4 mt-2 flex flex-col gap-2">
-            {items.map((item, index) => (
-              <Link href={item.link} key={index} className="text-sm text-gray-700 hover:underline">
-                {item.name}
-              </Link>
-            ))}
-          </div>
+    <div className="border-b">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full text-left p-2 hover:bg-gray-100 flex justify-between items-center"
+      >
+        {label} <span>{isOpen ? '▼' : '▶'}</span>
+      </button>
+      {isOpen && (
+        <div className="pl-4">
+          <a href={mainLink} className="block p-2 text-gray-600 hover:text-black">
+            {label}
+          </a>
+          {items.map((item) => (
+            <a
+              key={item.name}
+              href={item.link}
+              className="block pl-4 p-2 text-gray-600 hover:text-black"
+            >
+              {item.name}
+            </a>
+          ))}
         </div>
       )}
     </div>
