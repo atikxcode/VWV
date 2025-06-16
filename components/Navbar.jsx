@@ -22,6 +22,11 @@ const Navbar = () => {
   const toggleSearch = () => setSearchOpen(true);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
+  const productOnClick = () =>{
+    setSidebarOpen(true);
+    setMobileMenuOpen(false)
+  }
+
   // Close search if clicked outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -39,9 +44,9 @@ const Navbar = () => {
         
         
         {/* Sidebar Toggle Button Start*/}
-        <button onClick={toggleSidebar} className="mr-2">
+        {/* <button onClick={toggleSidebar} className="mr-2 hidden">
           {sidebarOpen ? <X /> : <Menu />}
-        </button>
+        </button> */}
 
         {/* Sidebar Toggle Button End*/}
 
@@ -127,8 +132,8 @@ const Navbar = () => {
             </div>
           </div>
           
-          <a href="/blog" className="relative hover:text-gray-600 transition-colors group">
-            Blog
+          <a onClick={productOnClick} href="#" className="relative hover:text-gray-600 transition-colors group">
+            Product
             <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
           </a>
         </div>
@@ -362,12 +367,13 @@ const Navbar = () => {
                   </div>
                 )}
               </div>
-              <a
-                href="/blog"
+              <a 
+                onClick={productOnClick}
+                href="#"
                 className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors group"
                 style={{ animation: 'fadeIn 0.4s ease-out 1.3s' }}
               >
-                Blog
+                Product
                 <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <Link
@@ -387,74 +393,222 @@ const Navbar = () => {
 
       {/* Sidebar Start*/}
       
-      <div
-      className={`fixed top-0 left-0 h-full w-72 bg-white shadow-xl transform transition-transform duration-300 ease-in-out z-50 overflow-y-auto ${
-    sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-  }`}
->
-  {/* Header */}
-  <div className="bg-[#232F3E] text-white flex items-center gap-2 p-4">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="white" className="w-6 h-6" viewBox="0 0 24 24">
-      <path d="M12 12c2.209 0 4-1.791 4-4s-1.791-4-4-4-4 1.791-4 4 1.791 4 4 4zm0 2c-2.671 0-8 1.337-8 4v2h16v-2c0-2.663-5.329-4-8-4z"/>
-    </svg>
-    <span className="font-medium">Hello, sign in</span>
-  </div>
+        <div
+          className={`fixed top-0 left-0 h-full w-72 bg-white shadow-xl transform transition-transform duration-300 ease-in-out z-50 overflow-y-auto ${
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+          style={{
+            animation: isClosing ? 'slideOutLeft 0.3s ease-in' : 'slideInLeft 0.3s ease-out',
+          }}
+        >
+          {/* Header */}
+          <div className="bg-[#232F3E] text-white flex items-center gap-2 p-4">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="white" className="w-6 h-6" viewBox="0 0 24 24">
+              <path d="M12 12c2.209 0 4-1.791 4-4s-1.791-4-4-4-4 1.791-4 4 1.791 4 4 4zm0 2c-2.671 0-8 1.337-8 4v2h16v-2c0-2.663-5.329-4-8-4z"/>
+            </svg>
+            <span className="font-medium">Hello, sign in</span>
+          </div>
 
-  {/* Menu Sections */}
-  <div className="flex flex-col text-sm text-gray-800">
-    {/* Section 1: Digital Content & Devices */}
-    <div className="border-b px-4 pt-4 pb-2">
-      <h3 className="text-base font-bold mb-2">Digital Content & Devices</h3>
-      <MobileDropdown  label="Prime Video" mainLink="/prime-video" items={[]} />
-      <MobileDropdown label="Amazon Music" mainLink="/amazon-music" items={[]} />
-      <MobileDropdown label="Kindle E-readers & Books" mainLink="/kindle" items={[]} />
-      <MobileDropdown label="Amazon Appstore" mainLink="/appstore" items={[]} />
-    </div>
+          {/* Menu Sections */}
+          <div className="flex flex-col p-4 space-y-2 text-sm italic tracking-widest">
+            <a
+              href="/"
+              className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors group"
+              style={{ animation: 'fadeIn 0.4s ease-out' }}
+            >
+              Home
+              <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+            </a>
+            <div className="group">
+              <button
+                onClick={() => toggleSubmenu('New Arrival')}
+                className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors"
+                style={{ animation: 'fadeIn 0.4s ease-out 0.1s' }}
+              >
+                New Arrival
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              </button>
+              {openSubmenu === 'New Arrival' && (
+                <div
+                  className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
+                  style={{
+                    animation: openSubmenu === 'New Arrival' ? 'slideInRight 0.3s ease-out' : 'slideOutRight 0.3s ease-in',
+                  }}
+                >
+                  <a
+                    href="/new-arrivals/men"
+                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
+                  >
+                    Men
+                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                  </a>
+                  <a
+                    href="/new-arrivals/women"
+                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
+                  >
+                    Women
+                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                  </a>
+                </div>
+              )}
+            </div>
+            <div className="group">
+              <button
+                onClick={() => toggleSubmenu('Shop')}
+                className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors"
+                style={{ animation: 'fadeIn 0.4s ease-out 0.4s' }}
+              >
+                Shop
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              </button>
+              {openSubmenu === 'Shop' && (
+                <div
+                  className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
+                  style={{
+                    animation: openSubmenu === 'Shop' ? 'slideInRight 0.3s ease-out' : 'slideOutRight 0.3s ease-in',
+                  }}
+                >
+                  <a
+                    href="/shop/clothing"
+                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    style={{ animation: 'fadeIn 0.4s ease-out 0.5s' }}
+                  >
+                    Clothing
+                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                  </a>
+                  <a
+                    href="/shop/accessories"
+                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    style={{ animation: 'fadeIn 0.4s ease-out 0.6s' }}
+                  >
+                    Accessories
+                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                  </a>
+                </div>
+              )}
+            </div>
+            <div className="group">
+              <button
+                onClick={() => toggleSubmenu('Contact')}
+                className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors"
+                style={{ animation: 'fadeIn 0.4s ease-out 0.7s' }}
+              >
+                Contact
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              </button>
+              {openSubmenu === 'Contact' && (
+                <div
+                  className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
+                  style={{
+                    animation: openSubmenu === 'Contact' ? 'slideInRight 0.3s ease-out' : 'slideOutRight 0.3s ease-in',
+                  }}
+                >
+                  <a
+                    href="/contact/support"
+                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    style={{ animation: 'fadeIn 0.4s ease-out 0.8s' }}
+                  >
+                    Customer Support
+                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                  </a>
+                  <a
+                    href="/contact/locations"
+                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    style={{ animation: 'fadeIn 0.4s ease-out 0.9s' }}
+                  >
+                    Store Locations
+                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                  </a>
+                </div>
+              )}
+            </div>
+            <div className="group">
+              <button
+                onClick={() => toggleSubmenu('About Us')}
+                className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors"
+                style={{ animation: 'fadeIn 0.4s ease-out 1s' }}
+              >
+                About Us
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              </button>
+              {openSubmenu === 'About Us' && (
+                <div
+                  className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
+                  style={{
+                    animation: openSubmenu === 'About Us' ? 'slideInRight 0.3s ease-out' : 'slideOutRight 0.3s ease-in',
+                  }}
+                >
+                  <a
+                    href="/about/story"
+                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    style={{ animation: 'fadeIn 0.4s ease-out 1.1s' }}
+                  >
+                    Our Story
+                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                  </a>
+                  <a
+                    href="/about/team"
+                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    style={{ animation: 'fadeIn 0.4s ease-out 1.2s' }}
+                  >
+                    Team
+                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                  </a>
+                </div>
+              )}
+            </div>
+            <a
+              onClick={productOnClick}
+              href="#"
+              className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors group"
+              style={{ animation: 'fadeIn 0.4s ease-out 1.3s' }}
+            >
+              Product
+              <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+            </a>
+            <Link
+              href="/signin"
+              className="mt-4 italic font-bold text-center bg-[#FEB130] rounded-3xl px-6 py-2 text-sm text-gray-800 hover:bg-[#FF9F01] hover:border-gray-600 transition-colors duration-300"
+            >
+              Sign In
+            </Link>
+          </div>
 
-    {/* Section 2: Shop by Department */}
-    <div className="border-b px-4 pt-4 pb-2">
-      <h3 className="text-base font-bold mb-2">Shop by Department</h3>
-      <MobileDropdown label="Electronics" mainLink="/electronics" items={[]} />
-      <MobileDropdown label="Computers" mainLink="/computers" items={[]} />
-      <MobileDropdown label="Smart Home" mainLink="/smart-home" items={[]} />
-      <MobileDropdown label="Arts & Crafts" mainLink="/arts-crafts" items={[]} />
-      <a href="/departments" className="block p-2 text-gray-600 hover:text-black">
-        See all
-      </a>
-    </div>
-
-    {/* Section 3: Programs & Features */}
-    <div className="border-b px-4 pt-4 pb-2">
-      <h3 className="text-base font-bold mb-2">Programs & Features</h3>
-      <MobileDropdown label="Gift Cards" mainLink="/gift-cards" items={[]} />
-      <MobileDropdown label="Shop by Interest" mainLink="/shop-by-interest" items={[]} />
-      <MobileDropdown label="Amazon Live" mainLink="/amazon-live" items={[]} />
-      <MobileDropdown label="International Shopping" mainLink="/international" items={[]} />
-      <a href="/programs" className="block p-2 text-gray-600 hover:text-black">
-        See all
-      </a>
-    </div>
-
-    {/* Section 4: Help & Settings */}
-    <div className="px-4 pt-4 pb-6">
-      <h3 className="text-base font-bold mb-2">Help & Settings</h3>
-      <a href="/help" className="block p-2 text-gray-600 hover:text-black">
-        Help
-      </a>
-    </div>
-  </div>
-
-  {/* Close Button */}
-  <button
-    onClick={toggleSidebar}
-    className="absolute top-3 right-3 text-gray-500 hover:text-black text-2xl"
-  >
-    ✕
-  </button>
-      </div>
+          {/* Close Button */}
+          <button
+            onClick={() => {
+              setIsClosing(true);
+              setTimeout(() => {
+                setSidebarOpen(false);
+                setIsClosing(false);
+                setOpenSubmenu(null);
+              }, 300);
+            }}
+            className="absolute top-3 right-3 text-gray-500 hover:text-black text-2xl focus:outline-none"
+            aria-label="Close sidebar"
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
 
 
       {/* Sidebar End */}
+
     </div>
   );
 };
