@@ -3,12 +3,17 @@ import "./globals.css";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 
+
 const forum = Forum({
   variable: "--font-forum",
   subsets: ["latin"],
   weight: "400",
   display: "swap", // Helps improve fallback behavior
 });
+
+
+
+
 
 export const metadata = {
   title: "Create Next App",

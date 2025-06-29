@@ -163,7 +163,7 @@ const Navbar = () => {
 
           {/* Sign In Button  */}
           <Link
-            href="/AdminPanel"
+            href="/LoginPage"
             className="hidden text-[15px] tracking-widest italic md:block bg-[#FEB130]  rounded-3xl px-6 py-2  text-gray-800 hover:bg-[#FF9F01]  transition-colors duration-200"
           >
             Sign In
