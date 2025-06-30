@@ -11,6 +11,7 @@
   "dependencies": {
     "@heroui/navbar": "^2.2.18",
     "chart.js": "^4.4.9",
+    "firebase": "^11.10.0",
     "framer-motion": "^12.18.1",
     "lucide-react": "^0.511.0",
     "next": "15.3.3",

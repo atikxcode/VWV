@@ -14,24 +14,26 @@ export default function RegisterPage() {
 
   const onSubmit = async (data) => {
     console.log('Form submitted:', { ...data, accountType });
-    // Add backend logic here
+    const {firstName, lastName, email, password} = data;
+
+    console.log(firstName, lastName, email, password, accountType);
   };
 
   const imagePath = isBusiness
-    ? '/SignIn_SignUp_Logo/BusinessRegistration.jpg' // dummy
-    : '/SignIn_SignUp_Logo/PersonalRegistration.jpg'; // dummy
+    ? '/SignIn_SignUp_Logo/BusinessRegistration.jpg' 
+    : '/SignIn_SignUp_Logo/PersonalRegistration.jpg'; 
 
   return (
     <div className="min-h-screen flex items-center justify-between bg-white ">
-      <div className="flex w-full h-screen px-[60px]">
+      <div className="flex w-full h-screen lg:px-[30px] xl:px-[60px]">
         
         {/* Left: Dynamic Image - 40% */}
-        <div className="w-2/5 p-8 relative hidden md:block ">
-          <img className='rounded-lg' src={imagePath} alt="" />
+        <div className="xl:w-2/5 xl:p-8 relative hidden lg:block">
+          <img className='rounded-lg  lg:h-[90%] xl:h-auto' src={imagePath} alt="" />
         </div>
 
         {/* Right: Form - 60% */}
-        <div className="w-full md:w-3/5 p-8 flex items-center justify-center">
+        <div className="w-full md:w-3/5 p-8 flex items-center justify-center mx-auto">
           <div className="w-full max-w-md h-[80%] space-y-6">
             <h2 className="text-2xl font-semibold text-center mb-4">Create an account</h2>
 
@@ -175,7 +177,7 @@ export default function RegisterPage() {
             </form>
 
             <p className="text-center text-sm text-gray-600">
-              Already have an account? <a href="/login" className="text-blue-600 underline">Sign in</a>
+              Already have an account? <a href="/LoginPage" className="text-blue-600 underline">Sign in</a>
             </p>
 
             {accountType === 'Personal' && (
