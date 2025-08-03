@@ -28,7 +28,7 @@ export default function RegisterPage() {
       <div className="flex w-full h-screen lg:px-[30px] xl:px-[60px]">
         
         {/* Left: Dynamic Image - 40% */}
-        <div className="xl:w-2/5 xl:p-8 relative hidden lg:block">
+        <div className="xl:w-2/5 lg:p-6 xl:p-8 relative hidden lg:block">
           <img className='rounded-lg  lg:h-[90%] xl:h-auto' src={imagePath} alt="" />
         </div>
 

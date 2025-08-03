@@ -1,11 +1,18 @@
 'use client';
 import { useForm } from 'react-hook-form';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { FcGoogle } from 'react-icons/fc';
 import { FaFacebookF, FaApple } from 'react-icons/fa';
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
+import AuthProvider, { AuthContext } from '../../../Provider/AuthProvider';
+import { useRouter } from 'next/navigation';
+
+
 
 export default function LoginPage() {
+  
+  const {handleGoogleSignIn, user} = useContext(AuthContext)
+  const router = useRouter();
   const {
     register,
     handleSubmit,
@@ -18,31 +25,53 @@ export default function LoginPage() {
 
   const handleEmailSubmit = (data) => {
     setEmailOrUsername(data.email);
-    setValue('email', data.email); // Set for final submit
+    setValue('email', data.email); 
     setStep('password');
   };
 
-  const onSubmit = async (data) => {
+  // const onSubmit = async (data) => {
+  //   try {
+  //     const response = await fetch('/api/login', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify(data),
+  //     });
+
+  //     const result = await response.json();
+
+  //     if (!response.ok) {
+  //       throw new Error(result.message || 'Login failed');
+  //     }
+
+  //     console.log('Login successful:', result);
+      
+  //   } catch (err) {
+  //     console.error('Login error:', err.message);
+  //     alert(err.message);
+  //   }
+  // };
+
+
+const handleGoogleLoginAndRedirect = async () => {
     try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Login failed');
+      await handleGoogleSignIn();
+      // Log user information after Google Sign-In
+      if (user) {
+        console.log('Google Sign-In User:', {
+          uid: user.uid,
+          displayName: user.displayName,
+          email: user.email,
+          photoURL: user.photoURL,
+        });
       }
-
-      console.log('Login successful:', result);
-      // router.push('/dashboard');
-    } catch (err) {
-      console.error('Login error:', err.message);
-      alert(err.message);
+      router.push('/'); // Redirect to home page after successful Google login
+    } catch (error) {
+      console.error('Google Sign-In Error:', error);
+      alert('Google Sign-In failed. Please try again.');
     }
   };
+
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white px-4">
@@ -102,7 +131,7 @@ export default function LoginPage() {
 
         {/* Social login buttons */}
         <div className="space-y-3">
-          <button className="w-full flex items-center justify-center border border-gray-300 rounded-full py-2 hover:bg-gray-50 transition">
+          <button onClick={handleGoogleLoginAndRedirect} className="w-full hover:cursor-pointer flex items-center justify-center border border-gray-300 rounded-full py-2 hover:bg-gray-50 transition">
             <FcGoogle className="text-xl mr-2" />
             Continue with Google
           </button>

@@ -2,7 +2,7 @@ import { Forum } from "next/font/google";
 import "./globals.css";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-
+import AuthProvider from "../../Provider/AuthProvider";
 
 const forum = Forum({
   variable: "--font-forum",
@@ -21,12 +21,16 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  
   return (
     <html lang="en">
       <body className={`${forum.variable} antialiased`}>
-        <Navbar />
+        <AuthProvider>
+         <Navbar />
         {children}
         <Footer />
+        </AuthProvider>
+       
       </body>
     </html>
   );
