@@ -1,16 +1,14 @@
-import { Forum } from "next/font/google";
+import { Josefin_Sans } from "next/font/google";
 import "./globals.css";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import AuthProvider from "../../Provider/AuthProvider";
 
-const forum = Forum({
-  variable: "--font-forum",
+const josefinSans = Josefin_Sans({
+  variable: "--font-primary",
   subsets: ["latin"],
-  weight: "400",
-  display: "swap", // Helps improve fallback behavior
+  display: "swap",
 });
-
 
 
 
@@ -24,9 +22,9 @@ export default function RootLayout({ children }) {
   
   return (
     <html lang="en">
-      <body className={`${forum.variable} antialiased`}>
+      <body className={`${josefinSans.variable} antialiased`}>
         <AuthProvider>
-         <Navbar />
+         <Navbar></Navbar>
         {children}
         <Footer />
         </AuthProvider>

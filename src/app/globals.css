@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 :root {
-  --font-primary: var(--font-forum);
+  --font-primary: 'Josefin Sans';
 }
 
 body {

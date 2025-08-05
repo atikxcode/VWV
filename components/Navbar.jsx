@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect, useContext } from 'react';
-import { Search, ShoppingCart, Menu, X, Hamburger, HamburgerIcon, AlignLeft, User } from 'lucide-react';
+import { Search, ShoppingCart, Menu, X, Hamburger, HamburgerIcon, AlignLeft, User, Mail, Heart, Package, Shield, RefreshCcw, ServerIcon } from 'lucide-react';
 import Link from 'next/link';
 import { AuthContext } from '../Provider/AuthProvider'; // Adjust path as needed
 import { useRouter } from 'next/navigation';
@@ -9,7 +9,7 @@ const Navbar = () => {
   const { user, logOut } = useContext(AuthContext); // Access user and logout from AuthContext
   const router = useRouter();
 
-  const [searchOpen, setSearchOpen] = useState(false);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const searchRef = useRef(null);
 
@@ -21,8 +21,7 @@ const Navbar = () => {
   };
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
-  const toggleSearch = () => setSearchOpen(true);
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
 
  
 
@@ -32,33 +31,71 @@ const Navbar = () => {
   };
 
   const handleSignIn = () => {
-    
-   
     router.push('/LoginPage');
   };
 
   // Close search if clicked outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (searchRef.current && !searchRef.current.contains(event.target)) {
-        setSearchOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  // useEffect(() => {
+  //   const handleClickOutside = (event) => {
+  //     if (searchRef.current && !searchRef.current.contains(event.target)) {
+  //       setSearchOpen(false);
+  //     }
+  //   };
+  //   document.addEventListener('mousedown', handleClickOutside);
+  //   return () => document.removeEventListener('mousedown', handleClickOutside);
+  // }, []);
 
   return (
-    <div className="shadow-sm sticky top-0 bg-white z-50">
-      <div className="flex justify-between items-center p-4 mx-auto">
-     
+    <div>
 
-        {/* Logo Start */}
-        <h2 className="font-bold text-2xl italic tracking-widest">VWV</h2>
-        {/* Logo End */}
+      {/* Navbar First Part */}
+    <div className="bg-[#19191a]">
 
-        {/* Desktop Navigation start */}
-        <div className="hidden md:flex gap-6 text-sm italic tracking-wide">
+
+    {/* First part */}
+      <div className='mx-10 flex justify-between pt-4'>
+        <div className='text-white flex items-center gap-2'>
+          <span><Mail size={17}></Mail></span>
+          <span> vwv@gmail.com</span>
+          </div>
+        
+        <div className='text-white flex gap-4'>
+        <a href="#">Contact</a>
+        <a href="#">Support</a>
+        <a href="#">Login</a>
+        </div>
+      </div>
+    
+    {/* Search field */}
+    <div className="relative flex justify-center items-center h-20 w-full">
+      
+      {/* Ultra-Thin Horizontal Line */}
+      <div className="absolute top-1/2 left-0 w-full h-[0.5px] bg-gray-300"></div>
+      
+      {/* Search Box */}
+      <div className="relative flex items-center bg-gray-200 rounded-full px-3 py-2 w-[800px] h-[30px] mt-1">
+        
+        <input
+          className="bg-transparent outline-none text-gray-800 flex-1 placeholder-gray-500 px-2 text-sm"
+          type="text"
+          placeholder="Search..."
+        />
+        <button className="p-2 text-gray-600">
+          <Search size={17} />
+        </button>
+      </div>
+
+    </div>
+
+    {/* Navbar Start */}
+
+    <div className='text-white mx-10 pb-10 flex justify-between'>
+      {/* WebSite Name */}
+      <a href='/' className='text-2xl font-bold tracking-[10px]'>VWV</a>
+
+          {/* Desktop Navigation start */}
+
+             <div className="hidden md:flex gap-6 text-sm italic tracking-wide">
 
           {/* E-LIQUID */}
           <div className="relative group">
@@ -388,30 +425,21 @@ const Navbar = () => {
         </div>
         {/* Desktop Navigation End */}
 
-        {/* Search Icons start */}
-        <div className="flex items-center gap-4 relative">
-          <div ref={searchRef} className="relative">
-            <button onClick={toggleSearch} className="p-2">
-              <Search />
-            </button>
-            <input
-              type="text"
-              placeholder="Search products..."
-              className={`absolute right-0 top-1/2 -translate-y-1/2 rounded-full px-4 py-2 border border-gray-300 shadow-md bg-white transition-all duration-500 ease-in-out ${
-                searchOpen ? 'opacity-100 w-64' : 'opacity-0 w-0'
-              }`}
-              style={{ zIndex: searchOpen ? 20 : -1 }}
-            />
-          </div>
 
-          {/* Shopping Cart */}
+        {/* Side Icons  start*/}
+
+        <div className='flex items-center gap-4'>
           <Link href="/cart">
             <ShoppingCart />
+          </Link>
+          <Link href="/cart">
+          <Heart></Heart>
           </Link>
           {/* User */}
           <Link href="/cart">
             <User />
           </Link>
+          
 
           {/* Sign In/Sign Out Button */}
           {user ? (
@@ -435,11 +463,43 @@ const Navbar = () => {
             {mobileMenuOpen ? <X /> : <Menu />}
           </button>
         </div>
-        {/* Search Icons start */}
 
-      </div>
+          {/* Side Icons  start*/}
+        
+        
+        
+    </div>
 
-      {/* Mobile Menu start */}
+
+
+
+      
+    </div>
+
+    {/* Middle Part */}
+    <div className='bg-[#312A26]'>
+        <div className='flex mx-10 p-6 text-[#dddbd5] justify-between'>
+          
+          <div className='flex items-center gap-4 text-sm tracking-wider'>
+            <span><Package /></span>
+            <span>Free Delivery All Over Bangladesh</span>
+            <p></p>
+          </div>
+          <div className='flex items-center gap-4 text-sm tracking-wider'>
+            <span><Shield /></span>
+            <span>Free Delivery All Over Bangladesh</span>
+            <p></p>
+          </div>
+          <div className='flex items-center gap-4 text-sm tracking-wider'>
+            <span><ServerIcon /></span>
+            <span>24/7 Service All Over The Country</span>
+            <p></p>
+          </div>
+
+        </div>
+    </div>
+
+     {/* Mobile Menu start */}
       {mobileMenuOpen && (
         <div
           className="fixed top-0 right-0 w-72 h-full bg-white shadow-xl transform transition-transform duration-300 ease-in-out z-50 overflow-y-auto"
@@ -951,7 +1011,6 @@ const Navbar = () => {
       )}
       {/* Mobile Menu End */}
 
-      
     </div>
   );
 };
