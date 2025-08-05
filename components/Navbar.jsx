@@ -445,14 +445,14 @@ const Navbar = () => {
           {user ? (
             <button
               onClick={handleSignOut}
-              className="hidden text-[15px] tracking-widest italic md:block bg-[#FEB130] rounded-3xl px-6 py-2 text-gray-800 hover:bg-[#FF9F01] transition-colors duration-200"
+              className="hidden text-[15px] tracking-widest italic md:block bg-[#d2a48f]  px-6 py-2 text-gray-800 hover:bg-[#b9876c] transition-colors duration-200"
             >
               Sign Out
             </button>
           ) : (
             <button
               onClick={handleSignIn}
-              className="hidden text-[15px] tracking-widest italic md:block bg-[#FEB130] rounded-3xl px-6 py-2 text-gray-800 hover:bg-[#FF9F01] transition-colors duration-200"
+              className="hidden text-[15px] tracking-widest italic md:block bg-[#d2a48f]  px-6 py-2 text-gray-800 hover:bg-[#b9876c] transition-colors duration-200"
             >
               Sign In
             </button>
@@ -994,14 +994,14 @@ const Navbar = () => {
             {user ? (
               <button
                 onClick={handleSignOut}
-                className="mt-4 italic font-bold text-center bg-[#FEB130] rounded-3xl px-6 py-2 text-sm text-gray-800 hover:bg-[#FF9F01] hover:border-gray-600 transition-colors duration-300"
+                className="mt-4 italic font-bold text-center bg-[#d2a48f] rounded-3xl px-6 py-2 text-sm text-gray-800 hover:bg-[#b9876c] hover:border-gray-600 transition-colors duration-300"
               >
                 Sign Out
               </button>
             ) : (
               <Link
                 href="/LoginPage"
-                className="mt-4 italic font-bold text-center bg-[#FEB130] rounded-3xl px-6 py-2 text-sm text-gray-800 hover:bg-[#FF9F01] hover:border-gray-600 transition-colors duration-300"
+                className="mt-4 italic font-bold text-center bg-[#d2a48f] rounded-3xl px-6 py-2 text-sm text-gray-800 hover:bg-[#b9876c] hover:border-gray-600 transition-colors duration-300"
               >
                 Sign In
               </Link>
