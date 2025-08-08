@@ -58,3 +58,38 @@ body {
   transform: scale(1.1); /* zoom handled by transition */
   transition-delay: 1s; /* zoom starts after rotation finishes */
 }
+
+/* DOT PAGINATION */
+
+.custom-pagination {
+  position: absolute;
+  bottom: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  z-index: 10;
+}
+
+.custom-pagination .custom-bullet {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid white;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: all 0.25s ease;
+  display: inline-block;
+}
+
+.custom-pagination .custom-bullet.swiper-pagination-bullet-active {
+  background: white;
+  border: 2px solid white;
+  opacity: 1;
+}
+
+.custom-pagination .custom-bullet:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.15);
+  outline-offset: 3px;
+}
