@@ -36,3 +36,25 @@ body {
     transform: translateY(0);
   }
 }
+
+@keyframes spin-only {
+  from {
+    transform: rotate(0deg) scale(1);
+  }
+  to {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+/* Base state */
+.image {
+  transform: scale(1);
+  transition: transform 1s ease-in-out;
+}
+
+/* Hover state */
+.group:hover .image {
+  animation: spin-only 1s ease-in-out; /* rotation only */
+  transform: scale(1.1); /* zoom handled by transition */
+  transition-delay: 1s; /* zoom starts after rotation finishes */
+}
