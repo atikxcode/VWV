@@ -49,20 +49,26 @@ const Navbar = () => {
     <div>
 
       {/* Navbar First Part */}
-    <div className="bg-[#19191a]">
+    <div className="text-black">
 
 
     {/* First part */}
-      <div className='mx-10 flex justify-between pt-4'>
-        <div className='text-white flex items-center gap-2'>
+      <div className='mx-10 flex flex-col md:flex-row justify-between pt-4 mt-10 items-center'>
+        
+        <div className=' flex items-center gap-2'>
           <span><Mail size={17}></Mail></span>
           <span> vwv@gmail.com</span>
           </div>
+
+          <div className="flex items-center text-white mb-4 w-[1000px]">
+           <p className="text-center uppercase md:text-[20px] tracking-[4px] text-[#83766E] md:leading-[36px]"> <span  className="text-purple-400 text-[40px] tracking-[8px] uppercase">WARNING</span> <span className="text-purple-400 text-[40px] tracking-[8px] uppercase">[</span> Contains nicotine, a highly addictive substance. For adults of legal smoking age only. <span className="text-purple-400 text-[40px] tracking-[8px] uppercase">]</span></p>
+          
+        </div>
         
-        <div className='text-white flex gap-4'>
+        <div className='flex flex-col md:flex-row gap-4'>
         <a href="#">Contact</a>
         <a href="#">Support</a>
-        <a href="#">Login</a>
+        <a href="#">About</a>
         </div>
       </div>
     
@@ -89,65 +95,65 @@ const Navbar = () => {
 
     {/* Navbar Start */}
 
-    <div className='text-white mx-10 pb-10 flex justify-between'>
+    <div className=' mx-10 pb-10 flex justify-between'>
       {/* WebSite Name */}
-      <a href='/' className='text-2xl font-bold tracking-[10px]'>VWV</a>
+      <a href='/' className='text-2xl font-bold tracking-[10px] text-purple-400'>V<span className='text-[#83766E]'>ibe</span> W<span className='text-[#83766E]'>ith</span> V<span className='text-[#83766E]'>ape</span> </a>
 
           {/* Desktop Navigation start */}
 
-             <div className="hidden md:flex gap-6 text-sm italic tracking-wide">
+             <div className="hidden md:flex gap-6 text-sm  tracking-wide">
 
           {/* E-LIQUID */}
           <div className="relative group">
             <a
               href="/dummy"
-              className="relative hover:text-gray-600 transition-colors"
+              className="relative hover:text-purple-400 transition-colors"
             >
               E-LIQUID
-              <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
             </a>
             <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
               <a
                 href="/new-arrivals/men"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Fruits
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/new-arrivals/women"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Bakery & Dessert
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/new-arrivals/women"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Tobacco
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/new-arrivals/women"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Custard & Cream
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/new-arrivals/women"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Coffee
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/new-arrivals/women"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Menthol / Mint
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
             </div>
           </div>
@@ -155,46 +161,46 @@ const Navbar = () => {
           <div className="relative group">
             <a
               href="/shop"
-              className="relative hover:text-gray-600 transition-colors"
+              className="relative hover:text-purple-400 transition-colors"
             >
               TANKS
-              <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
             </a>
             <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
               <a
                 href="/shop/clothing"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                Rda
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/shop/accessories"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Rta
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/shop/accessories"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Rdta
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/shop/accessories"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Subohm
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/shop/accessories"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Disposable
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
             </div>
           </div>
@@ -202,46 +208,46 @@ const Navbar = () => {
           <div className="relative group">
             <a
               href="/contact"
-              className="relative hover:text-gray-600 transition-colors"
+              className="relative hover:text-purple-400 transition-colors"
             >
               NIC SALTS
-              <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
             </a>
             <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
               <a
                 href="/contact/support"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Fruits
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/contact/locations"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Bakery & Dessert
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/contact/locations"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Custard & Cream
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/contact/locations"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Coffee
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/contact/locations"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Menthol / Mint
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
             </div>
           </div>
@@ -249,32 +255,32 @@ const Navbar = () => {
           <div className="relative group">
             <a
               href="/about"
-              className="relative hover:text-gray-600 transition-colors"
+              className="relative hover:text-purple-400 transition-colors"
             >
               POD SYSTEM
-              <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
             </a>
             <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
               <a
                 href="/about/story"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Disposable
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Refillable Pod Kit
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Pre-Filled Cartridge
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
             </div>
           </div>
@@ -282,25 +288,25 @@ const Navbar = () => {
           <div className="relative group">
             <a
               href="/about"
-              className="relative hover:text-gray-600 transition-colors"
+              className="relative hover:text-purple-400 transition-colors"
             >
               DEVICE
-              <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
             </a>
             <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
               <a
                 href="/about/story"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Kit
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Only Mod
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
             </div>
           </div>
@@ -308,32 +314,32 @@ const Navbar = () => {
           <div className="relative group">
             <a
               href="/about"
-              className="relative hover:text-gray-600 transition-colors"
+              className="relative hover:text-purple-400 transition-colors"
             >
               BORO
-              <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
             </a>
             <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
               <a
                 href="/about/story"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Alo (Boro)
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Boro Bridge and Cartridge
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Boro Accessories and Tools
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
             </div>
           </div>
@@ -341,81 +347,81 @@ const Navbar = () => {
           <div className="relative group">
             <a
               href="/about"
-              className="relative hover:text-gray-600 transition-colors"
+              className="relative hover:text-purple-400 transition-colors"
             >
               ACCESSORIES
-              <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
             </a>
             <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
               <a
                 href="/about/story"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 SubOhm Coil
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Charger
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Cotton
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Premade Coil
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Battery
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Tank Glass
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Cartridge
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 RBA / RBK
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Wire Spool
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
               <a
                 href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 group/sub"
+                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
               >
                 Drip Tip
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
             
             </div>
@@ -445,14 +451,14 @@ const Navbar = () => {
           {user ? (
             <button
               onClick={handleSignOut}
-              className="hidden text-[15px] tracking-widest italic md:block bg-[#d2a48f]  px-6 py-2 text-gray-800 hover:bg-[#b9876c] transition-colors duration-200"
+              className="hidden text-[15px] tracking-widest  md:block bg-purple-400  px-6 py-2 text-black hover:bg-purple-500 transition-colors duration-200"
             >
               Sign Out
             </button>
           ) : (
             <button
               onClick={handleSignIn}
-              className="hidden text-[15px] tracking-widest italic md:block bg-[#d2a48f]  px-6 py-2 text-gray-800 hover:bg-[#b9876c] transition-colors duration-200"
+              className="hidden text-[15px] tracking-widest  md:block bg-purple-400  px-6 py-2  text-black hover:bg-purple-500 transition-colors duration-200"
             >
               Sign In
             </button>
@@ -476,28 +482,7 @@ const Navbar = () => {
       
     </div>
 
-    {/* Middle Part */}
-    <div className='bg-[#312A26]'>
-        <div className='flex mx-10 p-6 text-[#dddbd5] justify-between'>
-          
-          <div className='flex items-center gap-4 text-sm tracking-wider'>
-            <span><Package /></span>
-            <span>Free Delivery All Over Bangladesh</span>
-            <p></p>
-          </div>
-          <div className='flex items-center gap-4 text-sm tracking-wider'>
-            <span><Shield /></span>
-            <span>Free Delivery All Over Bangladesh</span>
-            <p></p>
-          </div>
-          <div className='flex items-center gap-4 text-sm tracking-wider'>
-            <span><ServerIcon /></span>
-            <span>24/7 Service All Over The Country</span>
-            <p></p>
-          </div>
 
-        </div>
-    </div>
 
      {/* Mobile Menu start */}
       {mobileMenuOpen && (
@@ -540,7 +525,7 @@ const Navbar = () => {
           </div>
 
 
-          <div className="flex flex-col p-4 space-y-2 text-sm italic tracking-widest">
+          <div className="flex flex-col p-4 space-y-2 text-sm  tracking-widest">
 
             {/* E-Liquid */}
             <div className="group">
@@ -564,7 +549,7 @@ const Navbar = () => {
                 >
                   <a
                     href="/new-arrivals/men"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
                   >
                     Fruits
@@ -572,7 +557,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Bakery & Dessert
@@ -580,7 +565,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Tobacco
@@ -588,7 +573,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Custard & Cream
@@ -596,7 +581,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Coffee
@@ -604,7 +589,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Menthol / Mint
@@ -636,7 +621,7 @@ const Navbar = () => {
                 >
                   <a
                     href="/new-arrivals/men"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
                   >
                     Rda
@@ -644,7 +629,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Rta
@@ -652,7 +637,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Rdta
@@ -660,7 +645,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Subohm
@@ -668,7 +653,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Disposable
@@ -701,7 +686,7 @@ const Navbar = () => {
                 >
                   <a
                     href="/new-arrivals/men"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
                   >
                     Fruits
@@ -709,7 +694,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Bakery & Dessert
@@ -717,7 +702,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Tobacco
@@ -725,7 +710,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Custard & Cream
@@ -733,7 +718,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Coffee
@@ -741,7 +726,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Menthol / Mint
@@ -773,7 +758,7 @@ const Navbar = () => {
                 >
                   <a
                     href="/new-arrivals/men"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
                   >
                     Disposable
@@ -781,7 +766,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Refillable Pod Kit
@@ -789,7 +774,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Pre-Filled Cartridge
@@ -821,7 +806,7 @@ const Navbar = () => {
                 >
                   <a
                     href="/new-arrivals/men"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
                   >
                     Kit
@@ -829,7 +814,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Only Mod
@@ -861,7 +846,7 @@ const Navbar = () => {
                 >
                   <a
                     href="/new-arrivals/men"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
                   >
                     Alo (Boro)
@@ -869,7 +854,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Boro Bridge and Cartridge
@@ -877,7 +862,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Boro Accessories and Tools
@@ -909,7 +894,7 @@ const Navbar = () => {
                 >
                   <a
                     href="/new-arrivals/men"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
                   >
                     SubOhm Coil
@@ -917,7 +902,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Charger
@@ -925,7 +910,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Cotton
@@ -933,7 +918,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Premade Coil
@@ -941,7 +926,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Battery
@@ -949,7 +934,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Tank Glass
@@ -957,7 +942,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Cartridge
@@ -965,7 +950,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     RBA / RBK
@@ -973,7 +958,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Wire Spool
@@ -981,7 +966,7 @@ const Navbar = () => {
                   </a>
                   <a
                     href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black italic group/sub"
+                    className="relative block py-1 px-4 text-sm text-black  group/sub"
                     // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
                   >
                     Drip Tip
@@ -994,14 +979,14 @@ const Navbar = () => {
             {user ? (
               <button
                 onClick={handleSignOut}
-                className="mt-4 italic font-bold text-center bg-[#d2a48f] rounded-3xl px-6 py-2 text-sm text-gray-800 hover:bg-[#b9876c] hover:border-gray-600 transition-colors duration-300"
+                className="mt-4  font-bold text-center bg-purple-800 rounded-3xl px-6 py-2 text-sm text-white   transition-colors duration-300"
               >
                 Sign Out
               </button>
             ) : (
               <Link
                 href="/LoginPage"
-                className="mt-4 italic font-bold text-center bg-[#d2a48f] rounded-3xl px-6 py-2 text-sm text-gray-800 hover:bg-[#b9876c] hover:border-gray-600 transition-colors duration-300"
+                className="mt-4  font-bold text-center bg-purple-800 rounded-3xl px-6 py-2 text-sm text-white   transition-colors duration-300"
               >
                 Sign In
               </Link>

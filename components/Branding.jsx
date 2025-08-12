@@ -5,7 +5,7 @@ const Branding = ({brands}) => {
 
    <div className='mx-auto container my-10 p-8  w-full'>
 
-    <div className='mb-10 items-center text-center text-5xl  italic tracking-wide'>
+    <div className='mb-10 items-center text-center text-5xl   tracking-wide'>
       <h2>We Supported By</h2>
     </div>
     <div className='grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-2 py-4 px-4 '>

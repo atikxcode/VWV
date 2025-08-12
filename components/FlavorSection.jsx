@@ -60,8 +60,8 @@ const FlavorSection = () => {
           slidesPerGroup={3}
           spaceBetween={20}
           loop={true}
-          loopFillGroupWithBlank={true}
-          loopedSlides={4} // set to total slides count
+          
+          
           pagination={{
             el: ".custom-pagination",
             clickable: true,
