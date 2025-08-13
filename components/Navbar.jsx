@@ -53,15 +53,15 @@ const Navbar = () => {
 
 
     {/* First part */}
-      <div className='mx-10 flex flex-col md:flex-row justify-between pt-4 mt-10 items-center'>
+      <div className='mx-10 flex flex-col md:flex-row justify-between pt-4 mt-2 items-center'>
         
         <div className=' flex items-center gap-2'>
           <span><Mail size={17}></Mail></span>
           <span> vwv@gmail.com</span>
           </div>
 
-          <div className="flex items-center text-white mb-4 w-[1000px]">
-           <p className="text-center uppercase md:text-[20px] tracking-[4px] text-[#83766E] md:leading-[36px]"> <span  className="text-purple-400 text-[40px] tracking-[8px] uppercase">WARNING</span> <span className="text-purple-400 text-[40px] tracking-[8px] uppercase">[</span> Contains nicotine, a highly addictive substance. For adults of legal smoking age only. <span className="text-purple-400 text-[40px] tracking-[8px] uppercase">]</span></p>
+          <div className="flex items-center text-white  w-[1000px]">
+           <p className="text-center uppercase md:text-[14px] tracking-[4px] text-[#83766E] md:leading-[30px]"> <span  className="text-purple-400 md:text-[30px] tracking-[8px] uppercase">WARNING</span> <span className="text-purple-400 text-[24px] tracking-[8px] uppercase">[</span> Contains nicotine, a highly addictive substance. For adults of legal smoking age only. <span className="text-purple-400 text-[24px] tracking-[8px] uppercase">]</span></p>
           
         </div>
         
@@ -95,7 +95,7 @@ const Navbar = () => {
 
     {/* Navbar Start */}
 
-    <div className=' mx-10 pb-10 flex justify-between'>
+    <div className=' mx-10 pb-4 flex justify-between'>
       {/* WebSite Name */}
       <a href='/' className='text-2xl font-bold tracking-[10px] text-purple-400'>V<span className='text-[#83766E]'>ibe</span> W<span className='text-[#83766E]'>ith</span> V<span className='text-[#83766E]'>ape</span> </a>
 

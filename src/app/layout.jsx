@@ -3,6 +3,7 @@ import "./globals.css";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import AuthProvider from "../../Provider/AuthProvider";
+import AgeVerification from "../../components/AgeVerification";
 
 const josefinSans = Josefin_Sans({
   variable: "--font-primary",
@@ -24,6 +25,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={`${josefinSans.variable} antialiased`}>
         <AuthProvider>
+          <AgeVerification />
          <Navbar></Navbar>
         {children}
         <Footer />
