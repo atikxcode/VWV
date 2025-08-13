@@ -31,7 +31,7 @@ const Navbar = () => {
   };
 
   const handleSignIn = () => {
-    router.push('/LoginPage');
+    router.push('/RegistrationPage');
   };
 
   // Close search if clicked outside
@@ -985,7 +985,7 @@ const Navbar = () => {
               </button>
             ) : (
               <Link
-                href="/LoginPage"
+                href="/RegistrationPage"
                 className="mt-4  font-bold text-center bg-purple-800 rounded-3xl px-6 py-2 text-sm text-white   transition-colors duration-300"
               >
                 Sign In

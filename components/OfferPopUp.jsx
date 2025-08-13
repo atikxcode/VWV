@@ -42,23 +42,27 @@ export default function OfferPopup({
       />
 
       {/* Popup Modal */}
-      <div className="relative mx-4 w-full max-w-2xl bg-white shadow-2xl rounded-lg overflow-hidden">
+      <div className="relative w-[600px] h-[300px] bg-white p-[10px] rounded-lg shadow-2xl overflow-hidden">
         {/* Close Button */}
         <button
           onClick={() => setOpen(false)}
-          className="absolute top-3 right-3 z-10 bg-black/60 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black/80"
+          className="absolute -top-[-4%] right-[2%] z-10 bg-black text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-gray-800"
         >
           ✕
         </button>
 
-        {/* Image Background */}
+        {/* Image with border */}
         <div
-          className="relative flex flex-col items-center justify-center text-center p-10 bg-cover bg-center"
+          className="relative w-full h-full bg-cover bg-center flex items-center justify-center"
           style={{
             backgroundImage: `url(${imageSrc})`
           }}
         >
-          <div className="bg-black/50 p-6 rounded-lg">
+          {/* Dark overlay inside image */}
+          <div className="absolute inset-0 bg-black/40 rounded-lg"></div>
+
+          {/* Centered content */}
+          <div className="relative text-center px-4">
             <p className="text-sm tracking-widest text-white mb-2">{headline}</p>
             <h2 className="text-4xl font-extrabold text-white tracking-wide mb-2">
               {title}

@@ -23,7 +23,7 @@ export default function RootLayout({ children }) {
   
   return (
     <html lang="en">
-      <body className={`${josefinSans.variable} antialiased`}>
+      <body className={`${josefinSans.variable} antialiased bg-purple-50`}>
         <AuthProvider>
           <AgeVerification />
          <Navbar></Navbar>
