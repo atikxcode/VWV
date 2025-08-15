@@ -92,7 +92,11 @@ const Recommendation = () => {
             Explore the latest vape devices, flavors, and starter kits for a
             smooth vaping experience.
           </p>
-          <button className="uppercase bg-purple-400 px-16 py-4 font-bold text-white text-[12px]">
+          <button
+            className="uppercase bg-purple-400 px-16 py-4 font-bold text-white text-[12px] 
+            transition-shadow duration-300 ease-in-out
+            hover:shadow-[0_0_15px_4px_rgba(128,0,255,0.7)]"
+          >
             EXPLORE NOW
           </button>
         </div>
