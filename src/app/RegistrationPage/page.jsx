@@ -1,56 +1,131 @@
-"use client";
+'use client'
 
-import { useForm } from "react-hook-form";
-import { useContext, useState } from "react";
-import { HiEye, HiEyeOff } from "react-icons/hi";
-import Image from "next/image";
-import { AuthContext } from "../../../Provider/AuthProvider";
-import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form'
+import { useContext, useState } from 'react'
+import { HiEye, HiEyeOff } from 'react-icons/hi'
+import Image from 'next/image'
+import { AuthContext } from '../../../Provider/AuthProvider'
+import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
 
 export default function RegistrationPage() {
+  const {
+    handleGoogleSignIn,
+    user,
+    handleAppleSignIn,
+    createUser,
+    updateUser,
+    logOut,
+  } = useContext(AuthContext)
+  const router = useRouter()
 
-const {handleGoogleSignIn, user} = useContext(AuthContext)
-  const router = useRouter();
-
-
-const handleGoogleLoginAndRedirect = async () => {
+  //  Google login function
+  const handleGoogleLoginAndRedirect = async () => {
     try {
-      await handleGoogleSignIn();
-      // Log user information after Google Sign-In
+      await handleGoogleSignIn()
       if (user) {
         console.log('Google Sign-In User:', {
           uid: user.uid,
           displayName: user.displayName,
           email: user.email,
           photoURL: user.photoURL,
-        });
+        })
       }
-      router.push('/'); // Redirect to home page after successful Google login
+      router.push('/')
     } catch (error) {
-      console.error('Google Sign-In Error:', error);
-      alert('Google Sign-In failed. Please try again.');
+      console.error('Google Sign-In Error:', error)
+      alert('Google Sign-In failed. Please try again.')
     }
-  };
+  }
 
-  const [accountType, setAccountType] = useState("Login");
-  const [showPassword, setShowPassword] = useState(false);
+  //  Apple login function
+  const handleAppleLoginAndRedirect = async () => {
+    try {
+      const result = await handleAppleSignIn()
+      const loggedInUser = result.user
+      console.log('Apple Sign-In User:', {
+        uid: loggedInUser.uid,
+        displayName: loggedInUser.displayName,
+        email: loggedInUser.email,
+        photoURL: loggedInUser.photoURL,
+      })
+      router.push('/')
+    } catch (error) {
+      console.error('Apple Sign-In Error:', error)
+      alert('Apple Sign-In failed. Please try again.')
+    }
+  }
+
+  const [accountType, setAccountType] = useState('Login')
+  const [showPassword, setShowPassword] = useState(false)
+  // Hook Form
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isValid },
-  } = useForm({ mode: "onChange" });
+  } = useForm({ mode: 'onChange' })
 
-  const isSignup = accountType === "Signup";
+  const isSignup = accountType === 'Signup'
 
   const onSubmit = async (data) => {
-    console.log("Form submitted:", { ...data, accountType });
-    const { firstName, lastName, email, password } = data;
-    console.log(firstName, lastName, email, password, accountType);
-  };
+    if (!isSignup) {
+      console.log('Login form submitted:', data)
+      return
+    }
+
+    // Signup flow
+    const userDetails = {
+      email: data.email,
+      name: data.fullName,
+      role: 'client',
+    }
+
+    try {
+      // 1️⃣ Create auth user
+      const result = await createUser(userDetails.email, data.password)
+
+      // 2️⃣ Update user profile
+      await updateUser(result.user, userDetails.name)
+
+      // 3️⃣ Send verification email
+      // await verifyEmail()
+
+      // 4️⃣ Save user to backend (Next.js API)
+      await toast.promise(
+        fetch('/api/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(userDetails),
+        }).then(async (res) => {
+          if (!res.ok) {
+            const err = await res.json()
+            throw new Error(err.error || 'Failed to save user')
+          }
+          return res.json()
+        }),
+        {
+          loading: 'Saving user...',
+          success: <b>{userDetails.name} is Registered As New User!</b>,
+          error: <b>Could not save user.</b>,
+        }
+      )
+
+      // 5️⃣ Reset form and navigate
+      reset()
+      // router.push('/login')
+
+      // 6️⃣ Logout user after registration
+      // await logOut()
+    } catch (error) {
+      console.error(error)
+      toast.error(error.message || 'Registration failed')
+    }
+  }
 
   const imagePath = isSignup
-    ? "/SignIn_SignUp_Logo/Reg_1.jpg"
-    : "/SignIn_SignUp_Logo/Reg_2.jpg";
+    ? '/SignIn_SignUp_Logo/Reg_1.jpg'
+    : '/SignIn_SignUp_Logo/Reg_2.jpg'
 
   return (
     <div className="min-h-screen flex items-center justify-between">
@@ -68,19 +143,19 @@ const handleGoogleLoginAndRedirect = async () => {
         <div className="w-full md:w-3/5 p-8 flex items-center justify-center mx-auto">
           <div className="w-full max-w-md h-[80%] space-y-6">
             <h2 className="text-2xl font-semibold text-center mb-4">
-              {isSignup ? "Create an account" : "Welcome back"}
+              {isSignup ? 'Create an account' : 'Welcome back'}
             </h2>
 
             {/* Tabs */}
             <div className="flex mb-4 border-[1px] p-1 border-gray-300 rounded-full overflow-hidden">
-              {["Login", "Signup"].map((type) => (
+              {['Login', 'Signup'].map((type) => (
                 <button
                   key={type}
                   onClick={() => setAccountType(type)}
                   className={`w-1/2 py-2 text-sm font-medium transition rounded-2xl ${
                     accountType === type
-                      ? "bg-purple-400 text-white"
-                      : "bg-white text-black hover:bg-gray-100"
+                      ? 'bg-purple-400 text-white'
+                      : 'bg-white text-black hover:bg-gray-100'
                   }`}
                 >
                   {type}
@@ -100,36 +175,27 @@ const handleGoogleLoginAndRedirect = async () => {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               {isSignup ? (
                 <>
-                  <div className="flex gap-3">
-                    <input
-                      type="text"
-                      placeholder="First name"
-                      {...register("firstName", {
-                        required: "First name is required",
-                      })}
-                      className="w-1/2 border border-gray-300 rounded-md px-4 py-2"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Last name"
-                      {...register("lastName", {
-                        required: "Last name is required",
-                      })}
-                      className="w-1/2 border border-gray-300 rounded-md px-4 py-2"
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    placeholder="Full Name"
+                    {...register('fullName', {
+                      required: 'Full Name is required',
+                    })}
+                    className="w-full border border-gray-300 rounded-md px-4 py-2"
+                  />
+
                   <input
                     type="email"
                     placeholder="Email"
-                    {...register("email", { required: "Email is required" })}
+                    {...register('email', { required: 'Email is required' })}
                     className="w-full border border-gray-300 rounded-md px-4 py-2"
                   />
                   <div className="relative">
                     <input
-                      type={showPassword ? "text" : "password"}
+                      type={showPassword ? 'text' : 'password'}
                       placeholder="Password"
-                      {...register("password", {
-                        required: "Password is required",
+                      {...register('password', {
+                        required: 'Password is required',
                       })}
                       className="w-full border border-gray-300 rounded-md px-4 py-2 pr-10"
                     />
@@ -150,15 +216,15 @@ const handleGoogleLoginAndRedirect = async () => {
                   <input
                     type="email"
                     placeholder="Email"
-                    {...register("email", { required: "Email is required" })}
+                    {...register('email', { required: 'Email is required' })}
                     className="w-full border border-gray-300 rounded-md px-4 py-2"
                   />
                   <div className="relative">
                     <input
-                      type={showPassword ? "text" : "password"}
+                      type={showPassword ? 'text' : 'password'}
                       placeholder="Password"
-                      {...register("password", {
-                        required: "Password is required",
+                      {...register('password', {
+                        required: 'Password is required',
                       })}
                       className="w-full border border-gray-300 rounded-md px-4 py-2 pr-10"
                     />
@@ -179,11 +245,11 @@ const handleGoogleLoginAndRedirect = async () => {
               {/* Legal text */}
               {isSignup && (
                 <p className="text-xs text-gray-600">
-                  By selecting <strong>Create account</strong>, you agree to our{" "}
+                  By selecting <strong>Create account</strong>, you agree to our{' '}
                   <a href="#" className="text-blue-600 underline">
                     User Agreement
-                  </a>{" "}
-                  and acknowledge reading our{" "}
+                  </a>{' '}
+                  and acknowledge reading our{' '}
                   <a href="#" className="text-blue-600 underline">
                     User Privacy Notice
                   </a>
@@ -197,11 +263,11 @@ const handleGoogleLoginAndRedirect = async () => {
                 disabled={!isValid}
                 className={`w-full py-2 rounded-full font-semibold transition ${
                   isValid
-                    ? "bg-black text-white hover:bg-gray-900"
-                    : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    ? 'bg-black text-white hover:bg-gray-900'
+                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 }`}
               >
-                {isSignup ? "Create account" : "Login"}
+                {isSignup ? 'Create account' : 'Login'}
               </button>
             </form>
 
@@ -209,10 +275,10 @@ const handleGoogleLoginAndRedirect = async () => {
             <p className="text-center text-sm text-gray-600">
               {isSignup ? (
                 <>
-                  Already have an account?{" "}
+                  Already have an account?{' '}
                   <button
                     type="button"
-                    onClick={() => setAccountType("Login")}
+                    onClick={() => setAccountType('Login')}
                     className="text-blue-600 underline"
                   >
                     Login
@@ -220,10 +286,10 @@ const handleGoogleLoginAndRedirect = async () => {
                 </>
               ) : (
                 <>
-                  Don't have an account?{" "}
+                  Don't have an account?{' '}
                   <button
                     type="button"
-                    onClick={() => setAccountType("Signup")}
+                    onClick={() => setAccountType('Signup')}
                     className="text-blue-600 underline"
                   >
                     Signup
@@ -233,11 +299,17 @@ const handleGoogleLoginAndRedirect = async () => {
             </p>
 
             {/* Social Login (only for Login tab) */}
-            {accountType === "Login" && (
+            {accountType === 'Login' && (
               <>
-                <div className="text-center text-gray-500">or continue with</div>
+                <div className="text-center text-gray-500">
+                  or continue with
+                </div>
                 <div className="flex justify-center space-x-4">
-                  <button onClick={handleGoogleLoginAndRedirect}  className="w-12 h-12 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100">
+                  {/* Google */}
+                  <button
+                    onClick={handleGoogleLoginAndRedirect}
+                    className="w-12 h-12 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100"
+                  >
                     <Image
                       src="/SocialMediaLogo/Google.png"
                       alt="Google"
@@ -245,15 +317,12 @@ const handleGoogleLoginAndRedirect = async () => {
                       height={30}
                     />
                   </button>
-                  <button className="w-12 h-12 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100">
-                    <Image
-                      src="/SocialMediaLogo/Facebook.png"
-                      alt="Facebook"
-                      width={22}
-                      height={22}
-                    />
-                  </button>
-                  <button className="w-12 h-12 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100">
+
+                  {/* Apple */}
+                  <button
+                    onClick={handleAppleLoginAndRedirect}
+                    className="w-12 h-12 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100"
+                  >
                     <Image
                       src="/SocialMediaLogo/Apple.png"
                       alt="Apple"
@@ -268,5 +337,5 @@ const handleGoogleLoginAndRedirect = async () => {
         </div>
       </div>
     </div>
-  );
+  )
 }
