@@ -4,6 +4,7 @@ import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import AuthProvider from '../../Provider/AuthProvider'
 import AgeVerification from '../../components/AgeVerification'
+import { Toaster } from 'react-hot-toast' // ✅ Import Toaster
 
 const josefinSans = Josefin_Sans({
   variable: '--font-primary',
@@ -22,7 +23,7 @@ export default function RootLayout({ children }) {
       <body className={`${josefinSans.variable} antialiased bg-purple-50`}>
         <AuthProvider>
           <AgeVerification />
-          <Navbar></Navbar>
+          <Navbar />
           {children}
           <Footer />
         </AuthProvider>

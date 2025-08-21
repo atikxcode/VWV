@@ -6,7 +6,8 @@ import { HiEye, HiEyeOff } from 'react-icons/hi'
 import Image from 'next/image'
 import { AuthContext } from '../../../Provider/AuthProvider'
 import { useRouter } from 'next/navigation'
-import toast from 'react-hot-toast'
+import toast, { Toaster } from 'react-hot-toast'
+import Swal from 'sweetalert2'
 
 export default function RegistrationPage() {
   const {
@@ -16,6 +17,8 @@ export default function RegistrationPage() {
     createUser,
     updateUser,
     logOut,
+    signIn,
+    verifyEmail,
   } = useContext(AuthContext)
   const router = useRouter()
 
@@ -70,11 +73,80 @@ export default function RegistrationPage() {
 
   const onSubmit = async (data) => {
     if (!isSignup) {
-      console.log('Login form submitted:', data)
+      // LOGIN FLOW
+      try {
+        const result = await signIn(data.email, data.password)
+
+        if (!result.user.emailVerified) {
+          // User not verified
+          await Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'warning',
+            title: 'Please verify your email before logging in!',
+            showConfirmButton: true,
+          })
+          return
+        }
+
+        // ✅ Email verified, save to backend if not already saved
+        const userDetails = {
+          email: result.user.email,
+          name: result.user.displayName,
+          role: 'client',
+        }
+
+        const res = await fetch('/api/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(userDetails),
+        })
+
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.error || 'Failed to save user')
+        }
+
+        // Successfully saved → navigate
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'success',
+          title: `Welcome back, ${userDetails.name}!`,
+          showConfirmButton: false,
+          timer: 2000,
+          timerProgressBar: true,
+        })
+
+        router.push('/') // redirect to home
+      } catch (error) {
+        console.error(error)
+
+        // Friendly message for wrong credentials
+        let message = 'Login failed'
+        if (
+          error.code === 'auth/invalid-credential' ||
+          error.code === 'auth/wrong-password' ||
+          error.code === 'auth/user-not-found'
+        ) {
+          message = 'Wrong email or password'
+        }
+
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'error',
+          title: message,
+          showConfirmButton: false,
+          timer: 2000,
+          timerProgressBar: true,
+        })
+      }
+
       return
     }
 
-    // Signup flow
+    // SIGNUP FLOW
     const userDetails = {
       email: data.email,
       name: data.fullName,
@@ -85,41 +157,37 @@ export default function RegistrationPage() {
       // 1️⃣ Create auth user
       const result = await createUser(userDetails.email, data.password)
 
-      // 2️⃣ Update user profile
+      // 2️⃣ Update profile
       await updateUser(result.user, userDetails.name)
 
       // 3️⃣ Send verification email
-      // await verifyEmail()
+      await verifyEmail()
 
-      // 4️⃣ Save user to backend (Next.js API)
-      await toast.promise(
-        fetch('/api/user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(userDetails),
-        }).then(async (res) => {
-          if (!res.ok) {
-            const err = await res.json()
-            throw new Error(err.error || 'Failed to save user')
-          }
-          return res.json()
-        }),
-        {
-          loading: 'Saving user...',
-          success: <b>{userDetails.name} is Registered As New User!</b>,
-          error: <b>Could not save user.</b>,
-        }
-      )
+      // 4️⃣ Inform user to check email
+      await Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'info',
+        title: 'Check your email to verify your account before logging in!',
+        showConfirmButton: true,
+      })
 
-      // 5️⃣ Reset form and navigate
+      // 5️⃣ Reset form
       reset()
-      // router.push('/login')
 
-      // 6️⃣ Logout user after registration
-      // await logOut()
+      // 6️⃣ Log out user after registration
+      await logOut()
     } catch (error) {
       console.error(error)
-      toast.error(error.message || 'Registration failed')
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'error',
+        title: error.message || 'Registration failed',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+      })
     }
   }
 
@@ -133,7 +201,7 @@ export default function RegistrationPage() {
         {/* Left: Dynamic Image */}
         <div className="xl:w-2/5 lg:p-6 xl:p-8 relative hidden lg:block">
           <img
-            className="rounded-lg lg:h-[90%] xl:h-auto"
+            className="rounded-lg md:h-[80%] lg:h-[90%] xl:h-auto"
             src={imagePath}
             alt=""
           />
