@@ -1,38 +1,49 @@
-'use client';
-import React, { useState, useRef, useEffect, useContext } from 'react';
-import { Search, ShoppingCart, Menu, X, Hamburger, HamburgerIcon, AlignLeft, User, Mail, Heart, Package, Shield, RefreshCcw, ServerIcon } from 'lucide-react';
-import Link from 'next/link';
-import { AuthContext } from '../Provider/AuthProvider'; // Adjust path as needed
-import { useRouter } from 'next/navigation';
+'use client'
+import React, { useState, useRef, useEffect, useContext } from 'react'
+import {
+  Search,
+  ShoppingCart,
+  Menu,
+  X,
+  Hamburger,
+  HamburgerIcon,
+  AlignLeft,
+  User,
+  Mail,
+  Heart,
+  Package,
+  Shield,
+  RefreshCcw,
+  ServerIcon,
+} from 'lucide-react'
+import Link from 'next/link'
+import { AuthContext } from '../Provider/AuthProvider' // Adjust path as needed
+import { useRouter } from 'next/navigation'
 
 const Navbar = () => {
-  const { user, logOut } = useContext(AuthContext); // Access user and logout from AuthContext
-  const router = useRouter();
+  const { user, logOut } = useContext(AuthContext) // Access user and logout from AuthContext
+  const router = useRouter()
 
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const searchRef = useRef(null)
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const searchRef = useRef(null);
-
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [openSubmenu, setOpenSubmenu] = useState(null);
-  const [isClosing, setIsClosing] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [openSubmenu, setOpenSubmenu] = useState(null)
+  const [isClosing, setIsClosing] = useState(false)
   const toggleSubmenu = (label) => {
-    setOpenSubmenu(openSubmenu === label ? null : label);
-  };
+    setOpenSubmenu(openSubmenu === label ? null : label)
+  }
 
-  const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
-
-
- 
+  const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen)
 
   // Handle logout
- const handleSignOut = () => {
-    logOut().then().catch();
-  };
+  const handleSignOut = () => {
+    logOut().then().catch()
+  }
 
   const handleSignIn = () => {
-    router.push('/RegistrationPage');
-  };
+    router.push('/RegistrationPage')
+  }
 
   // Close search if clicked outside
   // useEffect(() => {
@@ -47,444 +58,442 @@ const Navbar = () => {
 
   return (
     <div>
-
       {/* Navbar First Part */}
-    <div className="text-black">
-
-
-    {/* First part */}
-      <div className='mx-10 flex flex-col md:flex-row justify-between pt-4 mt-2 items-center'>
-        
-        <div className=' flex items-center gap-2'>
-          <span><Mail size={17}></Mail></span>
-          <span> vwv@gmail.com</span>
+      <div className="text-black">
+        {/* First part */}
+        <div className="mx-10 flex gap-6 md:gap-0 flex-col md:flex-row justify-between pt-4 mt-2 items-center">
+          <div className=" flex items-center gap-2">
+            <span>
+              <Mail size={17}></Mail>
+            </span>
+            <span> vwv@gmail.com</span>
           </div>
 
-          <div className="flex items-center text-white  w-[1000px]">
-           <p className="text-center uppercase md:text-[14px] tracking-[4px] text-[#83766E] md:leading-[30px]"> <span  className="text-purple-400 md:text-[30px] tracking-[8px] uppercase">WARNING</span> <span className="text-purple-400 text-[24px] tracking-[8px] uppercase">[</span> Contains nicotine, a highly addictive substance. For adults of legal smoking age only. <span className="text-purple-400 text-[24px] tracking-[8px] uppercase">]</span></p>
-          
+          <div className=" items-center text-white  md:w-[1000px]">
+            <p className="text-center uppercase text-sm md:text-[14px] tracking-[4px] text-[#83766E] md:leading-[30px]">
+              {' '}
+              <span className="text-purple-400 font-bold md:font-semibold md:text-[30px] tracking-[8px] uppercase">
+                WARNING
+              </span>{' '}
+              <span className="text-purple-400 md:text-[24px] tracking-[8px] uppercase">
+                [
+              </span>{' '}
+              Contains nicotine, a highly addictive substance. For adults of
+              legal smoking age only.{' '}
+              <span className="text-purple-400 md:text-[24px] tracking-[8px] uppercase">
+                ]
+              </span>
+            </p>
+          </div>
+
+          <div className="flex flex-row gap-4">
+            <a href="#">Contact</a>
+            <a href="#">Support</a>
+            <a href="#">About</a>
+          </div>
         </div>
-        
-        <div className='flex flex-col md:flex-row gap-4'>
-        <a href="#">Contact</a>
-        <a href="#">Support</a>
-        <a href="#">About</a>
+
+        {/* Search field */}
+        <div className="relative flex justify-center items-center h-20 w-full">
+          {/* Ultra-Thin Horizontal Line */}
+          <div className="absolute top-1/2 left-0 w-full h-[0.5px] bg-gray-300"></div>
+
+          {/* Search Box */}
+          <div className="relative flex items-center bg-gray-200 rounded-full px-3 py-2 w-[800px] h-[30px] mt-1">
+            <input
+              className="bg-transparent outline-none text-gray-800 flex-1 placeholder-gray-500 px-2 text-sm"
+              type="text"
+              placeholder="Search..."
+            />
+            <button className="p-2 text-gray-600">
+              <Search size={17} />
+            </button>
+          </div>
         </div>
-      </div>
-    
-    {/* Search field */}
-    <div className="relative flex justify-center items-center h-20 w-full">
-      
-      {/* Ultra-Thin Horizontal Line */}
-      <div className="absolute top-1/2 left-0 w-full h-[0.5px] bg-gray-300"></div>
-      
-      {/* Search Box */}
-      <div className="relative flex items-center bg-gray-200 rounded-full px-3 py-2 w-[800px] h-[30px] mt-1">
-        
-        <input
-          className="bg-transparent outline-none text-gray-800 flex-1 placeholder-gray-500 px-2 text-sm"
-          type="text"
-          placeholder="Search..."
-        />
-        <button className="p-2 text-gray-600">
-          <Search size={17} />
-        </button>
-      </div>
 
-    </div>
+        {/* Navbar Start */}
 
-    {/* Navbar Start */}
-
-    <div className=' mx-10 pb-4 flex justify-between'>
-      {/* WebSite Name */}
-      <a href='/' className='text-2xl font-bold tracking-[10px] text-purple-400'>V<span className='text-[#83766E]'>ibe</span> W<span className='text-[#83766E]'>ith</span> V<span className='text-[#83766E]'>ape</span> </a>
+        <div className=" mx-10 pb-4 flex justify-between">
+          {/* WebSite Name */}
+          <a
+            href="/"
+            className="md:text-2xl font-bold tracking-[10px] text-purple-400 text-center"
+          >
+            V<span className="text-[#83766E]">ibe</span> W
+            <span className="text-[#83766E]">ith</span> V
+            <span className="text-[#83766E]">ape</span>{' '}
+          </a>
 
           {/* Desktop Navigation start */}
 
-             <div className="hidden md:flex gap-6 text-sm  tracking-wide">
-
-          {/* E-LIQUID */}
-          <div className="relative group">
-            <a
-              href="/dummy"
-              className="relative hover:text-purple-400 transition-colors"
-            >
-              E-LIQUID
-              <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-            </a>
-            <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
+          <div className="hidden xl:flex gap-6 text-sm  tracking-wide">
+            {/* E-LIQUID */}
+            <div className="relative group">
               <a
-                href="/new-arrivals/men"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                href="/dummy"
+                className="relative hover:text-purple-400 transition-colors"
               >
-                Fruits
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                E-LIQUID
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
+              <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
+                <a
+                  href="/new-arrivals/men"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Fruits
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/new-arrivals/women"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Bakery & Dessert
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/new-arrivals/women"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Tobacco
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/new-arrivals/women"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Custard & Cream
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/new-arrivals/women"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Coffee
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/new-arrivals/women"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Menthol / Mint
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+              </div>
+            </div>
+            {/* TANKS */}
+            <div className="relative group">
               <a
-                href="/new-arrivals/women"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                href="/shop"
+                className="relative hover:text-purple-400 transition-colors"
               >
-                Bakery & Dessert
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                TANKS
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
+              <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
+                <a
+                  href="/shop/clothing"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Rda
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/shop/accessories"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Rta
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/shop/accessories"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Rdta
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/shop/accessories"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Subohm
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/shop/accessories"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Disposable
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+              </div>
+            </div>
+            {/* NIC SALTS */}
+            <div className="relative group">
               <a
-                href="/new-arrivals/women"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                href="/contact"
+                className="relative hover:text-purple-400 transition-colors"
               >
-                Tobacco
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                NIC SALTS
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
+              <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
+                <a
+                  href="/contact/support"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Fruits
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/contact/locations"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Bakery & Dessert
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/contact/locations"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Custard & Cream
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/contact/locations"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Coffee
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/contact/locations"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Menthol / Mint
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+              </div>
+            </div>
+            {/* POD SYSTEM */}
+            <div className="relative group">
               <a
-                href="/new-arrivals/women"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                href="/about"
+                className="relative hover:text-purple-400 transition-colors"
               >
-                Custard & Cream
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                POD SYSTEM
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
+              <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
+                <a
+                  href="/about/story"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Disposable
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/about/team"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Refillable Pod Kit
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/about/team"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Pre-Filled Cartridge
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+              </div>
+            </div>
+            {/* DEVICE */}
+            <div className="relative group">
               <a
-                href="/new-arrivals/women"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                href="/about"
+                className="relative hover:text-purple-400 transition-colors"
               >
-                Coffee
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                DEVICE
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
+              <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
+                <a
+                  href="/about/story"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Kit
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/about/team"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Only Mod
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+              </div>
+            </div>
+            {/* BORO */}
+            <div className="relative group">
               <a
-                href="/new-arrivals/women"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                href="/about"
+                className="relative hover:text-purple-400 transition-colors"
               >
-                Menthol / Mint
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                BORO
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
               </a>
+              <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
+                <a
+                  href="/about/story"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Alo (Boro)
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/about/team"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Boro Bridge and Cartridge
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/about/team"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Boro Accessories and Tools
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+              </div>
+            </div>
+            {/* ACCESSORIES */}
+            <div className="relative group">
+              <a
+                href="/about"
+                className="relative hover:text-purple-400 transition-colors"
+              >
+                ACCESSORIES
+                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+              </a>
+              <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
+                <a
+                  href="/about/story"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  SubOhm Coil
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/about/team"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Charger
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/about/team"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Cotton
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/about/team"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Premade Coil
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/about/team"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Battery
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/about/team"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Tank Glass
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/about/team"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Cartridge
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/about/team"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  RBA / RBK
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/about/team"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Wire Spool
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+                <a
+                  href="/about/team"
+                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                >
+                  Drip Tip
+                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                </a>
+              </div>
             </div>
           </div>
-          {/* TANKS */}
-          <div className="relative group">
-            <a
-              href="/shop"
-              className="relative hover:text-purple-400 transition-colors"
-            >
-              TANKS
-              <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-            </a>
-            <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
-              <a
-                href="/shop/clothing"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-               Rda
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/shop/accessories"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Rta
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/shop/accessories"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Rdta
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/shop/accessories"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Subohm
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/shop/accessories"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Disposable
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-            </div>
-          </div>
-          {/* NIC SALTS */}
-          <div className="relative group">
-            <a
-              href="/contact"
-              className="relative hover:text-purple-400 transition-colors"
-            >
-              NIC SALTS
-              <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-            </a>
-            <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
-              <a
-                href="/contact/support"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Fruits
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/contact/locations"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Bakery & Dessert
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/contact/locations"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Custard & Cream
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/contact/locations"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Coffee
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/contact/locations"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Menthol / Mint
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-            </div>
-          </div>
-          {/* POD SYSTEM */}
-          <div className="relative group">
-            <a
-              href="/about"
-              className="relative hover:text-purple-400 transition-colors"
-            >
-              POD SYSTEM
-              <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-            </a>
-            <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
-              <a
-                href="/about/story"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Disposable
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Refillable Pod Kit
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Pre-Filled Cartridge
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-            </div>
-          </div>
-          {/* DEVICE */}
-          <div className="relative group">
-            <a
-              href="/about"
-              className="relative hover:text-purple-400 transition-colors"
-            >
-              DEVICE
-              <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-            </a>
-            <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
-              <a
-                href="/about/story"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Kit
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Only Mod
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-            </div>
-          </div>
-          {/* BORO */}
-          <div className="relative group">
-            <a
-              href="/about"
-              className="relative hover:text-purple-400 transition-colors"
-            >
-              BORO
-              <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-            </a>
-            <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
-              <a
-                href="/about/story"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Alo (Boro)
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Boro Bridge and Cartridge
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Boro Accessories and Tools
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-            </div>
-          </div>
-          {/* ACCESSORIES */}
-          <div className="relative group">
-            <a
-              href="/about"
-              className="relative hover:text-purple-400 transition-colors"
-            >
-              ACCESSORIES
-              <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-            </a>
-            <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
-              <a
-                href="/about/story"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                SubOhm Coil
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Charger
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Cotton
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Premade Coil
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Battery
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Tank Glass
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Cartridge
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                RBA / RBK
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Wire Spool
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <a
-                href="/about/team"
-                className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-              >
-                Drip Tip
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-            
-            </div>
-          </div>
-
-          
-        </div>
-        {/* Desktop Navigation End */}
-
-
-        {/* Side Icons  start*/}
-
-        <div className='flex items-center gap-4'>
-          <Link href="/cart">
-            <ShoppingCart />
-          </Link>
-          <Link href="/cart">
-          <Heart></Heart>
-          </Link>
-          {/* User */}
-          <Link href="/cart">
-            <User />
-          </Link>
-          
-
-          {/* Sign In/Sign Out Button */}
-          {user ? (
-            <button
-              onClick={handleSignOut}
-              className="hidden text-[15px] tracking-widest  md:block bg-purple-400  px-6 py-2 text-black hover:bg-purple-500 transition-colors duration-200"
-            >
-              Sign Out
-            </button>
-          ) : (
-            <button
-              onClick={handleSignIn}
-              className="hidden text-[15px] tracking-widest  md:block bg-purple-400  px-6 py-2  text-black hover:bg-purple-500 transition-colors duration-200"
-            >
-              Sign In
-            </button>
-          )}
-
-          {/* Mobile Menu Toggle */}
-          <button className="md:hidden ml-2" onClick={toggleMobileMenu}>
-            {mobileMenuOpen ? <X /> : <Menu />}
-          </button>
-        </div>
+          {/* Desktop Navigation End */}
 
           {/* Side Icons  start*/}
-        
-        
-        
-    </div>
 
+          <div className="flex items-center gap-4">
+            <Link href="/cart">
+              <ShoppingCart />
+            </Link>
+            <Link href="/cart">
+              <Heart></Heart>
+            </Link>
+            {/* User */}
+            <Link href="/cart">
+              <User />
+            </Link>
 
+            {/* Sign In/Sign Out Button */}
+            {user ? (
+              <button
+                onClick={handleSignOut}
+                className="hidden text-[15px] tracking-widest  xl:block bg-purple-400  px-6 py-2 text-black hover:bg-purple-500 transition-colors duration-200"
+              >
+                Sign Out
+              </button>
+            ) : (
+              <button
+                onClick={handleSignIn}
+                className="hidden text-[15px] tracking-widest  xl:block bg-purple-400  px-6 py-2  text-black hover:bg-purple-500 transition-colors duration-200"
+              >
+                Sign In
+              </button>
+            )}
 
+            {/* Mobile Menu Toggle */}
+            <button className=" xl:hidden ml-2" onClick={toggleMobileMenu}>
+              {mobileMenuOpen ? <X /> : <Menu />}
+            </button>
+          </div>
 
-      
-    </div>
+          {/* Side Icons  start*/}
+        </div>
+      </div>
 
-
-
-     {/* Mobile Menu start */}
+      {/* Mobile Menu start */}
       {mobileMenuOpen && (
         <div
           className="fixed top-0 right-0 w-72 h-full bg-white shadow-xl transform transition-transform duration-300 ease-in-out z-50 overflow-y-auto"
@@ -497,12 +506,12 @@ const Navbar = () => {
           <div className="flex justify-end p-4">
             <button
               onClick={() => {
-                setIsClosing(true);
+                setIsClosing(true)
                 setTimeout(() => {
-                  setMobileMenuOpen(false);
-                  setIsClosing(false);
-                  setOpenSubmenu(null);
-                }, 300);
+                  setMobileMenuOpen(false)
+                  setIsClosing(false)
+                  setOpenSubmenu(null)
+                }, 300)
               }}
               className="text-gray-700 focus:outline-none"
               aria-label="Close mobile menu"
@@ -524,9 +533,7 @@ const Navbar = () => {
             </button>
           </div>
 
-
           <div className="flex flex-col p-4 space-y-2 text-sm  tracking-widest">
-
             {/* E-Liquid */}
             <div className="group">
               <button
@@ -659,7 +666,6 @@ const Navbar = () => {
                     Disposable
                     <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
                   </a>
-                  
                 </div>
               )}
             </div>
@@ -735,7 +741,7 @@ const Navbar = () => {
                 </div>
               )}
             </div>
-           
+
             {/* POD SYSTEM */}
             <div className="group">
               <button
@@ -995,12 +1001,8 @@ const Navbar = () => {
         </div>
       )}
       {/* Mobile Menu End */}
-
     </div>
-  );
-};
+  )
+}
 
-
-
-
-export default Navbar;
+export default Navbar

@@ -50,7 +50,7 @@ const Slider = () => {
               animateBy="words"
               direction="top"
               onAnimationComplete={handleAnimationComplete}
-              className="text-5xl font-extrabold tracking-[0.3em]"
+              className="text-2xl md:text-5xl font-extrabold tracking-[0.3em]"
             />
 
             <BlurText
@@ -61,7 +61,7 @@ const Slider = () => {
               animateBy="words"
               direction="top"
               onAnimationComplete={handleAnimationComplete}
-              className="max-w-xl mt-4 text-base leading-relaxed"
+              className="w-auto md:max-w-xl mt-4 text-base leading-relaxed"
             />
 
             <button className="mt-8 bg-purple-400 hover:bg-purple-500 text-white px-8 py-3 text-sm uppercase tracking-widest">
@@ -105,7 +105,7 @@ const Slider = () => {
               animateBy="words"
               direction="top"
               onAnimationComplete={handleAnimationComplete}
-              className="text-5xl font-extrabold tracking-[0.3em]"
+              className="text-2xl md:text-5xl font-extrabold tracking-[0.3em]"
             />
 
             <BlurText
@@ -116,7 +116,7 @@ const Slider = () => {
               animateBy="words"
               direction="top"
               onAnimationComplete={handleAnimationComplete}
-              className="max-w-xl mt-4 text-base leading-relaxed"
+              className="w-auto md:max-w-xl mt-4 text-base leading-relaxed"
             />
 
             <button className="mt-8 bg-purple-400 hover:bg-purple-500 text-white px-8 py-3 text-sm uppercase tracking-widest">
@@ -147,13 +147,13 @@ const Slider = () => {
             />
 
             <BlurText
-              text="SYLTE MARLBORO"
+              text="STYLE MARLBORO"
               delay={300}
               stepDuration={0.6}
               animateBy="words"
               direction="top"
               onAnimationComplete={handleAnimationComplete}
-              className="text-5xl font-extrabold tracking-[0.3em]"
+              className="text-2xl md:text-5xl font-extrabold tracking-[0.3em]"
             />
 
             <BlurText
@@ -163,7 +163,7 @@ const Slider = () => {
               animateBy="words"
               direction="top"
               onAnimationComplete={handleAnimationComplete}
-              className="max-w-xl mt-4 text-base leading-relaxed"
+              className="w-auto md:max-w-xl mt-4 text-base leading-relaxed"
             />
 
             <button className="mt-8 bg-purple-400 hover:bg-purple-500 text-white px-8 py-3 text-sm uppercase tracking-widest">
@@ -207,7 +207,7 @@ const Slider = () => {
               animateBy="words"
               direction="top"
               onAnimationComplete={handleAnimationComplete}
-              className="text-5xl font-extrabold tracking-[0.3em]"
+              className="text-2xl md:text-5xl font-extrabold tracking-[0.3em]"
             />
 
             <BlurText
@@ -218,7 +218,7 @@ const Slider = () => {
               animateBy="words"
               direction="top"
               onAnimationComplete={handleAnimationComplete}
-              className="max-w-xl mt-4 text-base leading-relaxed"
+              className="w-auto md:max-w-xl mt-4 text-base leading-relaxed"
             />
 
             <button className="mt-8 bg-purple-400 hover:bg-purple-500 text-white px-8 py-3 text-sm uppercase tracking-widest">

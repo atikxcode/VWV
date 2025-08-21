@@ -4,18 +4,18 @@ const RotationCategory = () => {
   return (
     <div className="container mx-auto flex flex-col items-center gap-8 my-20">
       <div className="flex flex-col items-center gap-6">
-        <h2 className="uppercase text-[24px] tracking-wider font-semibold text-purple-400">
+        <h2 className="uppercase text-[20px] md:text-[24px] tracking-wider font-semibold text-purple-400 text-center">
           Premium Vape Products & Accessories
         </h2>
-        <p className="text-[16px] font-bold tracking-widest text-gray-500">
+        <p className="text-[14px] md:text-[16px] font-bold tracking-widest text-gray-500 text-center">
           Shop E-Liquids, RDAs, and Tanks for Every Vaper
         </p>
       </div>
 
-      <div className="flex flex-wrap  gap-8  justify-center">
+      <div className="flex flex-wrap  gap-8  justify-center ">
         {/* BOX-1 */}
         <div
-          className="py-6 px-6  bg-cover bg-center rounded-3xl"
+          className="py-2 md:py-6 px-2 md:px-6  bg-cover bg-center rounded-3xl"
           style={{ backgroundImage: "url('/Home_Category/20.jpg')" }}
         >
           <div className="group flex flex-col items-center border-[1px] rounded-2xl border-purple-400 py-8 ">
@@ -24,15 +24,17 @@ const RotationCategory = () => {
               <img
                 src="/Home_Category/16.jpg"
                 alt=""
-                className="image w-[240px] h-full object-cover "
+                className="image md:w-[240px] h-full object-cover "
               />
             </div>
 
             {/* Content */}
             <div className="flex flex-col items-center mt-4 gap-4">
-              <h2 className="text-[26px] font-bold text-black">STARTER KITS</h2>
+              <h2 className="text-[20px] md:text-[26px] font-bold text-black">
+                STARTER KITS
+              </h2>
               <span className="border-[2px] w-[50px] border-black"></span>
-              <p className="w-[380px] text-[15px] font-bold text-center text-black tracking-wider">
+              <p className="w-[350] md:w-[380px] text-[14px] md:text-[15px] font-bold text-center text-black tracking-wider">
                 Starter kits from incredible brands like SMOK, Suorin,
                 Vaporesso, Voopoo and more
               </p>
@@ -50,7 +52,7 @@ const RotationCategory = () => {
 
         {/* BOX-2 */}
         <div
-          className="py-6 px-6  bg-cover bg-center rounded-3xl "
+          className="py-2 md:py-6 px-2 md:px-6  bg-cover bg-center rounded-3xl "
           style={{ backgroundImage: "url('/Home_Category/20.jpg')" }}
         >
           <div className="group flex flex-col items-center border-[1px] rounded-2xl border-purple-400 py-8 ">
@@ -65,9 +67,11 @@ const RotationCategory = () => {
 
             {/* Content */}
             <div className="flex flex-col items-center mt-4 gap-4">
-              <h2 className="text-[26px] font-bold text-black">E LIQUIDS</h2>
+              <h2 className="text-[20px] md:text-[26px] font-bold text-black">
+                E LIQUIDS
+              </h2>
               <span className="border-[2px] w-[50px] border-black"></span>
-              <p className="w-[380px] text-[15px] text-center text-black tracking-wider font-bold">
+              <p className="w-[350] md:w-[380px] text-[14px] md:text-[15px] text-center text-black tracking-wider font-bold">
                 Starter kits from incredible brands like SMOK, Suorin,
                 Vaporesso, Voopoo and more
               </p>
@@ -85,7 +89,7 @@ const RotationCategory = () => {
 
         {/* BOX-3 */}
         <div
-          className="py-6 px-6  bg-cover bg-center rounded-3xl"
+          className="py-2 md:py-6 px-2 md:px-6  bg-cover bg-center rounded-3xl"
           style={{ backgroundImage: "url('/Home_Category/20.jpg')" }}
         >
           <div className="group flex flex-col items-center border-[1px] rounded-2xl border-purple-400 py-8 ">
@@ -100,11 +104,11 @@ const RotationCategory = () => {
 
             {/* Content */}
             <div className="flex flex-col items-center mt-4 gap-4">
-              <h2 className="text-[26px] font-bold text-black">
+              <h2 className="text-[20px] md:text-[26px] font-bold text-black">
                 TANKS AND RDA
               </h2>
               <span className="border-[2px] w-[50px] border-black"></span>
-              <p className="w-[380px] text-[15px] text-center text-black tracking-wider font-bold">
+              <p className="w-[350] md:w-[380px] text-[14px] md:text-[15px] text-center text-black tracking-wider font-bold">
                 Starter kits from incredible brands like SMOK, Suorin,
                 Vaporesso, Voopoo and more
               </p>
