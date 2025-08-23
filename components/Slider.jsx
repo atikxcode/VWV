@@ -1,4 +1,6 @@
-import React from 'react'
+'use client'
+
+import React, { useEffect, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Autoplay } from 'swiper/modules'
 import 'swiper/css'
@@ -11,10 +13,24 @@ const handleAnimationComplete = () => {
 }
 
 const Slider = () => {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    // check screen width
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 435)
+    }
+
+    handleResize() // run once on mount
+    window.addEventListener('resize', handleResize)
+
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   return (
     <div className=" w-full overflow-hidden ">
       <Swiper
-        direction="vertical"
+        direction={isMobile ? 'horizontal' : 'vertical'}
         modules={[Autoplay]}
         autoplay={{ delay: 3800, disableOnInteraction: false }}
         loop={true}
