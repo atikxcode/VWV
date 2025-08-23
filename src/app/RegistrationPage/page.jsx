@@ -1,13 +1,15 @@
 'use client'
 
-import { useForm } from 'react-hook-form'
-import { useContext, useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
+import { useContext, useEffect, useState } from 'react'
 import { HiEye, HiEyeOff } from 'react-icons/hi'
 import Image from 'next/image'
 import { AuthContext } from '../../../Provider/AuthProvider'
 import { useRouter } from 'next/navigation'
 import toast, { Toaster } from 'react-hot-toast'
 import Swal from 'sweetalert2'
+import 'react-phone-input-2/lib/style.css'
+import PhoneInput from 'react-phone-input-2'
 
 export default function RegistrationPage() {
   const {
@@ -19,6 +21,7 @@ export default function RegistrationPage() {
     logOut,
     signIn,
     verifyEmail,
+    passwordReset,
   } = useContext(AuthContext)
   const router = useRouter()
 
@@ -61,15 +64,27 @@ export default function RegistrationPage() {
 
   const [accountType, setAccountType] = useState('Login')
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [phoneNumber, setPhoneNumber] = useState('')
+  const [currentEmail, setCurrentEmail] = useState('')
   // Hook Form
   const {
     register,
     handleSubmit,
     reset,
+    watch,
+    control,
     formState: { errors, isValid },
   } = useForm({ mode: 'onChange' })
+  const watchedEmail = watch('email')
 
   const isSignup = accountType === 'Signup'
+
+  useEffect(() => {
+    setCurrentEmail(watchedEmail)
+  }, [watchedEmail])
+
+  // Form Submit For Login/Signup
 
   const onSubmit = async (data) => {
     if (!isSignup) {
@@ -89,10 +104,11 @@ export default function RegistrationPage() {
           return
         }
 
-        // ✅ Email verified, save to backend if not already saved
+        // Email verified, save to backend if not already saved
         const userDetails = {
           email: result.user.email,
           name: result.user.displayName,
+          phone: phoneNumber,
           role: 'client',
         }
 
@@ -154,16 +170,16 @@ export default function RegistrationPage() {
     }
 
     try {
-      // 1️⃣ Create auth user
+      // Create auth user
       const result = await createUser(userDetails.email, data.password)
 
-      // 2️⃣ Update profile
+      // Update profile
       await updateUser(result.user, userDetails.name)
 
-      // 3️⃣ Send verification email
+      // Send verification email
       await verifyEmail()
 
-      // 4️⃣ Inform user to check email
+      // Inform user to check email
       await Swal.fire({
         toast: true,
         position: 'top-end',
@@ -172,10 +188,10 @@ export default function RegistrationPage() {
         showConfirmButton: true,
       })
 
-      // 5️⃣ Reset form
+      // Reset form
       reset()
 
-      // 6️⃣ Log out user after registration
+      // Log out user after registration
       await logOut()
     } catch (error) {
       console.error(error)
@@ -189,6 +205,36 @@ export default function RegistrationPage() {
         timerProgressBar: true,
       })
     }
+  }
+
+  // Password Reset Section
+
+  const handlePasswordReset = () => {
+    if (!currentEmail) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Oops...',
+        text: 'Please enter your email address first.',
+      })
+      return
+    }
+
+    passwordReset(currentEmail)
+      .then(() => {
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'Password reset email sent! Please check your email.',
+        })
+      })
+      .catch((error) => {
+        console.error(error)
+        Swal.fire({
+          icon: 'error',
+          title: 'Error!',
+          text: error.message || 'Something went wrong.',
+        })
+      })
   }
 
   const imagePath = isSignup
@@ -243,6 +289,7 @@ export default function RegistrationPage() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               {isSignup ? (
                 <>
+                  {/* Full Name */}
                   <input
                     type="text"
                     placeholder="Full Name"
@@ -252,12 +299,114 @@ export default function RegistrationPage() {
                     className="w-full border border-gray-300 rounded-md px-4 py-2"
                   />
 
+                  {/* Email */}
                   <input
                     type="email"
                     placeholder="Email"
                     {...register('email', { required: 'Email is required' })}
                     className="w-full border border-gray-300 rounded-md px-4 py-2"
                   />
+
+                  {/* Phone Number Field */}
+                  <Controller
+                    name="phone"
+                    control={control}
+                    rules={{ required: 'Phone number is required' }}
+                    render={({ field }) => (
+                      <PhoneInput
+                        {...field}
+                        country={'auto'}
+                        enableSearch={true}
+                        placeholder="Enter phone number"
+                        inputClass="!w-full !border !border-gray-300 !rounded-md !pl-12 !py-2 !bg-white"
+                        buttonClass="!border !border-gray-300 !rounded-l-md !bg-gray-100"
+                        dropdownClass="!bg-white !border !border-gray-300"
+                        onChange={(value) => {
+                          field.onChange(value)
+                          setPhoneNumber(value)
+                        }}
+                      />
+                    )}
+                  />
+                  {errors.phone && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.phone.message}
+                    </p>
+                  )}
+
+                  {/* Password Field */}
+                  <div className="relative mt-3">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Password"
+                      {...register('password', {
+                        required: 'Password is required',
+                        pattern: {
+                          value: /^(?=.*[a-z])(?=.*[A-Z]).{6,}$/,
+                          message:
+                            'Password must have an uppercase letter, a lowercase letter, and be at least 6 characters long',
+                        },
+                      })}
+                      className="w-full border border-gray-300 rounded-md px-4 py-2 pr-10"
+                    />
+                    <span
+                      className="absolute top-2.5 right-3 text-gray-500 cursor-pointer"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <HiEyeOff size={20} />
+                      ) : (
+                        <HiEye size={20} />
+                      )}
+                    </span>
+                  </div>
+                  {errors.password && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.password.message}
+                    </p>
+                  )}
+
+                  {/* Confirm Password Field */}
+                  <div className="relative mt-3">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      placeholder="Confirm Password"
+                      {...register('confirmPassword', {
+                        required: 'Please confirm your password',
+                        validate: (value) =>
+                          value === watch('password') ||
+                          'Passwords do not match',
+                      })}
+                      className="w-full border border-gray-300 rounded-md px-4 py-2 pr-10"
+                    />
+                    <span
+                      className="absolute top-2.5 right-3 text-gray-500 cursor-pointer"
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
+                    >
+                      {showConfirmPassword ? (
+                        <HiEyeOff size={20} />
+                      ) : (
+                        <HiEye size={20} />
+                      )}
+                    </span>
+                  </div>
+                  {errors.confirmPassword && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.confirmPassword.message}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    {...register('email', { required: 'Email is required' })}
+                    className="w-full border border-gray-300 rounded-md px-4 py-2"
+                  />
+
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -278,34 +427,16 @@ export default function RegistrationPage() {
                       )}
                     </span>
                   </div>
-                </>
-              ) : (
-                <>
-                  <input
-                    type="email"
-                    placeholder="Email"
-                    {...register('email', { required: 'Email is required' })}
-                    className="w-full border border-gray-300 rounded-md px-4 py-2"
-                  />
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Password"
-                      {...register('password', {
-                        required: 'Password is required',
-                      })}
-                      className="w-full border border-gray-300 rounded-md px-4 py-2 pr-10"
-                    />
-                    <span
-                      className="absolute top-2.5 right-3 text-gray-500 cursor-pointer"
-                      onClick={() => setShowPassword(!showPassword)}
+
+                  {/* Forgot Password Area */}
+                  <div className="flex justify-end mt-2">
+                    <button
+                      type="button"
+                      onClick={handlePasswordReset}
+                      className="text-sm text-blue-600 hover:underline"
                     >
-                      {showPassword ? (
-                        <HiEyeOff size={20} />
-                      ) : (
-                        <HiEye size={20} />
-                      )}
-                    </span>
+                      Forgot Password?
+                    </button>
                   </div>
                 </>
               )}

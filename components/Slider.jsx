@@ -20,7 +20,7 @@ const Slider = () => {
         loop={true}
         slidesPerView={1}
         spaceBetween={0}
-        className="h-[800px] w-full"
+        className="h-[450px] md:h-[800px] lg:h-[800px] xl:h-[800px] w-full"
       >
         {/* Slide 1 */}
         <SwiperSlide className="h-screen w-full relative">

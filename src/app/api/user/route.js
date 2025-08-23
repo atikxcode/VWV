@@ -2,7 +2,7 @@
 import clientPromise from '@/lib/mongodb'
 import { NextResponse } from 'next/server'
 
-// ✅ GET: return all users OR check by email if provided
+// GET: return all users OR check by email if provided
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url)
@@ -24,7 +24,7 @@ export async function GET(req) {
   }
 }
 
-// ✅ POST: insert user only if not exists
+// POST: insert user only if not exists
 export async function POST(req) {
   try {
     const body = await req.json()
