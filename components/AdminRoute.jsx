@@ -103,3 +103,5 @@ export default function AdminRoute({ children }) {
 
   return children
 }
+
+// Admin Routing checks if outsider rather than admin didn't get access
