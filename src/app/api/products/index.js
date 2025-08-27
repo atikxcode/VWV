@@ -19,19 +19,97 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 })
 
-// GET: return all products OR get product by ID/search
+// Default branches
+const DEFAULT_BRANCHES = ['ghatpar', 'mirpur']
+
+// Vape shop category structure
+const VAPE_CATEGORIES = {
+  'E-LIQUID': [
+    'Fruits',
+    'Bakery & Dessert',
+    'Tobacco',
+    'Custard & Cream',
+    'Coffee',
+    'Menthol/Mint',
+  ],
+  TANKS: ['Rda', 'Rta', 'Rdta', 'Subohm', 'Disposable'],
+  'NIC SALTS': [
+    'Fruits',
+    'Bakery & Dessert',
+    'Tobacco',
+    'Custard & Cream',
+    'Coffee',
+    'Menthol/Mint',
+  ],
+  'POD SYSTEM': ['Disposable', 'Refillable Pod Kit', 'Pre-Filled Cartridge'],
+  DEVICE: ['Kit', 'Only Mod'],
+  BORO: [
+    'Alo (Boro)',
+    'Boro Bridge and Cartridge',
+    'Boro Accessories And Tools',
+  ],
+  ACCESSORIES: [
+    'SibOhm Coil',
+    'Charger',
+    'Cotton',
+    'Premade Coil',
+    'Battery',
+    'Tank Glass',
+    'Cartridge',
+    'RBA/RBK',
+    'WIRE SPOOL',
+    'DRIP TIP',
+  ],
+}
+
+// GET: return all products OR get product by ID/search/barcode with branch-specific stock
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
+    const barcode = searchParams.get('barcode')
     const category = searchParams.get('category')
+    const subcategory = searchParams.get('subcategory')
     const search = searchParams.get('search')
     const status = searchParams.get('status')
+    const branch = searchParams.get('branch')
     const limit = parseInt(searchParams.get('limit')) || 0
     const page = parseInt(searchParams.get('page')) || 1
+    const inStock = searchParams.get('inStock')
+    const getCategoriesOnly = searchParams.get('getCategoriesOnly') // For category management
 
     const client = await clientPromise
     const db = client.db('VWV')
+
+    // Get categories structure for frontend
+    if (getCategoriesOnly === 'true') {
+      // Get dynamic categories from database (custom ones added by admin)
+      const customCategories = await db
+        .collection('categories')
+        .find()
+        .toArray()
+      const allCategories = { ...VAPE_CATEGORIES }
+
+      customCategories.forEach((cat) => {
+        allCategories[cat.name] = cat.subcategories
+      })
+
+      return NextResponse.json({ categories: allCategories })
+    }
+
+    // Get product by barcode (for barcode scanner)
+    if (barcode) {
+      const product = await db
+        .collection('products')
+        .findOne({ barcode: barcode })
+      if (!product) {
+        return NextResponse.json(
+          { error: 'Product not found with this barcode' },
+          { status: 404 }
+        )
+      }
+      return NextResponse.json(product)
+    }
 
     // Get single product by ID
     if (id) {
@@ -61,17 +139,30 @@ export async function GET(req) {
       query.category = { $regex: category, $options: 'i' }
     }
 
+    if (subcategory) {
+      query.subcategory = { $regex: subcategory, $options: 'i' }
+    }
+
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } },
         { category: { $regex: search, $options: 'i' } },
+        { subcategory: { $regex: search, $options: 'i' } },
         { brand: { $regex: search, $options: 'i' } },
+        { sku: { $regex: search, $options: 'i' } },
+        { barcode: { $regex: search, $options: 'i' } },
+        { tags: { $in: [new RegExp(search, 'i')] } },
       ]
     }
 
     if (status) {
       query.status = status
+    }
+
+    // Filter by branch stock availability
+    if (branch && inStock === 'true') {
+      query[`stock.${branch}_stock`] = { $gt: 0 }
     }
 
     // Get total count for pagination
@@ -109,7 +200,7 @@ export async function GET(req) {
   }
 }
 
-// POST: create new product OR update existing product
+// POST: create new product, update product, or manage categories
 export async function POST(req) {
   try {
     const body = await req.json()
@@ -117,6 +208,90 @@ export async function POST(req) {
 
     const client = await clientPromise
     const db = client.db('VWV')
+
+    // Handle category management
+    if (action === 'add_category') {
+      const { categoryName, subcategories } = body
+
+      if (!categoryName) {
+        return NextResponse.json(
+          { error: 'Category name is required' },
+          { status: 400 }
+        )
+      }
+
+      // Check if category already exists
+      const existingCategory = await db.collection('categories').findOne({
+        name: categoryName.toUpperCase(),
+      })
+
+      if (existingCategory) {
+        return NextResponse.json(
+          { error: 'Category already exists' },
+          { status: 400 }
+        )
+      }
+
+      const newCategory = {
+        name: categoryName.toUpperCase(),
+        subcategories: Array.isArray(subcategories) ? subcategories : [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      await db.collection('categories').insertOne(newCategory)
+
+      return NextResponse.json({
+        message: 'Category added successfully',
+        category: newCategory,
+      })
+    }
+
+    // Handle subcategory management
+    if (action === 'add_subcategory') {
+      const { categoryName, subcategoryName } = body
+
+      if (!categoryName || !subcategoryName) {
+        return NextResponse.json(
+          {
+            error: 'Category name and subcategory name are required',
+          },
+          { status: 400 }
+        )
+      }
+
+      // Try to update custom category first
+      const updateResult = await db.collection('categories').updateOne(
+        { name: categoryName.toUpperCase() },
+        {
+          $addToSet: { subcategories: subcategoryName },
+          $set: { updatedAt: new Date() },
+        }
+      )
+
+      if (updateResult.matchedCount === 0) {
+        // If category doesn't exist in custom categories, check if it's a default category
+        if (VAPE_CATEGORIES[categoryName.toUpperCase()]) {
+          // Create custom category with existing subcategories + new one
+          const existingSubcategories =
+            VAPE_CATEGORIES[categoryName.toUpperCase()]
+          const newCategory = {
+            name: categoryName.toUpperCase(),
+            subcategories: [...existingSubcategories, subcategoryName],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }
+          await db.collection('categories').insertOne(newCategory)
+        } else {
+          return NextResponse.json(
+            { error: 'Category not found' },
+            { status: 404 }
+          )
+        }
+      }
+
+      return NextResponse.json({ message: 'Subcategory added successfully' })
+    }
 
     // Handle product update
     if (action === 'update') {
@@ -126,13 +301,20 @@ export async function POST(req) {
         description,
         price,
         comparePrice,
-        category,
         brand,
         sku,
+        barcode,
+        category,
+        subcategory,
         stock,
         status,
         specifications,
         tags,
+        nicotineStrength, // For vape products
+        vgPgRatio, // For e-liquids
+        flavor, // For e-liquids
+        resistance, // For coils/tanks
+        wattageRange, // For devices
       } = body
 
       if (!id) {
@@ -157,11 +339,25 @@ export async function POST(req) {
         )
       }
 
-      if (stock < 0) {
-        return NextResponse.json(
-          { error: 'Stock must be a positive number' },
-          { status: 400 }
-        )
+      // Validate stock object
+      if (stock && typeof stock === 'object') {
+        for (const [branchKey, stockValue] of Object.entries(stock)) {
+          if (!branchKey.endsWith('_stock')) {
+            return NextResponse.json(
+              {
+                error:
+                  'Stock keys must end with "_stock" (e.g., "ghatpar_stock")',
+              },
+              { status: 400 }
+            )
+          }
+          if (stockValue < 0) {
+            return NextResponse.json(
+              { error: `Stock for ${branchKey} must be a positive number` },
+              { status: 400 }
+            )
+          }
+        }
       }
 
       const { ObjectId } = require('mongodb')
@@ -183,7 +379,7 @@ export async function POST(req) {
         )
       }
 
-      // Check for duplicate SKU (if provided and different from current)
+      // Check for duplicate SKU or barcode
       if (sku && sku !== existingProduct.sku) {
         const duplicateSku = await db.collection('products').findOne({
           sku: sku,
@@ -197,26 +393,50 @@ export async function POST(req) {
         }
       }
 
-      // Update product
-      const updateResult = await db.collection('products').updateOne(
-        { _id: new ObjectId(id) },
-        {
-          $set: {
-            name: name.trim(),
-            description: description?.trim() || '',
-            price: parseFloat(price),
-            comparePrice: comparePrice ? parseFloat(comparePrice) : null,
-            category: category.trim(),
-            brand: brand?.trim() || '',
-            sku: sku?.trim() || null,
-            stock: parseInt(stock) || 0,
-            status: status || 'active',
-            specifications: specifications || {},
-            tags: Array.isArray(tags) ? tags : [],
-            updatedAt: new Date(),
-          },
+      if (barcode && barcode !== existingProduct.barcode) {
+        const duplicateBarcode = await db.collection('products').findOne({
+          barcode: barcode,
+          _id: { $ne: new ObjectId(id) },
+        })
+        if (duplicateBarcode) {
+          return NextResponse.json(
+            { error: 'Barcode already exists for another product' },
+            { status: 400 }
+          )
         }
-      )
+      }
+
+      // Update product
+      const updateData = {
+        name: name.trim(),
+        description: description?.trim() || '',
+        price: parseFloat(price),
+        comparePrice: comparePrice ? parseFloat(comparePrice) : null,
+        brand: brand?.trim() || '',
+        sku: sku?.trim() || null,
+        barcode: barcode?.trim() || null,
+        category: category?.trim() || '',
+        subcategory: subcategory?.trim() || '',
+        status: status || 'active',
+        specifications: specifications || {},
+        tags: Array.isArray(tags) ? tags.filter((tag) => tag.trim()) : [],
+        // Vape-specific fields
+        nicotineStrength: nicotineStrength || null,
+        vgPgRatio: vgPgRatio || null,
+        flavor: flavor?.trim() || '',
+        resistance: resistance || null,
+        wattageRange: wattageRange || null,
+        updatedAt: new Date(),
+      }
+
+      // Handle stock update
+      if (stock && typeof stock === 'object') {
+        updateData.stock = stock
+      }
+
+      const updateResult = await db
+        .collection('products')
+        .updateOne({ _id: new ObjectId(id) }, { $set: updateData })
 
       if (updateResult.matchedCount === 0) {
         return NextResponse.json(
@@ -245,13 +465,22 @@ export async function POST(req) {
       description,
       price,
       comparePrice,
-      category,
       brand,
       sku,
+      barcode,
+      category,
+      subcategory,
       stock,
       status,
       specifications,
       tags,
+      branches,
+      // Vape-specific fields
+      nicotineStrength,
+      vgPgRatio,
+      flavor,
+      resistance,
+      wattageRange,
     } = body
 
     // Validation for new product
@@ -269,14 +498,7 @@ export async function POST(req) {
       )
     }
 
-    if (stock < 0) {
-      return NextResponse.json(
-        { error: 'Stock must be a positive number' },
-        { status: 400 }
-      )
-    }
-
-    // Check for duplicate SKU if provided
+    // Check for duplicate SKU or barcode if provided
     if (sku) {
       const existingSku = await db
         .collection('products')
@@ -289,19 +511,71 @@ export async function POST(req) {
       }
     }
 
+    if (barcode) {
+      const existingBarcode = await db
+        .collection('products')
+        .findOne({ barcode: barcode.trim() })
+      if (existingBarcode) {
+        return NextResponse.json(
+          { error: 'Barcode already exists' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Initialize stock object with branches
+    let initialStock = {}
+
+    if (stock && typeof stock === 'object') {
+      // Validate stock keys
+      for (const [branchKey, stockValue] of Object.entries(stock)) {
+        if (!branchKey.endsWith('_stock')) {
+          return NextResponse.json(
+            {
+              error:
+                'Stock keys must end with "_stock" (e.g., "ghatpar_stock")',
+            },
+            { status: 400 }
+          )
+        }
+        if (stockValue < 0) {
+          return NextResponse.json(
+            { error: `Stock for ${branchKey} must be a positive number` },
+            { status: 400 }
+          )
+        }
+        initialStock[branchKey] = parseInt(stockValue) || 0
+      }
+    } else {
+      // Initialize with default branches
+      const branchList =
+        branches && Array.isArray(branches) ? branches : DEFAULT_BRANCHES
+      branchList.forEach((branch) => {
+        initialStock[`${branch}_stock`] = 0
+      })
+    }
+
     // Create new product
     const newProduct = {
       name: name.trim(),
       description: description?.trim() || '',
       price: parseFloat(price),
       comparePrice: comparePrice ? parseFloat(comparePrice) : null,
-      category: category.trim(),
       brand: brand?.trim() || '',
       sku: sku?.trim() || null,
-      stock: parseInt(stock) || 0,
+      barcode: barcode?.trim() || null,
+      category: category?.trim() || '',
+      subcategory: subcategory?.trim() || '',
+      stock: initialStock,
       status: status || 'active',
       specifications: specifications || {},
-      tags: Array.isArray(tags) ? tags : [],
+      tags: Array.isArray(tags) ? tags.filter((tag) => tag.trim()) : [],
+      // Vape-specific fields
+      nicotineStrength: nicotineStrength || null,
+      vgPgRatio: vgPgRatio || null,
+      flavor: flavor?.trim() || '',
+      resistance: resistance || null,
+      wattageRange: wattageRange || null,
       images: [],
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -388,8 +662,8 @@ export async function PUT(req) {
             .upload_stream(
               {
                 resource_type: 'image',
-                folder: 'vwv_products',
-                public_id: `product_${productId}_${Date.now()}_${i}`,
+                folder: 'vwv_vape_products',
+                public_id: `vape_product_${productId}_${Date.now()}_${i}`,
                 transformation: [
                   { width: 800, height: 800, crop: 'fill' },
                   { quality: 'auto' },
@@ -413,7 +687,9 @@ export async function PUT(req) {
         uploadedImages.push({
           url: uploadResponse.secure_url,
           publicId: uploadResponse.public_id,
-          alt: `${existingProduct.name} image ${i + 1}`,
+          alt: `${existingProduct.name} - ${existingProduct.category} image ${
+            uploadedImages.length + 1
+          }`,
         })
       } catch (uploadError) {
         console.error('Error uploading file:', uploadError)
