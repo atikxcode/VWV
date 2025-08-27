@@ -12,6 +12,7 @@
     "@headlessui/react": "^2.2.7",
     "@heroui/navbar": "^2.2.18",
     "chart.js": "^4.4.9",
+    "cloudinary": "^2.7.0",
     "firebase": "^11.10.0",
     "framer-motion": "^12.23.12",
     "gsap": "^3.13.0",

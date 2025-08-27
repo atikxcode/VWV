@@ -6,7 +6,7 @@ import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import AuthProvider from '../../Provider/AuthProvider'
 import AgeVerification from '../../components/AgeVerification'
-import { Toaster } from 'react-hot-toast'
+
 import { usePathname } from 'next/navigation' // 👈 import hook
 
 const josefinSans = Josefin_Sans({
@@ -32,7 +32,6 @@ export default function RootLayout({ children }) {
           {!isAdminRoute && <Navbar />}
           {children}
           {!isAdminRoute && <Footer />}
-          <Toaster /> {/* keep toaster always */}
         </AuthProvider>
       </body>
     </html>

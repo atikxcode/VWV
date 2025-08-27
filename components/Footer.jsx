@@ -7,10 +7,10 @@ import {
   FaTiktok,
 } from 'react-icons/fa'
 import { FaXTwitter } from 'react-icons/fa6'
-
 const Footer = () => {
   return (
-    <footer className="bg-gray-100 text-gray-700 py-12 px-6">
+    //<footer className="bg-gray-100 text-gray-700 py-12 px-6">
+    <footer className="bg-[url('/Footer_Image/Footer3.gif')] bg-cover bg-center text-white py-12 px-6">
       <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-8 text-sm">
         <div>
           <h3 className="font-bold mb-4">Categories</h3>
