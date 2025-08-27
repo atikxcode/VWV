@@ -19,10 +19,11 @@ import {
   RotateCcw,
   Plus,
   Zap,
-  Droplets,
-  Battery,
-  Thermometer,
+  X,
 } from 'lucide-react'
+
+// For barcode scanning - you'll need to install: npm install react-barcode-reader
+import BarcodeReader from 'react-barcode-reader'
 
 // Vape shop categories
 const VAPE_CATEGORIES = {
@@ -84,14 +85,18 @@ export default function AddProduct() {
   const [images, setImages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
-  const [customCategory, setCustomCategory] = useState('')
-  const [customSubcategory, setCustomSubcategory] = useState('')
+
+  // Fixed: Separate states for category and subcategory custom inputs
+  const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false)
+  const [isAddingCustomSubcategory, setIsAddingCustomSubcategory] =
+    useState(false)
+  const [customCategoryInput, setCustomCategoryInput] = useState('')
+  const [customSubcategoryInput, setCustomSubcategoryInput] = useState('')
+
   const [dynamicCategories, setDynamicCategories] = useState(VAPE_CATEGORIES)
   const fileInputRef = useRef(null)
-  const videoRef = useRef(null)
 
   const category = watch('category')
-  const selectedImages = watch('images')
 
   // Initialize stock for default branches
   useEffect(() => {
@@ -111,32 +116,52 @@ export default function AddProduct() {
     }
   }, [category, dynamicCategories])
 
-  // Handle barcode scanning
-  const handleBarcodeScanning = async () => {
+  // Fixed: Real barcode scanning handler
+  const handleBarcodeScan = async (data) => {
     try {
-      setShowBarcodeScanner(true)
-      // This would integrate with a barcode scanning library
-      // For demo purposes, we'll simulate it
-      const mockBarcode = '1234567890123'
+      if (data) {
+        console.log('Scanned barcode:', data)
 
-      // Fetch product data from barcode
-      const response = await fetch(`/api/products?barcode=${mockBarcode}`)
-      if (response.ok) {
-        const productData = await response.json()
-        // Auto-fill form with existing product data
-        setValue('name', productData.name)
-        setValue('brand', productData.brand)
-        setValue('sku', productData.sku)
-        setValue('price', productData.price)
-        setValue('category', productData.category)
-        setValue('subcategory', productData.subcategory)
-        setValue('description', productData.description)
+        // Fetch product data from barcode
+        const response = await fetch(`/api/products?barcode=${data}`)
+        if (response.ok) {
+          const productData = await response.json()
+
+          // Auto-fill form with existing product data
+          setValue('name', productData.name || '')
+          setValue('brand', productData.brand || '')
+          setValue('sku', productData.sku || '')
+          setValue('barcode', data)
+          setValue('price', productData.price || '')
+          setValue('category', productData.category || '')
+          setValue('subcategory', productData.subcategory || '')
+          setValue('description', productData.description || '')
+          setValue('nicotineStrength', productData.nicotineStrength || '')
+          setValue('vgPgRatio', productData.vgPgRatio || '')
+          setValue('flavor', productData.flavor || '')
+          setValue('resistance', productData.resistance || '')
+          setValue('wattageRange', productData.wattageRange || '')
+
+          alert('Product data loaded from barcode!')
+        } else {
+          // If product not found, just fill the barcode field
+          setValue('barcode', data)
+          alert(
+            'Product not found. Barcode filled - please enter other details manually.'
+          )
+        }
+        setShowBarcodeScanner(false)
       }
     } catch (error) {
       console.error('Barcode scanning error:', error)
-    } finally {
+      setValue('barcode', data) // At least fill the barcode
       setShowBarcodeScanner(false)
     }
+  }
+
+  // Handle barcode scan error
+  const handleBarcodeScanError = (err) => {
+    console.error('Barcode scan error:', err)
   }
 
   // Handle image upload
@@ -153,6 +178,11 @@ export default function AddProduct() {
   // Remove image
   const removeImage = (imageId) => {
     setImages((prev) => prev.filter((img) => img.id !== imageId))
+    // Clean up the preview URL
+    const imageToRemove = images.find((img) => img.id === imageId)
+    if (imageToRemove) {
+      URL.revokeObjectURL(imageToRemove.preview)
+    }
   }
 
   // Add new branch
@@ -170,16 +200,16 @@ export default function AddProduct() {
     setStock((prev) => ({ ...prev, [branchKey]: parseInt(value) || 0 }))
   }
 
-  // Add custom category
-  const addCustomCategory = async () => {
-    if (customCategory.trim()) {
+  // Fixed: Add custom category
+  const handleAddCustomCategory = async () => {
+    if (customCategoryInput.trim()) {
       try {
         const response = await fetch('/api/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'add_category',
-            categoryName: customCategory.toUpperCase(),
+            categoryName: customCategoryInput.toUpperCase(),
             subcategories: [],
           }),
         })
@@ -187,19 +217,27 @@ export default function AddProduct() {
         if (response.ok) {
           setDynamicCategories((prev) => ({
             ...prev,
-            [customCategory.toUpperCase()]: [],
+            [customCategoryInput.toUpperCase()]: [],
           }))
-          setCustomCategory('')
+          // Set the new category as selected
+          setValue('category', customCategoryInput.toUpperCase())
+          // Reset states
+          setCustomCategoryInput('')
+          setIsAddingCustomCategory(false)
+          alert('Custom category added successfully!')
+        } else {
+          alert('Failed to add custom category')
         }
       } catch (error) {
         console.error('Error adding category:', error)
+        alert('Error adding custom category')
       }
     }
   }
 
-  // Add custom subcategory
-  const addCustomSubcategory = async () => {
-    if (customSubcategory.trim() && category) {
+  // Fixed: Add custom subcategory
+  const handleAddCustomSubcategory = async () => {
+    if (customSubcategoryInput.trim() && category) {
       try {
         const response = await fetch('/api/products', {
           method: 'POST',
@@ -207,20 +245,28 @@ export default function AddProduct() {
           body: JSON.stringify({
             action: 'add_subcategory',
             categoryName: category,
-            subcategoryName: customSubcategory,
+            subcategoryName: customSubcategoryInput,
           }),
         })
 
         if (response.ok) {
           setDynamicCategories((prev) => ({
             ...prev,
-            [category]: [...(prev[category] || []), customSubcategory],
+            [category]: [...(prev[category] || []), customSubcategoryInput],
           }))
-          setSubCategoryOptions((prev) => [...prev, customSubcategory])
-          setCustomSubcategory('')
+          setSubCategoryOptions((prev) => [...prev, customSubcategoryInput])
+          // Set the new subcategory as selected
+          setValue('subcategory', customSubcategoryInput)
+          // Reset states
+          setCustomSubcategoryInput('')
+          setIsAddingCustomSubcategory(false)
+          alert('Custom subcategory added successfully!')
+        } else {
+          alert('Failed to add custom subcategory')
         }
       } catch (error) {
         console.error('Error adding subcategory:', error)
+        alert('Error adding custom subcategory')
       }
     }
   }
@@ -264,13 +310,18 @@ export default function AddProduct() {
           })
         }
 
-        // Reset form
+        // Reset form and states
         reset()
         setStock({})
         setImages([])
+        setIsAddingCustomCategory(false)
+        setIsAddingCustomSubcategory(false)
+        setCustomCategoryInput('')
+        setCustomSubcategoryInput('')
         alert('Product added successfully!')
       } else {
-        throw new Error('Failed to create product')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create product')
       }
     } catch (error) {
       console.error('Error:', error)
@@ -343,10 +394,11 @@ export default function AddProduct() {
                 <p className="opacity-90">Fill in the details below</p>
               </div>
               <motion.button
+                type="button"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={handleBarcodeScanning}
-                className="bg-white bg-opacity-20 text-white px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-opacity-30 transition-all"
+                onClick={() => setShowBarcodeScanner(true)}
+                className="bg-white bg-opacity-20 text-purple-500 px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-opacity-30 transition-all"
               >
                 <Scan size={20} />
                 Scan Barcode
@@ -455,35 +507,42 @@ export default function AddProduct() {
                       </label>
                       <button
                         type="button"
-                        onClick={() => setCustomCategory('')}
+                        onClick={() =>
+                          setIsAddingCustomCategory(!isAddingCustomCategory)
+                        }
                         className="text-purple-600 hover:text-purple-700 text-sm flex items-center gap-1"
                       >
                         <Plus size={14} /> Add Custom
                       </button>
                     </div>
 
-                    {customCategory !== '' ? (
+                    {isAddingCustomCategory ? (
                       <div className="flex gap-2">
                         <input
                           type="text"
-                          value={customCategory}
-                          onChange={(e) => setCustomCategory(e.target.value)}
+                          value={customCategoryInput}
+                          onChange={(e) =>
+                            setCustomCategoryInput(e.target.value)
+                          }
                           placeholder="Enter custom category"
                           className="flex-1 p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
                         />
                         <button
                           type="button"
-                          onClick={addCustomCategory}
+                          onClick={handleAddCustomCategory}
                           className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700"
                         >
                           Add
                         </button>
                         <button
                           type="button"
-                          onClick={() => setCustomCategory('')}
+                          onClick={() => {
+                            setIsAddingCustomCategory(false)
+                            setCustomCategoryInput('')
+                          }}
                           className="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400"
                         >
-                          Cancel
+                          <X size={16} />
                         </button>
                       </div>
                     ) : (
@@ -501,6 +560,18 @@ export default function AddProduct() {
                         ))}
                       </select>
                     )}
+                    <AnimatePresence>
+                      {errors.category && (
+                        <motion.span
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="text-red-500 text-sm flex items-center gap-1 mt-1"
+                        >
+                          <AlertCircle size={16} /> {errors.category.message}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
                   </div>
 
                   {/* Subcategory */}
@@ -512,7 +583,11 @@ export default function AddProduct() {
                       {category && (
                         <button
                           type="button"
-                          onClick={() => setCustomSubcategory('')}
+                          onClick={() =>
+                            setIsAddingCustomSubcategory(
+                              !isAddingCustomSubcategory
+                            )
+                          }
                           className="text-purple-600 hover:text-purple-700 text-sm flex items-center gap-1"
                         >
                           <Plus size={14} /> Add Custom
@@ -520,28 +595,33 @@ export default function AddProduct() {
                       )}
                     </div>
 
-                    {customSubcategory !== '' ? (
+                    {isAddingCustomSubcategory ? (
                       <div className="flex gap-2">
                         <input
                           type="text"
-                          value={customSubcategory}
-                          onChange={(e) => setCustomSubcategory(e.target.value)}
+                          value={customSubcategoryInput}
+                          onChange={(e) =>
+                            setCustomSubcategoryInput(e.target.value)
+                          }
                           placeholder="Enter custom subcategory"
                           className="flex-1 p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
                         />
                         <button
                           type="button"
-                          onClick={addCustomSubcategory}
+                          onClick={handleAddCustomSubcategory}
                           className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700"
                         >
                           Add
                         </button>
                         <button
                           type="button"
-                          onClick={() => setCustomSubcategory('')}
+                          onClick={() => {
+                            setIsAddingCustomSubcategory(false)
+                            setCustomSubcategoryInput('')
+                          }}
                           className="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400"
                         >
-                          Cancel
+                          <X size={16} />
                         </button>
                       </div>
                     ) : (
@@ -559,6 +639,18 @@ export default function AddProduct() {
                         ))}
                       </select>
                     )}
+                    <AnimatePresence>
+                      {errors.subcategory && (
+                        <motion.span
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="text-red-500 text-sm flex items-center gap-1 mt-1"
+                        >
+                          <AlertCircle size={16} /> {errors.subcategory.message}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </motion.div>
 
@@ -590,6 +682,18 @@ export default function AddProduct() {
                           size={20}
                         />
                       </div>
+                      <AnimatePresence>
+                        {errors.price && (
+                          <motion.span
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="text-red-500 text-sm flex items-center gap-1 mt-1"
+                          >
+                            <AlertCircle size={16} /> {errors.price.message}
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -826,7 +930,15 @@ export default function AddProduct() {
                 type="button"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => reset()}
+                onClick={() => {
+                  reset()
+                  setStock({})
+                  setImages([])
+                  setIsAddingCustomCategory(false)
+                  setIsAddingCustomSubcategory(false)
+                  setCustomCategoryInput('')
+                  setCustomSubcategoryInput('')
+                }}
                 className="flex-1 py-4 px-6 bg-gray-100 text-gray-700 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
               >
                 <RotateCcw size={20} />
@@ -871,18 +983,30 @@ export default function AddProduct() {
                 exit={{ scale: 0.9, opacity: 0 }}
                 className="bg-white rounded-2xl p-8 max-w-md w-full mx-4"
               >
-                <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <Scan size={24} className="text-purple-600" />
-                  Barcode Scanner
-                </h3>
-                <div className="bg-gray-100 rounded-xl p-8 text-center mb-4">
-                  <video
-                    ref={videoRef}
-                    className="w-full h-48 bg-gray-200 rounded-lg mb-4"
-                    playsInline
-                  />
-                  <p className="text-gray-600">Position barcode in the frame</p>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <Scan size={24} className="text-purple-600" />
+                    Barcode Scanner
+                  </h3>
+                  <button
+                    onClick={() => setShowBarcodeScanner(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={24} />
+                  </button>
                 </div>
+
+                <div className="bg-gray-100 rounded-xl p-4 mb-4">
+                  <BarcodeReader
+                    onError={handleBarcodeScanError}
+                    onScan={handleBarcodeScan}
+                    style={{ width: '100%' }}
+                  />
+                  <p className="text-gray-600 text-center mt-2">
+                    Position barcode in the frame
+                  </p>
+                </div>
+
                 <button
                   onClick={() => setShowBarcodeScanner(false)}
                   className="w-full py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors"
