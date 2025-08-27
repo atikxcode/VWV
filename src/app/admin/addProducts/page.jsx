@@ -1,55 +1,71 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'
-import { PlusCircle, Upload, AlertCircle } from 'lucide-react'
+import {
+  PlusCircle,
+  Upload,
+  AlertCircle,
+  Scan,
+  Package,
+  DollarSign,
+  Hash,
+  Store,
+  Tag,
+  Image as ImageIcon,
+  Trash2,
+  Save,
+  RotateCcw,
+  Plus,
+  Zap,
+  Droplets,
+  Battery,
+  Thermometer,
+} from 'lucide-react'
 
-const categoryOptions = {
-  kids: [
-    'coat-pant',
-    'denim',
-    'hoodie',
-    'jacket',
-    'shorts',
-    'swipe-shirt',
-    't-shirt',
-    'trouser',
-    'sweaters',
+// Vape shop categories
+const VAPE_CATEGORIES = {
+  'E-LIQUID': [
+    'Fruits',
+    'Bakery & Dessert',
+    'Tobacco',
+    'Custard & Cream',
+    'Coffee',
+    'Menthol/Mint',
   ],
-  women: [
-    'coat-long-pants',
-    'coat-tops',
-    'denim-long-pants',
-    'ladies-skirts',
-    'tops',
-    'twill',
-    'sweaters',
-    'ladies-leggings',
-    'ladies-jumpsuit',
-    'swimming-shorts',
-    'ladies-shorts',
-    'blazer',
-    'jacket',
-    'overalls',
+  TANKS: ['Rda', 'Rta', 'Rdta', 'Subohm', 'Disposable'],
+  'NIC SALTS': [
+    'Fruits',
+    'Bakery & Dessert',
+    'Tobacco',
+    'Custard & Cream',
+    'Coffee',
+    'Menthol/Mint',
   ],
-  men: [
-    'coat-jacket',
-    'hoodie',
-    'mens-cargo-pant',
-    'mens-long-pant',
-    'polo-shirt',
-    'sweaters',
-    'swipe-shirt',
-    't-shirt',
-    'swimming-shorts',
-    'blazer',
-    'mens-shorts',
-    'panjabi',
-    'jacket',
-    'shirt',
+  'POD SYSTEM': ['Disposable', 'Refillable Pod Kit', 'Pre-Filled Cartridge'],
+  DEVICE: ['Kit', 'Only Mod'],
+  BORO: [
+    'Alo (Boro)',
+    'Boro Bridge and Cartridge',
+    'Boro Accessories And Tools',
+  ],
+  ACCESSORIES: [
+    'SibOhm Coil',
+    'Charger',
+    'Cotton',
+    'Premade Coil',
+    'Battery',
+    'Tank Glass',
+    'Cartridge',
+    'RBA/RBK',
+    'WIRE SPOOL',
+    'DRIP TIP',
   ],
 }
+
+// Default branches
+const DEFAULT_BRANCHES = ['ghatpar', 'mirpur']
 
 export default function AddProduct() {
   const {
@@ -57,24 +73,229 @@ export default function AddProduct() {
     handleSubmit,
     watch,
     control,
+    setValue,
     formState: { errors },
+    reset,
   } = useForm()
-  const [subCategoryOptions, setSubCategoryOptions] = useState([])
-  const category = watch('category')
 
+  const [subCategoryOptions, setSubCategoryOptions] = useState([])
+  const [branches, setBranches] = useState(DEFAULT_BRANCHES)
+  const [stock, setStock] = useState({})
+  const [images, setImages] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
+  const [customCategory, setCustomCategory] = useState('')
+  const [customSubcategory, setCustomSubcategory] = useState('')
+  const [dynamicCategories, setDynamicCategories] = useState(VAPE_CATEGORIES)
+  const fileInputRef = useRef(null)
+  const videoRef = useRef(null)
+
+  const category = watch('category')
+  const selectedImages = watch('images')
+
+  // Initialize stock for default branches
   useEffect(() => {
-    if (category) {
-      setSubCategoryOptions(categoryOptions[category])
+    const initialStock = {}
+    branches.forEach((branch) => {
+      initialStock[`${branch}_stock`] = 0
+    })
+    setStock(initialStock)
+  }, [branches])
+
+  // Update subcategories when category changes
+  useEffect(() => {
+    if (category && dynamicCategories[category]) {
+      setSubCategoryOptions(dynamicCategories[category])
     } else {
       setSubCategoryOptions([])
     }
-  }, [category])
+  }, [category, dynamicCategories])
 
+  // Handle barcode scanning
+  const handleBarcodeScanning = async () => {
+    try {
+      setShowBarcodeScanner(true)
+      // This would integrate with a barcode scanning library
+      // For demo purposes, we'll simulate it
+      const mockBarcode = '1234567890123'
+
+      // Fetch product data from barcode
+      const response = await fetch(`/api/products?barcode=${mockBarcode}`)
+      if (response.ok) {
+        const productData = await response.json()
+        // Auto-fill form with existing product data
+        setValue('name', productData.name)
+        setValue('brand', productData.brand)
+        setValue('sku', productData.sku)
+        setValue('price', productData.price)
+        setValue('category', productData.category)
+        setValue('subcategory', productData.subcategory)
+        setValue('description', productData.description)
+      }
+    } catch (error) {
+      console.error('Barcode scanning error:', error)
+    } finally {
+      setShowBarcodeScanner(false)
+    }
+  }
+
+  // Handle image upload
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files)
+    const newImages = files.map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+      id: Math.random().toString(36).substr(2, 9),
+    }))
+    setImages((prev) => [...prev, ...newImages])
+  }
+
+  // Remove image
+  const removeImage = (imageId) => {
+    setImages((prev) => prev.filter((img) => img.id !== imageId))
+  }
+
+  // Add new branch
+  const addBranch = () => {
+    const branchName = prompt('Enter branch name:')
+    if (branchName && !branches.includes(branchName.toLowerCase())) {
+      const newBranch = branchName.toLowerCase()
+      setBranches((prev) => [...prev, newBranch])
+      setStock((prev) => ({ ...prev, [`${newBranch}_stock`]: 0 }))
+    }
+  }
+
+  // Update stock for specific branch
+  const updateStock = (branchKey, value) => {
+    setStock((prev) => ({ ...prev, [branchKey]: parseInt(value) || 0 }))
+  }
+
+  // Add custom category
+  const addCustomCategory = async () => {
+    if (customCategory.trim()) {
+      try {
+        const response = await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'add_category',
+            categoryName: customCategory.toUpperCase(),
+            subcategories: [],
+          }),
+        })
+
+        if (response.ok) {
+          setDynamicCategories((prev) => ({
+            ...prev,
+            [customCategory.toUpperCase()]: [],
+          }))
+          setCustomCategory('')
+        }
+      } catch (error) {
+        console.error('Error adding category:', error)
+      }
+    }
+  }
+
+  // Add custom subcategory
+  const addCustomSubcategory = async () => {
+    if (customSubcategory.trim() && category) {
+      try {
+        const response = await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'add_subcategory',
+            categoryName: category,
+            subcategoryName: customSubcategory,
+          }),
+        })
+
+        if (response.ok) {
+          setDynamicCategories((prev) => ({
+            ...prev,
+            [category]: [...(prev[category] || []), customSubcategory],
+          }))
+          setSubCategoryOptions((prev) => [...prev, customSubcategory])
+          setCustomSubcategory('')
+        }
+      } catch (error) {
+        console.error('Error adding subcategory:', error)
+      }
+    }
+  }
+
+  // Form submission
   const onSubmit = async (data) => {
-    console.log('Submitted Data:', data)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    alert('Product added successfully!')
+    setIsLoading(true)
+    try {
+      // Create product
+      const productData = {
+        ...data,
+        stock,
+        nicotineStrength: data.nicotineStrength || null,
+        vgPgRatio: data.vgPgRatio || null,
+        resistance: data.resistance || null,
+        wattageRange: data.wattageRange || null,
+        tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()) : [],
+      }
+
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(productData),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        const productId = result.product._id
+
+        // Upload images if any
+        if (images.length > 0) {
+          const formData = new FormData()
+          formData.append('productId', productId)
+          images.forEach((image) => {
+            formData.append('images', image.file)
+          })
+
+          await fetch('/api/products', {
+            method: 'PUT',
+            body: formData,
+          })
+        }
+
+        // Reset form
+        reset()
+        setStock({})
+        setImages([])
+        alert('Product added successfully!')
+      } else {
+        throw new Error('Failed to create product')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Error adding product: ' + error.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        staggerChildren: 0.1,
+      },
+    },
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 },
   }
 
   const inputVariants = {
@@ -85,176 +306,593 @@ export default function AddProduct() {
     },
     error: {
       borderColor: '#EF4444',
-      x: [-5, 5, -5, 0],
+      x: [-3, 3, -3, 0],
       transition: { duration: 0.3 },
     },
   }
 
-  const fadeIn = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br  flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 p-4">
       <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-        className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="max-w-6xl mx-auto"
       >
-        <motion.h2
-          variants={fadeIn}
-          initial="hidden"
-          animate="visible"
-          className="text-3xl font-bold text-gray-800 mb-6 text-center"
+        {/* Header */}
+        <motion.div variants={itemVariants} className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center justify-center gap-3">
+            <Package className="text-purple-600" size={40} />
+            Add New Vape Product
+          </h1>
+          <p className="text-gray-600">
+            Manage your vape shop inventory with style
+          </p>
+        </motion.div>
+
+        {/* Main Form */}
+        <motion.div
+          variants={itemVariants}
+          className="bg-white rounded-3xl shadow-2xl overflow-hidden"
         >
-          Add New Product
-        </motion.h2>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Category */}
-          <motion.div variants={fadeIn} initial="hidden" animate="visible">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category
-            </label>
-            <motion.select
-              variants={inputVariants}
-              animate={errors.category ? 'error' : 'focus'}
-              className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-              {...register('category', { required: 'Category is required' })}
-            >
-              <option value="">Select Category</option>
-              {Object.keys(categoryOptions).map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                </option>
-              ))}
-            </motion.select>
-            <AnimatePresence>
-              {errors.category && (
-                <motion.span
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="text-red-500 text-sm flex items-center gap-1 mt-1"
-                >
-                  <AlertCircle size={16} /> {errors.category.message}
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </motion.div>
-
-          {/* Subcategory */}
-          <motion.div variants={fadeIn} initial="hidden" animate="visible">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Subcategory
-            </label>
-            <Controller
-              name="subcategory"
-              control={control}
-              rules={{ required: 'Subcategory is required' }}
-              render={({ field }) => (
-                <motion.select
-                  variants={inputVariants}
-                  animate={errors.subcategory ? 'error' : 'focus'}
-                  className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                  {...field}
-                >
-                  <option value="">Select Subcategory</option>
-                  {subCategoryOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option
-                        .replace(/-/g, ' ')
-                        .replace(/\b\w/g, (c) => c.toUpperCase())}
-                    </option>
-                  ))}
-                </motion.select>
-              )}
-            />
-            <AnimatePresence>
-              {errors.subcategory && (
-                <motion.span
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="text-red-500 text-sm flex items-center gap-1 mt-1"
-                >
-                  <AlertCircle size={16} /> {errors.subcategory.message}
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </motion.div>
-
-          {/* Image Upload */}
-          <motion.div variants={fadeIn} initial="hidden" animate="visible">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Product Image
-            </label>
-            <div className="relative">
-              <input
-                type="file"
-                {...register('image', { required: 'Image is required' })}
-                className="w-full p-3 rounded-lg border border-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-purple-100 file:text-purple-700 hover:file:bg-purple-200"
-              />
-              <Upload
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                size={20}
-              />
+          {/* Header with Barcode Scanner */}
+          <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-6">
+            <div className="flex justify-between items-center">
+              <div className="text-white">
+                <h2 className="text-2xl font-bold">Product Information</h2>
+                <p className="opacity-90">Fill in the details below</p>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleBarcodeScanning}
+                className="bg-white bg-opacity-20 text-white px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-opacity-30 transition-all"
+              >
+                <Scan size={20} />
+                Scan Barcode
+              </motion.button>
             </div>
-            <AnimatePresence>
-              {errors.image && (
-                <motion.span
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="text-red-500 text-sm flex items-center gap-1 mt-1"
-                >
-                  <AlertCircle size={16} /> {errors.image.message}
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </motion.div>
+          </div>
 
-          {/* Fabric / Material */}
-          <motion.div variants={fadeIn} initial="hidden" animate="visible">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Fabric / Material
-            </label>
-            <motion.input
-              type="text"
-              variants={inputVariants}
-              animate={errors.fabricOrMaterial ? 'error' : 'focus'}
-              {...register('fabricOrMaterial', {
-                required: 'Fabric is required',
-              })}
-              placeholder="Enter fabric details"
-              className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-            <AnimatePresence>
-              {errors.fabricOrMaterial && (
-                <motion.span
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="text-red-500 text-sm flex items-center gap-1 mt-1"
-                >
-                  <AlertCircle size={16} /> {errors.fabricOrMaterial.message}
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </motion.div>
+          <form onSubmit={handleSubmit(onSubmit)} className="p-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Column */}
+              <div className="space-y-6">
+                {/* Basic Information */}
+                <motion.div variants={itemVariants} className="space-y-4">
+                  <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                    <Package size={20} className="text-purple-600" />
+                    Basic Information
+                  </h3>
 
-          {/* Submit Button */}
-          <motion.button
-            type="submit"
-            whileHover={{ scale: 1.05, backgroundColor: '#7C3AED' }}
-            whileTap={{ scale: 0.95 }}
-            className="w-full py-3 bg-purple-600 text-white font-semibold rounded-lg flex items-center justify-center gap-2"
-          >
-            <PlusCircle size={20} /> Add Product
-          </motion.button>
-        </form>
+                  {/* Product Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Product Name *
+                    </label>
+                    <motion.input
+                      variants={inputVariants}
+                      animate={errors.name ? 'error' : 'focus'}
+                      type="text"
+                      {...register('name', {
+                        required: 'Product name is required',
+                      })}
+                      placeholder="Enter product name"
+                      className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                    />
+                    <AnimatePresence>
+                      {errors.name && (
+                        <motion.span
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="text-red-500 text-sm flex items-center gap-1 mt-1"
+                        >
+                          <AlertCircle size={16} /> {errors.name.message}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Brand & SKU */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Brand
+                      </label>
+                      <input
+                        type="text"
+                        {...register('brand')}
+                        placeholder="Enter brand name"
+                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        SKU
+                      </label>
+                      <input
+                        type="text"
+                        {...register('sku')}
+                        placeholder="Enter SKU"
+                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Barcode */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Barcode
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        {...register('barcode')}
+                        placeholder="Enter or scan barcode"
+                        className="w-full p-4 pr-12 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                      />
+                      <Hash
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
+                        size={20}
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Categories */}
+                <motion.div variants={itemVariants} className="space-y-4">
+                  <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                    <Tag size={20} className="text-purple-600" />
+                    Categories
+                  </h3>
+
+                  {/* Category */}
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Category *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setCustomCategory('')}
+                        className="text-purple-600 hover:text-purple-700 text-sm flex items-center gap-1"
+                      >
+                        <Plus size={14} /> Add Custom
+                      </button>
+                    </div>
+
+                    {customCategory !== '' ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={customCategory}
+                          onChange={(e) => setCustomCategory(e.target.value)}
+                          placeholder="Enter custom category"
+                          className="flex-1 p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={addCustomCategory}
+                          className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700"
+                        >
+                          Add
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCustomCategory('')}
+                          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        {...register('category', {
+                          required: 'Category is required',
+                        })}
+                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                      >
+                        <option value="">Select Category</option>
+                        {Object.keys(dynamicCategories).map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Subcategory */}
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Subcategory *
+                      </label>
+                      {category && (
+                        <button
+                          type="button"
+                          onClick={() => setCustomSubcategory('')}
+                          className="text-purple-600 hover:text-purple-700 text-sm flex items-center gap-1"
+                        >
+                          <Plus size={14} /> Add Custom
+                        </button>
+                      )}
+                    </div>
+
+                    {customSubcategory !== '' ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={customSubcategory}
+                          onChange={(e) => setCustomSubcategory(e.target.value)}
+                          placeholder="Enter custom subcategory"
+                          className="flex-1 p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={addCustomSubcategory}
+                          className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700"
+                        >
+                          Add
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCustomSubcategory('')}
+                          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        {...register('subcategory', {
+                          required: 'Subcategory is required',
+                        })}
+                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                      >
+                        <option value="">Select Subcategory</option>
+                        {subCategoryOptions.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </motion.div>
+
+                {/* Pricing */}
+                <motion.div variants={itemVariants} className="space-y-4">
+                  <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                    <DollarSign size={20} className="text-purple-600" />
+                    Pricing
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Price *
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.01"
+                          {...register('price', {
+                            required: 'Price is required',
+                            min: 0,
+                          })}
+                          placeholder="0.00"
+                          className="w-full p-4 pl-12 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                        <DollarSign
+                          className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                          size={20}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Compare Price
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.01"
+                          {...register('comparePrice', { min: 0 })}
+                          placeholder="0.00"
+                          className="w-full p-4 pl-12 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                        <DollarSign
+                          className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                          size={20}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* Right Column */}
+              <div className="space-y-6">
+                {/* Vape-Specific Fields */}
+                <motion.div variants={itemVariants} className="space-y-4">
+                  <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                    <Zap size={20} className="text-purple-600" />
+                    Vape Specifications
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Nicotine Strength
+                      </label>
+                      <select
+                        {...register('nicotineStrength')}
+                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                      >
+                        <option value="">Select Strength</option>
+                        <option value="0mg">0mg</option>
+                        <option value="3mg">3mg</option>
+                        <option value="6mg">6mg</option>
+                        <option value="12mg">12mg</option>
+                        <option value="18mg">18mg</option>
+                        <option value="24mg">24mg</option>
+                        <option value="50mg">50mg</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        VG/PG Ratio
+                      </label>
+                      <select
+                        {...register('vgPgRatio')}
+                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                      >
+                        <option value="">Select Ratio</option>
+                        <option value="50/50">50/50</option>
+                        <option value="60/40">60/40</option>
+                        <option value="70/30">70/30</option>
+                        <option value="80/20">80/20</option>
+                        <option value="Max VG">Max VG</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Resistance
+                      </label>
+                      <input
+                        type="text"
+                        {...register('resistance')}
+                        placeholder="e.g., 0.5Ω"
+                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Wattage Range
+                      </label>
+                      <input
+                        type="text"
+                        {...register('wattageRange')}
+                        placeholder="e.g., 5-80W"
+                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Flavor
+                    </label>
+                    <input
+                      type="text"
+                      {...register('flavor')}
+                      placeholder="Enter flavor profile"
+                      className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </motion.div>
+
+                {/* Stock Management */}
+                <motion.div variants={itemVariants} className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                      <Store size={20} className="text-purple-600" />
+                      Stock Management
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={addBranch}
+                      className="text-purple-600 hover:text-purple-700 text-sm flex items-center gap-1"
+                    >
+                      <Plus size={14} /> Add Branch
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {branches.map((branch) => (
+                      <div key={branch}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
+                          {branch} Stock
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={stock[`${branch}_stock`] || 0}
+                          onChange={(e) =>
+                            updateStock(`${branch}_stock`, e.target.value)
+                          }
+                          className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+
+                {/* Image Upload */}
+                <motion.div variants={itemVariants} className="space-y-4">
+                  <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                    <ImageIcon size={20} className="text-purple-600" />
+                    Product Images
+                  </h3>
+
+                  <div className="border-2 border-dashed border-purple-300 rounded-xl p-6 text-center">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    <Upload
+                      className="mx-auto text-purple-400 mb-4"
+                      size={48}
+                    />
+                    <p className="text-gray-600 mb-4">
+                      Drag & drop images or click to browse
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors"
+                    >
+                      Choose Files
+                    </button>
+                  </div>
+
+                  {/* Image Preview */}
+                  {images.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {images.map((image) => (
+                        <div key={image.id} className="relative group">
+                          <img
+                            src={image.preview}
+                            alt="Preview"
+                            className="w-full h-32 object-cover rounded-xl"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeImage(image.id)}
+                            className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              </div>
+            </div>
+
+            {/* Description & Tags */}
+            <motion.div variants={itemVariants} className="mt-8 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  {...register('description')}
+                  rows={4}
+                  placeholder="Enter product description"
+                  className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tags (comma separated)
+                </label>
+                <input
+                  type="text"
+                  {...register('tags')}
+                  placeholder="e.g., sweet, fruity, popular"
+                  className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+            </motion.div>
+
+            {/* Action Buttons */}
+            <motion.div
+              variants={itemVariants}
+              className="flex flex-col sm:flex-row gap-4 mt-8 pt-6 border-t border-gray-200"
+            >
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => reset()}
+                className="flex-1 py-4 px-6 bg-gray-100 text-gray-700 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
+              >
+                <RotateCcw size={20} />
+                Reset Form
+              </motion.button>
+
+              <motion.button
+                type="submit"
+                disabled={isLoading}
+                whileHover={!isLoading ? { scale: 1.02 } : {}}
+                whileTap={!isLoading ? { scale: 0.98 } : {}}
+                className="flex-1 py-4 px-6 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold flex items-center justify-center gap-2 hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Adding Product...
+                  </>
+                ) : (
+                  <>
+                    <Save size={20} />
+                    Add Product
+                  </>
+                )}
+              </motion.button>
+            </motion.div>
+          </form>
+        </motion.div>
+
+        {/* Barcode Scanner Modal */}
+        <AnimatePresence>
+          {showBarcodeScanner && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-2xl p-8 max-w-md w-full mx-4"
+              >
+                <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <Scan size={24} className="text-purple-600" />
+                  Barcode Scanner
+                </h3>
+                <div className="bg-gray-100 rounded-xl p-8 text-center mb-4">
+                  <video
+                    ref={videoRef}
+                    className="w-full h-48 bg-gray-200 rounded-lg mb-4"
+                    playsInline
+                  />
+                  <p className="text-gray-600">Position barcode in the frame</p>
+                </div>
+                <button
+                  onClick={() => setShowBarcodeScanner(false)}
+                  className="w-full py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors"
+                >
+                  Cancel
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   )
