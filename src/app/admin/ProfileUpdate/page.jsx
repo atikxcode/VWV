@@ -5,7 +5,7 @@ import Image from 'next/image'
 import PhoneInput from 'react-phone-input-2'
 import 'react-phone-input-2/lib/style.css'
 import { AuthContext } from '../../../../Provider/AuthProvider' // Adjust path if needed
-
+import { useRouter } from 'next/navigation'
 export default function UpdateProfile() {
   const { user: authUser, logOut } = useContext(AuthContext)
 
@@ -21,6 +21,7 @@ export default function UpdateProfile() {
   const [message, setMessage] = useState('')
   const [errors, setErrors] = useState({})
   const [imagePreview, setImagePreview] = useState('')
+  const router = useRouter()
 
   // Initialize user data from AuthContext
   useEffect(() => {
@@ -69,6 +70,11 @@ export default function UpdateProfile() {
         phone: '',
       }))
     }
+  }
+
+  // Handle SignOut
+  const handleSignOut = () => {
+    logOut().then().catch()
   }
 
   const handleImageChange = (e) => {
@@ -267,8 +273,8 @@ export default function UpdateProfile() {
                 </p>
               </div>
               <button
-                onClick={logOut}
-                className="bg-white bg-opacity-20 text-white px-4 py-2 rounded-md hover:bg-opacity-30 transition-colors"
+                onClick={handleSignOut}
+                className="bg-white bg-opacity-20 text-purple-500 px-4 py-2 rounded-md hover:bg-opacity-30 transition-colors"
               >
                 Logout
               </button>
