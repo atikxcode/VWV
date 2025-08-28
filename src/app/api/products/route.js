@@ -3,14 +3,46 @@ import clientPromise from '@/lib/mongodb'
 import { NextResponse } from 'next/server'
 import { v2 as cloudinary } from 'cloudinary'
 
+// Enhanced error handling wrapper
+function handleApiError(error, context = '') {
+  console.error(`API Error in ${context}:`, error)
+  console.error('Error stack:', error.stack)
+
+  return NextResponse.json(
+    {
+      error: error.message || 'Internal server error',
+      context: context,
+      timestamp: new Date().toISOString(),
+    },
+    {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  )
+}
+
+// Request logging helper
+function logRequest(req, method) {
+  console.log(`${method} /api/products called at ${new Date().toISOString()}`)
+  console.log('URL:', req.url)
+}
+
 // Validate environment variables
+console.log('Checking environment variables...')
 if (
   !process.env.CLOUDINARY_CLOUD_NAME ||
   !process.env.CLOUDINARY_API_KEY ||
   !process.env.CLOUDINARY_API_SECRET
 ) {
+  console.error('Missing Cloudinary environment variables!')
+  console.error(
+    'Required: CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET'
+  )
   throw new Error('Missing required Cloudinary environment variables')
 }
+console.log('Environment variables validated ✓')
 
 // Configure Cloudinary
 cloudinary.config({
@@ -64,7 +96,10 @@ const VAPE_CATEGORIES = {
 
 // GET: return all products OR get product by ID/search/barcode with branch-specific stock
 export async function GET(req) {
+  logRequest(req, 'GET')
+
   try {
+    console.log('GET: Starting request processing...')
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
     const barcode = searchParams.get('barcode')
@@ -76,14 +111,30 @@ export async function GET(req) {
     const limit = parseInt(searchParams.get('limit')) || 0
     const page = parseInt(searchParams.get('page')) || 1
     const inStock = searchParams.get('inStock')
-    const getCategoriesOnly = searchParams.get('getCategoriesOnly') // For category management
+    const getCategoriesOnly = searchParams.get('getCategoriesOnly')
 
+    console.log('GET: Search params:', {
+      id,
+      barcode,
+      category,
+      subcategory,
+      search,
+      status,
+      branch,
+      limit,
+      page,
+      inStock,
+      getCategoriesOnly,
+    })
+
+    console.log('GET: Connecting to database...')
     const client = await clientPromise
     const db = client.db('VWV')
+    console.log('GET: Database connected ✓')
 
     // Get categories structure for frontend
     if (getCategoriesOnly === 'true') {
-      // Get dynamic categories from database (custom ones added by admin)
+      console.log('GET: Fetching categories...')
       const customCategories = await db
         .collection('categories')
         .find()
@@ -94,42 +145,68 @@ export async function GET(req) {
         allCategories[cat.name] = cat.subcategories
       })
 
-      return NextResponse.json({ categories: allCategories })
+      console.log('GET: Categories fetched successfully ✓')
+      return NextResponse.json(
+        { categories: allCategories },
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
     }
 
-    // Get product by barcode (for barcode scanner)
+    // Get product by barcode
     if (barcode) {
+      console.log('GET: Searching by barcode:', barcode)
       const product = await db
         .collection('products')
         .findOne({ barcode: barcode })
       if (!product) {
+        console.log('GET: Product not found with barcode:', barcode)
         return NextResponse.json(
           { error: 'Product not found with this barcode' },
-          { status: 404 }
+          {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          }
         )
       }
-      return NextResponse.json(product)
+      console.log('GET: Product found with barcode ✓')
+      return NextResponse.json(product, {
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
     // Get single product by ID
     if (id) {
+      console.log('GET: Searching by ID:', id)
       const { ObjectId } = require('mongodb')
       if (!ObjectId.isValid(id)) {
+        console.log('GET: Invalid product ID:', id)
         return NextResponse.json(
           { error: 'Invalid product ID' },
-          { status: 400 }
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
         )
       }
       const product = await db
         .collection('products')
         .findOne({ _id: new ObjectId(id) })
       if (!product) {
+        console.log('GET: Product not found with ID:', id)
         return NextResponse.json(
           { error: 'Product not found' },
-          { status: 404 }
+          {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          }
         )
       }
-      return NextResponse.json(product)
+      console.log('GET: Product found with ID ✓')
+      return NextResponse.json(product, {
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
     // Build query for filtering
@@ -165,8 +242,11 @@ export async function GET(req) {
       query[`stock.${branch}_stock`] = { $gt: 0 }
     }
 
+    console.log('GET: Built query:', query)
+
     // Get total count for pagination
     const totalProducts = await db.collection('products').countDocuments(query)
+    console.log('GET: Total products found:', totalProducts)
 
     // Calculate pagination
     const skip = (page - 1) * limit
@@ -183,40 +263,57 @@ export async function GET(req) {
       .collection('products')
       .aggregate(pipeline)
       .toArray()
+    console.log('GET: Products fetched successfully, count:', products.length)
 
-    return NextResponse.json({
-      products,
-      pagination: {
-        currentPage: page,
-        totalPages: limit > 0 ? Math.ceil(totalProducts / limit) : 1,
-        totalProducts,
-        hasNextPage: limit > 0 && skip + products.length < totalProducts,
-        hasPrevPage: page > 1,
+    return NextResponse.json(
+      {
+        products,
+        pagination: {
+          currentPage: page,
+          totalPages: limit > 0 ? Math.ceil(totalProducts / limit) : 1,
+          totalProducts,
+          hasNextPage: limit > 0 && skip + products.length < totalProducts,
+          hasPrevPage: page > 1,
+        },
       },
-    })
+      {
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
   } catch (err) {
-    console.error('GET /api/products error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return handleApiError(err, 'GET /api/products')
   }
 }
 
 // POST: create new product, update product, or manage categories
 export async function POST(req) {
+  logRequest(req, 'POST')
+
   try {
+    console.log('POST: Reading request body...')
     const body = await req.json()
+    console.log('POST: Body received, action:', body.action || 'create product')
+
     const { action } = body
 
+    console.log('POST: Connecting to database...')
     const client = await clientPromise
     const db = client.db('VWV')
+    console.log('POST: Database connected ✓')
 
     // Handle category management
     if (action === 'add_category') {
+      console.log('POST: Adding category:', body.categoryName)
       const { categoryName, subcategories } = body
 
       if (!categoryName) {
+        console.log('POST: Category name missing')
         return NextResponse.json(
           { error: 'Category name is required' },
-          { status: 400 }
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
         )
       }
 
@@ -226,9 +323,13 @@ export async function POST(req) {
       })
 
       if (existingCategory) {
+        console.log('POST: Category already exists:', categoryName)
         return NextResponse.json(
           { error: 'Category already exists' },
-          { status: 400 }
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
         )
       }
 
@@ -240,23 +341,39 @@ export async function POST(req) {
       }
 
       await db.collection('categories').insertOne(newCategory)
+      console.log('POST: Category added successfully ✓')
 
-      return NextResponse.json({
-        message: 'Category added successfully',
-        category: newCategory,
-      })
+      return NextResponse.json(
+        {
+          message: 'Category added successfully',
+          category: newCategory,
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
     }
 
     // Handle subcategory management
     if (action === 'add_subcategory') {
+      console.log(
+        'POST: Adding subcategory:',
+        body.subcategoryName,
+        'to category:',
+        body.categoryName
+      )
       const { categoryName, subcategoryName } = body
 
       if (!categoryName || !subcategoryName) {
+        console.log('POST: Category or subcategory name missing')
         return NextResponse.json(
           {
             error: 'Category name and subcategory name are required',
           },
-          { status: 400 }
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
         )
       }
 
@@ -272,7 +389,6 @@ export async function POST(req) {
       if (updateResult.matchedCount === 0) {
         // If category doesn't exist in custom categories, check if it's a default category
         if (VAPE_CATEGORIES[categoryName.toUpperCase()]) {
-          // Create custom category with existing subcategories + new one
           const existingSubcategories =
             VAPE_CATEGORIES[categoryName.toUpperCase()]
           const newCategory = {
@@ -283,18 +399,29 @@ export async function POST(req) {
           }
           await db.collection('categories').insertOne(newCategory)
         } else {
+          console.log('POST: Category not found:', categoryName)
           return NextResponse.json(
             { error: 'Category not found' },
-            { status: 404 }
+            {
+              status: 404,
+              headers: { 'Content-Type': 'application/json' },
+            }
           )
         }
       }
 
-      return NextResponse.json({ message: 'Subcategory added successfully' })
+      console.log('POST: Subcategory added successfully ✓')
+      return NextResponse.json(
+        { message: 'Subcategory added successfully' },
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
     }
 
     // Handle product update
     if (action === 'update') {
+      console.log('POST: Updating product:', body.id)
       const {
         id,
         name,
@@ -310,32 +437,43 @@ export async function POST(req) {
         status,
         specifications,
         tags,
-        nicotineStrength, // For vape products
-        vgPgRatio, // For e-liquids
-        flavor, // For e-liquids
-        resistance, // For coils/tanks
-        wattageRange, // For devices
+        nicotineStrength,
+        vgPgRatio,
+        flavor,
+        resistance,
+        wattageRange,
       } = body
 
       if (!id) {
+        console.log('POST: Product ID missing for update')
         return NextResponse.json(
           { error: 'Product ID is required for update' },
-          { status: 400 }
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
         )
       }
 
       // Validation
       if (!name || !price || !category) {
+        console.log('POST: Missing required fields for update')
         return NextResponse.json(
           { error: 'Name, price, and category are required' },
-          { status: 400 }
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
         )
       }
 
       if (price < 0) {
         return NextResponse.json(
           { error: 'Price must be a positive number' },
-          { status: 400 }
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
         )
       }
 
@@ -348,13 +486,19 @@ export async function POST(req) {
                 error:
                   'Stock keys must end with "_stock" (e.g., "ghatpar_stock")',
               },
-              { status: 400 }
+              {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+              }
             )
           }
           if (stockValue < 0) {
             return NextResponse.json(
               { error: `Stock for ${branchKey} must be a positive number` },
-              { status: 400 }
+              {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+              }
             )
           }
         }
@@ -364,7 +508,10 @@ export async function POST(req) {
       if (!ObjectId.isValid(id)) {
         return NextResponse.json(
           { error: 'Invalid product ID' },
-          { status: 400 }
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
         )
       }
 
@@ -373,9 +520,13 @@ export async function POST(req) {
         .collection('products')
         .findOne({ _id: new ObjectId(id) })
       if (!existingProduct) {
+        console.log('POST: Product not found for update:', id)
         return NextResponse.json(
           { error: 'Product not found' },
-          { status: 404 }
+          {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          }
         )
       }
 
@@ -388,7 +539,10 @@ export async function POST(req) {
         if (duplicateSku) {
           return NextResponse.json(
             { error: 'SKU already exists for another product' },
-            { status: 400 }
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+            }
           )
         }
       }
@@ -401,7 +555,10 @@ export async function POST(req) {
         if (duplicateBarcode) {
           return NextResponse.json(
             { error: 'Barcode already exists for another product' },
-            { status: 400 }
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+            }
           )
         }
       }
@@ -420,7 +577,6 @@ export async function POST(req) {
         status: status || 'active',
         specifications: specifications || {},
         tags: Array.isArray(tags) ? tags.filter((tag) => tag.trim()) : [],
-        // Vape-specific fields
         nicotineStrength: nicotineStrength || null,
         vgPgRatio: vgPgRatio || null,
         flavor: flavor?.trim() || '',
@@ -441,7 +597,10 @@ export async function POST(req) {
       if (updateResult.matchedCount === 0) {
         return NextResponse.json(
           { error: 'Failed to update product' },
-          { status: 500 }
+          {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+          }
         )
       }
 
@@ -449,17 +608,22 @@ export async function POST(req) {
       const updatedProduct = await db
         .collection('products')
         .findOne({ _id: new ObjectId(id) })
+      console.log('POST: Product updated successfully ✓')
 
       return NextResponse.json(
         {
           message: 'Product updated successfully',
           product: updatedProduct,
         },
-        { status: 200 }
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
       )
     }
 
     // Handle product creation (default behavior)
+    console.log('POST: Creating new product:', body.name)
     const {
       name,
       description,
@@ -475,7 +639,6 @@ export async function POST(req) {
       specifications,
       tags,
       branches,
-      // Vape-specific fields
       nicotineStrength,
       vgPgRatio,
       flavor,
@@ -485,16 +648,23 @@ export async function POST(req) {
 
     // Validation for new product
     if (!name || !price || !category) {
+      console.log('POST: Missing required fields for new product')
       return NextResponse.json(
         { error: 'Name, price, and category are required' },
-        { status: 400 }
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
       )
     }
 
     if (price < 0) {
       return NextResponse.json(
         { error: 'Price must be a positive number' },
-        { status: 400 }
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
       )
     }
 
@@ -504,9 +674,13 @@ export async function POST(req) {
         .collection('products')
         .findOne({ sku: sku.trim() })
       if (existingSku) {
+        console.log('POST: SKU already exists:', sku)
         return NextResponse.json(
           { error: 'SKU already exists' },
-          { status: 400 }
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
         )
       }
     }
@@ -516,9 +690,13 @@ export async function POST(req) {
         .collection('products')
         .findOne({ barcode: barcode.trim() })
       if (existingBarcode) {
+        console.log('POST: Barcode already exists:', barcode)
         return NextResponse.json(
           { error: 'Barcode already exists' },
-          { status: 400 }
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
         )
       }
     }
@@ -535,13 +713,19 @@ export async function POST(req) {
               error:
                 'Stock keys must end with "_stock" (e.g., "ghatpar_stock")',
             },
-            { status: 400 }
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+            }
           )
         }
         if (stockValue < 0) {
           return NextResponse.json(
             { error: `Stock for ${branchKey} must be a positive number` },
-            { status: 400 }
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+            }
           )
         }
         initialStock[branchKey] = parseInt(stockValue) || 0
@@ -570,7 +754,6 @@ export async function POST(req) {
       status: status || 'active',
       specifications: specifications || {},
       tags: Array.isArray(tags) ? tags.filter((tag) => tag.trim()) : [],
-      // Vape-specific fields
       nicotineStrength: nicotineStrength || null,
       vgPgRatio: vgPgRatio || null,
       flavor: flavor?.trim() || '',
@@ -581,45 +764,66 @@ export async function POST(req) {
       updatedAt: new Date(),
     }
 
+    console.log('POST: Inserting product into database...')
     const result = await db.collection('products').insertOne(newProduct)
 
     // Get the created product with its ID
     const createdProduct = await db
       .collection('products')
       .findOne({ _id: result.insertedId })
+    console.log('POST: Product created successfully ✓, ID:', result.insertedId)
 
     return NextResponse.json(
       {
         message: 'Product created successfully',
         product: createdProduct,
       },
-      { status: 201 }
+      {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }
     )
   } catch (err) {
-    console.error('POST /api/products error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return handleApiError(err, 'POST /api/products')
   }
 }
 
 // PUT: upload product images
 export async function PUT(req) {
+  logRequest(req, 'PUT')
+
   try {
+    console.log('PUT: Processing image upload...')
     const formData = await req.formData()
     const productId = formData.get('productId')
     const files = formData.getAll('images')
 
+    console.log('PUT: Product ID:', productId, 'Files count:', files.length)
+
     if (!productId || files.length === 0) {
+      console.log('PUT: Missing product ID or files')
       return NextResponse.json(
         { error: 'Product ID and at least one image file are required' },
-        { status: 400 }
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
       )
     }
 
     const { ObjectId } = require('mongodb')
     if (!ObjectId.isValid(productId)) {
-      return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 })
+      console.log('PUT: Invalid product ID:', productId)
+      return NextResponse.json(
+        { error: 'Invalid product ID' },
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
     }
 
+    console.log('PUT: Connecting to database...')
     const client = await clientPromise
     const db = client.db('VWV')
 
@@ -628,15 +832,27 @@ export async function PUT(req) {
       .collection('products')
       .findOne({ _id: new ObjectId(productId) })
     if (!existingProduct) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+      console.log('PUT: Product not found:', productId)
+      return NextResponse.json(
+        { error: 'Product not found' },
+        {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
     }
 
     const uploadedImages = []
     const uploadErrors = []
 
+    console.log('PUT: Starting image uploads to Cloudinary...')
     // Upload each image
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
+
+      console.log(
+        `PUT: Processing file ${i + 1}/${files.length}, size: ${file.size}`
+      )
 
       // Validate file type
       if (!file.type.startsWith('image/')) {
@@ -656,6 +872,7 @@ export async function PUT(req) {
         const bytes = await file.arrayBuffer()
         const buffer = Buffer.from(bytes)
 
+        console.log(`PUT: Uploading file ${i + 1} to Cloudinary...`)
         // Upload to Cloudinary
         const uploadResponse = await new Promise((resolve, reject) => {
           cloudinary.uploader
@@ -691,6 +908,7 @@ export async function PUT(req) {
             uploadedImages.length + 1
           }`,
         })
+        console.log(`PUT: File ${i + 1} uploaded successfully ✓`)
       } catch (uploadError) {
         console.error('Error uploading file:', uploadError)
         uploadErrors.push(`File ${i + 1}: ${uploadError.message}`)
@@ -698,12 +916,17 @@ export async function PUT(req) {
     }
 
     if (uploadedImages.length === 0) {
+      console.log('PUT: No images uploaded successfully')
       return NextResponse.json(
         { error: 'No images were uploaded successfully', errors: uploadErrors },
-        { status: 400 }
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
       )
     }
 
+    console.log('PUT: Updating product with new images...')
     // Update product with new images
     const updateResult = await db.collection('products').updateOne(
       { _id: new ObjectId(productId) },
@@ -714,6 +937,7 @@ export async function PUT(req) {
     )
 
     if (updateResult.matchedCount === 0) {
+      console.log('PUT: Failed to update product with images')
       // Clean up uploaded images if database update failed
       for (const image of uploadedImages) {
         try {
@@ -724,49 +948,69 @@ export async function PUT(req) {
       }
       return NextResponse.json(
         { error: 'Failed to update product with images' },
-        { status: 500 }
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        }
       )
     }
 
+    console.log('PUT: Images uploaded and saved successfully ✓')
     return NextResponse.json(
       {
         message: 'Images uploaded successfully',
         uploadedImages,
         uploadErrors: uploadErrors.length > 0 ? uploadErrors : undefined,
       },
-      { status: 200 }
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }
     )
   } catch (err) {
-    console.error('Error uploading product images:', err)
-    return NextResponse.json(
-      {
-        error: 'Failed to upload images',
-        details: err.message,
-      },
-      { status: 500 }
-    )
+    return handleApiError(err, 'PUT /api/products')
   }
 }
 
 // DELETE: delete product OR remove product images
 export async function DELETE(req) {
+  logRequest(req, 'DELETE')
+
   try {
+    console.log('DELETE: Processing delete request...')
     const { searchParams } = new URL(req.url)
     const productId = searchParams.get('productId')
     const imagePublicId = searchParams.get('imagePublicId')
 
+    console.log(
+      'DELETE: Product ID:',
+      productId,
+      'Image Public ID:',
+      imagePublicId
+    )
+
     if (!productId) {
       return NextResponse.json(
         { error: 'Product ID is required' },
-        { status: 400 }
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
       )
     }
 
     const { ObjectId } = require('mongodb')
     if (!ObjectId.isValid(productId)) {
-      return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Invalid product ID' },
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
     }
 
+    console.log('DELETE: Connecting to database...')
     const client = await clientPromise
     const db = client.db('VWV')
 
@@ -775,11 +1019,19 @@ export async function DELETE(req) {
       .collection('products')
       .findOne({ _id: new ObjectId(productId) })
     if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+      console.log('DELETE: Product not found:', productId)
+      return NextResponse.json(
+        { error: 'Product not found' },
+        {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
     }
 
     // Delete specific image
     if (imagePublicId) {
+      console.log('DELETE: Deleting specific image:', imagePublicId)
       // Find the image in the product
       const imageToDelete = product.images?.find(
         (img) => img.publicId === imagePublicId
@@ -787,13 +1039,17 @@ export async function DELETE(req) {
       if (!imageToDelete) {
         return NextResponse.json(
           { error: 'Image not found in product' },
-          { status: 404 }
+          {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          }
         )
       }
 
       // Delete from Cloudinary
       try {
         await cloudinary.uploader.destroy(imagePublicId)
+        console.log('DELETE: Image deleted from Cloudinary ✓')
       } catch (deleteError) {
         console.error('Error deleting image from Cloudinary:', deleteError)
       }
@@ -810,18 +1066,33 @@ export async function DELETE(req) {
       if (updateResult.matchedCount === 0) {
         return NextResponse.json(
           { error: 'Failed to remove image from product' },
-          { status: 500 }
+          {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+          }
         )
       }
 
-      return NextResponse.json({
-        message: 'Image deleted successfully',
-      })
+      console.log('DELETE: Image removed from product successfully ✓')
+      return NextResponse.json(
+        {
+          message: 'Image deleted successfully',
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
     }
 
     // Delete entire product
+    console.log('DELETE: Deleting entire product and all images...')
     // First, delete all product images from Cloudinary
     if (product.images && product.images.length > 0) {
+      console.log(
+        'DELETE: Deleting',
+        product.images.length,
+        'images from Cloudinary...'
+      )
       for (const image of product.images) {
         try {
           await cloudinary.uploader.destroy(image.publicId)
@@ -829,6 +1100,7 @@ export async function DELETE(req) {
           console.error('Error deleting product image:', deleteError)
         }
       }
+      console.log('DELETE: All images deleted from Cloudinary ✓')
     }
 
     // Delete product from database
@@ -839,21 +1111,23 @@ export async function DELETE(req) {
     if (deleteResult.deletedCount === 0) {
       return NextResponse.json(
         { error: 'Failed to delete product' },
-        { status: 500 }
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        }
       )
     }
 
-    return NextResponse.json({
-      message: 'Product deleted successfully',
-    })
-  } catch (err) {
-    console.error('Error deleting product:', err)
+    console.log('DELETE: Product deleted successfully ✓')
     return NextResponse.json(
       {
-        error: 'Failed to delete product',
-        details: err.message,
+        message: 'Product deleted successfully',
       },
-      { status: 500 }
+      {
+        headers: { 'Content-Type': 'application/json' },
+      }
     )
+  } catch (err) {
+    return handleApiError(err, 'DELETE /api/products')
   }
 }

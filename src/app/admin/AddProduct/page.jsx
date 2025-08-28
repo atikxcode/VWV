@@ -272,9 +272,12 @@ export default function AddProduct() {
   }
 
   // Form submission
+  // Form submission with enhanced error handling
   const onSubmit = async (data) => {
     setIsLoading(true)
     try {
+      console.log('Submitting form data:', data) // Debug log
+
       // Create product
       const productData = {
         ...data,
@@ -286,45 +289,85 @@ export default function AddProduct() {
         tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()) : [],
       }
 
+      console.log('Sending product data:', productData) // Debug log
+
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(productData),
       })
 
-      if (response.ok) {
-        const result = await response.json()
-        const productId = result.product._id
+      console.log('Response status:', response.status) // Debug log
+      console.log('Response headers:', response.headers.get('content-type')) // Debug log
 
-        // Upload images if any
-        if (images.length > 0) {
-          const formData = new FormData()
-          formData.append('productId', productId)
-          images.forEach((image) => {
-            formData.append('images', image.file)
-          })
+      // Check if response is actually JSON
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text()
+        console.error('Non-JSON response received:', textResponse)
+        throw new Error(
+          `Server returned non-JSON response. Status: ${response.status}`
+        )
+      }
 
-          await fetch('/api/products', {
-            method: 'PUT',
-            body: formData,
-          })
-        }
-
-        // Reset form and states
-        reset()
-        setStock({})
-        setImages([])
-        setIsAddingCustomCategory(false)
-        setIsAddingCustomSubcategory(false)
-        setCustomCategoryInput('')
-        setCustomSubcategoryInput('')
-        alert('Product added successfully!')
-      } else {
+      if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to create product')
       }
+
+      const result = await response.json()
+      console.log('Product created:', result) // Debug log
+      const productId = result.product._id
+
+      // Upload images if any
+      if (images.length > 0) {
+        console.log('Uploading images...') // Debug log
+        const formData = new FormData()
+        formData.append('productId', productId)
+        images.forEach((image) => {
+          formData.append('images', image.file)
+        })
+
+        const imageResponse = await fetch('/api/products', {
+          method: 'PUT',
+          body: formData,
+        })
+
+        console.log('Image upload status:', imageResponse.status) // Debug log
+
+        // Check image upload response
+        const imageContentType = imageResponse.headers.get('content-type')
+        if (
+          !imageContentType ||
+          !imageContentType.includes('application/json')
+        ) {
+          const imageTextResponse = await imageResponse.text()
+          console.error('Non-JSON image response:', imageTextResponse)
+          // Don't throw here, product was created successfully
+          console.warn('Image upload failed, but product was created')
+        } else if (!imageResponse.ok) {
+          const imageErrorData = await imageResponse.json()
+          console.error('Image upload error:', imageErrorData)
+          // Don't throw here, product was created successfully
+          console.warn('Image upload failed, but product was created')
+        } else {
+          const imageResult = await imageResponse.json()
+          console.log('Images uploaded:', imageResult) // Debug log
+        }
+      }
+
+      // Reset form and states
+      reset()
+      setStock({})
+      setImages([])
+      setIsAddingCustomCategory(false)
+      setIsAddingCustomSubcategory(false)
+      setCustomCategoryInput('')
+      setCustomSubcategoryInput('')
+      alert('Product added successfully!')
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Full error details:', error)
+      console.error('Error stack:', error.stack)
       alert('Error adding product: ' + error.message)
     } finally {
       setIsLoading(false)
