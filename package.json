@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@headlessui/react": "^2.2.7",
+    "@hello-pangea/dnd": "^18.0.1",
     "@heroui/navbar": "^2.2.18",
     "chart.js": "^4.4.9",
     "cloudinary": "^2.7.0",

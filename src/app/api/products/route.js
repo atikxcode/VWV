@@ -112,6 +112,7 @@ export async function GET(req) {
     const page = parseInt(searchParams.get('page')) || 1
     const inStock = searchParams.get('inStock')
     const getCategoriesOnly = searchParams.get('getCategoriesOnly')
+    const getBranchesOnly = searchParams.get('getBranchesOnly') // 👈 NEW
 
     console.log('GET: Search params:', {
       id,
@@ -125,6 +126,7 @@ export async function GET(req) {
       page,
       inStock,
       getCategoriesOnly,
+      getBranchesOnly, // 👈 NEW
     })
 
     console.log('GET: Connecting to database...')
@@ -153,6 +155,47 @@ export async function GET(req) {
         }
       )
     }
+
+    // 👇 NEW: Get all branches from existing products
+    if (getBranchesOnly === 'true') {
+      console.log('GET: Fetching branches...')
+
+      const products = await db
+        .collection('products')
+        .find(
+          {},
+          {
+            projection: { stock: 1 },
+          }
+        )
+        .toArray()
+
+      const branchesSet = new Set()
+
+      products.forEach((product) => {
+        if (product.stock) {
+          Object.keys(product.stock).forEach((stockKey) => {
+            if (stockKey.endsWith('_stock')) {
+              const branchName = stockKey.replace('_stock', '')
+              branchesSet.add(branchName)
+            }
+          })
+        }
+      })
+
+      const branches = Array.from(branchesSet)
+      console.log('GET: Branches fetched successfully ✓')
+
+      return NextResponse.json(
+        {
+          branches: branches.length > 0 ? branches : DEFAULT_BRANCHES,
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    }
+    // 👆 END NEW
 
     // Get product by barcode
     if (barcode) {

@@ -27,7 +27,7 @@ export default function AdminSidebar() {
     { href: '/admin/userManage', icon: FaUsers },
     { href: '/admin/option3', icon: FaCubes },
     { href: '/admin/AddProduct', icon: FaPlus },
-    { href: '/admin/option4', icon: FaPen },
+    { href: '/admin/ManageProduct', icon: FaPen },
     { href: '/admin/ProfileUpdate', icon: FaUser },
     { href: '/', icon: FaHome },
   ]
