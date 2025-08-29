@@ -17,6 +17,7 @@ import {
   Tag,
 } from 'lucide-react'
 import EditProduct from '../../../../components/EditProduct'
+import Swal from 'sweetalert2'
 
 export default function ProductManager() {
   const [products, setProducts] = useState([])
@@ -128,17 +129,46 @@ export default function ProductManager() {
 
   // Delete product
   const handleDeleteProduct = async (productId) => {
-    if (confirm('Are you sure you want to delete this product?')) {
+    const result = await Swal.fire({
+      title: 'Delete Product?',
+      text: 'This will permanently delete the product and all its images. This action cannot be undone!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel',
+    })
+
+    if (result.isConfirmed) {
       try {
         const response = await fetch(`/api/products?productId=${productId}`, {
           method: 'DELETE',
         })
 
-        if (response.ok) {
-          fetchProducts() // Refresh the list
+        if (!response.ok) {
+          throw new Error('Failed to delete product')
         }
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Deleted!',
+          text: 'Product has been deleted successfully.',
+          timer: 2000,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end',
+        }).then(() => {
+          fetchProducts() // Refresh the list
+        })
       } catch (error) {
         console.error('Error deleting product:', error)
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to delete product',
+          confirmButtonColor: '#8B5CF6',
+        })
       }
     }
   }
