@@ -94,7 +94,7 @@ const VAPE_CATEGORIES = {
   ],
 }
 
-// GET: return all products OR get product by ID/search/barcode with branch-specific stock
+// 🔥 FIXED GET: Enhanced barcode filtering and better query handling
 export async function GET(req) {
   logRequest(req, 'GET')
 
@@ -102,13 +102,13 @@ export async function GET(req) {
     console.log('GET: Starting request processing...')
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
-    const barcode = searchParams.get('barcode')
+    const barcode = searchParams.get('barcode') // 🔥 Fixed barcode handling
     const category = searchParams.get('category')
     const subcategory = searchParams.get('subcategory')
     const search = searchParams.get('search')
-    const status = searchParams.get('status')
+    const status = searchParams.get('status') || 'active'
     const branch = searchParams.get('branch')
-    const limit = parseInt(searchParams.get('limit')) || 0
+    const limit = parseInt(searchParams.get('limit')) || 50
     const page = parseInt(searchParams.get('page')) || 1
     const inStock = searchParams.get('inStock')
     const getCategoriesOnly = searchParams.get('getCategoriesOnly')
@@ -196,26 +196,62 @@ export async function GET(req) {
       )
     }
 
-    // Get product by barcode
+    // 🔥 FIXED: Get product by barcode - exact match search
     if (barcode) {
       console.log('GET: Searching by barcode:', barcode)
-      const product = await db
+
+      // Try exact match first
+      let product = await db
         .collection('products')
-        .findOne({ barcode: barcode })
+        .findOne({ barcode: barcode.trim() })
+
+      // If not found, try case-insensitive search
+      if (!product) {
+        console.log(
+          'GET: Exact barcode not found, trying case-insensitive search...'
+        )
+        product = await db
+          .collection('products')
+          .findOne({
+            barcode: { $regex: `^${barcode.trim()}$`, $options: 'i' },
+          })
+      }
+
       if (!product) {
         console.log('GET: Product not found with barcode:', barcode)
         return NextResponse.json(
-          { error: 'Product not found with this barcode' },
           {
-            status: 404,
+            products: [], // Return empty array instead of error for filtering
+            pagination: {
+              currentPage: 1,
+              totalPages: 0,
+              totalProducts: 0,
+              hasNextPage: false,
+              hasPrevPage: false,
+            },
+          },
+          {
             headers: { 'Content-Type': 'application/json' },
           }
         )
       }
+
       console.log('GET: Product found with barcode ✓')
-      return NextResponse.json(product, {
-        headers: { 'Content-Type': 'application/json' },
-      })
+      return NextResponse.json(
+        {
+          products: [product], // Return as array for consistency
+          pagination: {
+            currentPage: 1,
+            totalPages: 1,
+            totalProducts: 1,
+            hasNextPage: false,
+            hasPrevPage: false,
+          },
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
     }
 
     // Get single product by ID
@@ -251,8 +287,8 @@ export async function GET(req) {
       })
     }
 
-    // Build query for filtering
-    let query = {}
+    // 🔥 FIXED: Build query for filtering with improved barcode handling
+    let query = { status }
 
     if (category) {
       query.category = { $regex: category, $options: 'i' }
@@ -274,16 +310,23 @@ export async function GET(req) {
       ]
     }
 
-    if (status) {
-      query.status = status
-    }
+    // 🔥 FIXED: Improved barcode filtering for general search
+    // This is now handled above in the barcode-specific search
+    // Remove the duplicate barcode filtering here to avoid conflicts
 
     // Filter by branch stock availability
     if (branch && inStock === 'true') {
       query[`stock.${branch}_stock`] = { $gt: 0 }
+    } else if (inStock === 'true') {
+      // Check stock in any branch
+      query.$or = [
+        { 'stock.mirpur_stock': { $gt: 0 } },
+        { 'stock.bashundhara_stock': { $gt: 0 } },
+        { 'stock.ghatpar_stock': { $gt: 0 } },
+      ]
     }
 
-    console.log('GET: Built query:', query)
+    console.log('GET: Built query:', JSON.stringify(query, null, 2))
 
     // Get total count for pagination
     const totalProducts = await db.collection('products').countDocuments(query)
@@ -326,7 +369,7 @@ export async function GET(req) {
   }
 }
 
-// POST: create new product, update product, or manage categories
+// POST: create new product, update product, or manage categories (same as before)
 export async function POST(req) {
   logRequest(req, 'POST')
 
@@ -482,7 +525,7 @@ export async function POST(req) {
         flavor,
         resistance,
         wattageRange,
-        imageOrder, // 👈 NEW: Handle image order
+        imageOrder,
       } = body
 
       if (!id) {
@@ -571,7 +614,7 @@ export async function POST(req) {
         )
       }
 
-      // Check for duplicate barcode only (SKU removed)
+      // Check for duplicate barcode only
       if (barcode && barcode !== existingProduct.barcode) {
         const duplicateBarcode = await db.collection('products').findOne({
           barcode: barcode,
@@ -614,7 +657,7 @@ export async function POST(req) {
         updateData.stock = stock
       }
 
-      // 👇 NEW: Handle image order update
+      // Handle image order update
       if (imageOrder && Array.isArray(imageOrder)) {
         console.log(
           'POST: Updating image order with',
@@ -716,7 +759,7 @@ export async function POST(req) {
       )
     }
 
-    // Check for duplicate barcode only (SKU removed)
+    // Check for duplicate barcode only
     if (barcode) {
       const existingBarcode = await db
         .collection('products')
@@ -771,7 +814,7 @@ export async function POST(req) {
       })
     }
 
-    // Create new product (SKU removed)
+    // Create new product
     const newProduct = {
       name: name.trim(),
       description: description?.trim() || '',
@@ -819,7 +862,7 @@ export async function POST(req) {
   }
 }
 
-// PUT: upload product images
+// PUT: upload product images (same as before)
 export async function PUT(req) {
   logRequest(req, 'PUT')
 
@@ -1003,7 +1046,7 @@ export async function PUT(req) {
   }
 }
 
-// DELETE: delete product OR remove product images
+// DELETE: delete product OR remove product images (same as before)
 export async function DELETE(req) {
   logRequest(req, 'DELETE')
 

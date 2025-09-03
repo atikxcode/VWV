@@ -25,7 +25,7 @@ export default function AdminSidebar() {
   const sidebarOptions = [
     { href: '/admin/statsManage', icon: FaChartLine },
     { href: '/admin/userManage', icon: FaUsers },
-    { href: '/admin/option3', icon: FaCubes },
+    { href: '/admin/SellPage', icon: FaCubes },
     { href: '/admin/AddProduct', icon: FaPlus },
     { href: '/admin/ManageProduct', icon: FaPen },
     { href: '/admin/ProfileUpdate', icon: FaUser },

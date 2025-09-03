@@ -9,14 +9,19 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@headlessui/react": "^2.2.7",
-    "@hello-pangea/dnd": "^18.0.1",
+    "@hello-pangea/dnd": "^18.0.0-beta.0",
     "@heroui/navbar": "^2.2.18",
     "chart.js": "^4.4.9",
     "cloudinary": "^2.7.0",
     "firebase": "^11.10.0",
     "framer-motion": "^12.23.12",
     "gsap": "^3.13.0",
+    "html2canvas-pro": "^1.5.11",
+    "jspdf": "^3.0.2",
     "lucide-react": "^0.511.0",
     "mongodb": "^6.18.0",
     "next": "15.3.3",
@@ -31,6 +36,7 @@
     "react-slick": "^0.30.3",
     "recharts": "^3.1.2",
     "slick-carousel": "^1.8.1",
+    "sslcommerz-lts": "^1.2.0",
     "sweetalert2": "^11.22.5",
     "swiper": "^11.2.10"
   },
