@@ -112,7 +112,7 @@ export async function GET(req) {
     const page = parseInt(searchParams.get('page')) || 1
     const inStock = searchParams.get('inStock')
     const getCategoriesOnly = searchParams.get('getCategoriesOnly')
-    const getBranchesOnly = searchParams.get('getBranchesOnly') // 👈 NEW
+    const getBranchesOnly = searchParams.get('getBranchesOnly')
 
     console.log('GET: Search params:', {
       id,
@@ -126,7 +126,7 @@ export async function GET(req) {
       page,
       inStock,
       getCategoriesOnly,
-      getBranchesOnly, // 👈 NEW
+      getBranchesOnly,
     })
 
     console.log('GET: Connecting to database...')
@@ -156,7 +156,7 @@ export async function GET(req) {
       )
     }
 
-    // 👇 NEW: Get all branches from existing products
+    // Get all branches from existing products
     if (getBranchesOnly === 'true') {
       console.log('GET: Fetching branches...')
 
@@ -195,7 +195,6 @@ export async function GET(req) {
         }
       )
     }
-    // 👆 END NEW
 
     // Get product by barcode
     if (barcode) {
@@ -270,7 +269,6 @@ export async function GET(req) {
         { category: { $regex: search, $options: 'i' } },
         { subcategory: { $regex: search, $options: 'i' } },
         { brand: { $regex: search, $options: 'i' } },
-        { sku: { $regex: search, $options: 'i' } },
         { barcode: { $regex: search, $options: 'i' } },
         { tags: { $in: [new RegExp(search, 'i')] } },
       ]
@@ -472,7 +470,6 @@ export async function POST(req) {
         price,
         comparePrice,
         brand,
-        sku,
         barcode,
         category,
         subcategory,
@@ -485,6 +482,7 @@ export async function POST(req) {
         flavor,
         resistance,
         wattageRange,
+        imageOrder, // 👈 NEW: Handle image order
       } = body
 
       if (!id) {
@@ -573,23 +571,7 @@ export async function POST(req) {
         )
       }
 
-      // Check for duplicate SKU or barcode
-      if (sku && sku !== existingProduct.sku) {
-        const duplicateSku = await db.collection('products').findOne({
-          sku: sku,
-          _id: { $ne: new ObjectId(id) },
-        })
-        if (duplicateSku) {
-          return NextResponse.json(
-            { error: 'SKU already exists for another product' },
-            {
-              status: 400,
-              headers: { 'Content-Type': 'application/json' },
-            }
-          )
-        }
-      }
-
+      // Check for duplicate barcode only (SKU removed)
       if (barcode && barcode !== existingProduct.barcode) {
         const duplicateBarcode = await db.collection('products').findOne({
           barcode: barcode,
@@ -606,14 +588,13 @@ export async function POST(req) {
         }
       }
 
-      // Update product
+      // Update product data
       const updateData = {
         name: name.trim(),
         description: description?.trim() || '',
         price: parseFloat(price),
         comparePrice: comparePrice ? parseFloat(comparePrice) : null,
         brand: brand?.trim() || '',
-        sku: sku?.trim() || null,
         barcode: barcode?.trim() || null,
         category: category?.trim() || '',
         subcategory: subcategory?.trim() || '',
@@ -631,6 +612,31 @@ export async function POST(req) {
       // Handle stock update
       if (stock && typeof stock === 'object') {
         updateData.stock = stock
+      }
+
+      // 👇 NEW: Handle image order update
+      if (imageOrder && Array.isArray(imageOrder)) {
+        console.log(
+          'POST: Updating image order with',
+          imageOrder.length,
+          'images'
+        )
+
+        // Filter out images without publicId (new images that aren't uploaded yet)
+        const validImages = imageOrder.filter((img) => img.publicId && img.url)
+
+        if (validImages.length > 0) {
+          updateData.images = validImages.map((img, index) => ({
+            url: img.url,
+            publicId: img.publicId,
+            alt: img.alt || `Product image ${index + 1}`,
+          }))
+          console.log(
+            'POST: Image order updated with',
+            validImages.length,
+            'valid images'
+          )
+        }
       }
 
       const updateResult = await db
@@ -673,7 +679,6 @@ export async function POST(req) {
       price,
       comparePrice,
       brand,
-      sku,
       barcode,
       category,
       subcategory,
@@ -711,23 +716,7 @@ export async function POST(req) {
       )
     }
 
-    // Check for duplicate SKU or barcode if provided
-    if (sku) {
-      const existingSku = await db
-        .collection('products')
-        .findOne({ sku: sku.trim() })
-      if (existingSku) {
-        console.log('POST: SKU already exists:', sku)
-        return NextResponse.json(
-          { error: 'SKU already exists' },
-          {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        )
-      }
-    }
-
+    // Check for duplicate barcode only (SKU removed)
     if (barcode) {
       const existingBarcode = await db
         .collection('products')
@@ -782,14 +771,13 @@ export async function POST(req) {
       })
     }
 
-    // Create new product
+    // Create new product (SKU removed)
     const newProduct = {
       name: name.trim(),
       description: description?.trim() || '',
       price: parseFloat(price),
       comparePrice: comparePrice ? parseFloat(comparePrice) : null,
       brand: brand?.trim() || '',
-      sku: sku?.trim() || null,
       barcode: barcode?.trim() || null,
       category: category?.trim() || '',
       subcategory: subcategory?.trim() || '',

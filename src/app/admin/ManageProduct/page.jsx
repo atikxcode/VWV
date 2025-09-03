@@ -22,7 +22,7 @@ import Swal from 'sweetalert2'
 export default function ProductManager() {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState({})
-  const [branches, setBranches] = useState([])
+  const [branches, setBranches] = useState([]) // 👈 UPDATED: Start with empty array
   const [loading, setLoading] = useState(true)
   const [currentView, setCurrentView] = useState('list') // 'list' or 'edit'
   const [editingProductId, setEditingProductId] = useState(null)
@@ -39,7 +39,7 @@ export default function ProductManager() {
   const [totalPages, setTotalPages] = useState(1)
   const itemsPerPage = 12
 
-  // Load initial data
+  // 👇 UPDATED: Load initial data with correct branch endpoint
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -54,17 +54,22 @@ export default function ProductManager() {
           setCategories(categoriesData.categories)
         }
 
-        // Fetch branches
-        const branchesRes = await fetch('/api/products?getBranchesOnly=true')
+        // 👇 FIXED: Fetch branches from dedicated API instead of products endpoint
+        const branchesRes = await fetch('/api/branches')
         if (branchesRes.ok) {
           const branchesData = await branchesRes.json()
-          setBranches(branchesData.branches)
+          setBranches(branchesData.branches || [])
+        } else {
+          // Fallback to default branches if API fails
+          setBranches(['mirpur', 'bashundhara']) // 👈 Updated to match your current branches
         }
 
         // Fetch products
         fetchProducts()
       } catch (error) {
         console.error('Error loading data:', error)
+        // Fallback branches in case of error
+        setBranches(['mirpur', 'bashundhara'])
       }
     }
 
@@ -120,11 +125,18 @@ export default function ProductManager() {
     setCurrentView('edit')
   }
 
-  // Handle back from edit
-  const handleBackFromEdit = () => {
+  // Handle back from edit with proper refresh
+  const handleBackFromEdit = async () => {
     setCurrentView('list')
     setEditingProductId(null)
-    fetchProducts() // Refresh the list
+
+    setLoading(true)
+
+    // Small delay to ensure backend has processed changes
+    setTimeout(async () => {
+      await fetchProducts() // Refresh the list to get updated images
+      setLoading(false)
+    }, 300)
   }
 
   // Delete product
@@ -302,17 +314,30 @@ export default function ProductManager() {
                 >
                   {/* Product Image */}
                   <div className="aspect-square relative bg-gray-100">
-                    {product.images && product.images[0] ? (
+                    {product.images && product.images.length > 0 ? (
                       <img
                         src={product.images[0].url}
-                        alt={product.name}
+                        alt={product.images[0].alt || product.name}
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        onError={(e) => {
+                          e.target.style.display = 'none'
+                          e.target.nextSibling.style.display = 'flex'
+                        }}
                       />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Package size={48} className="text-gray-400" />
-                      </div>
-                    )}
+                    ) : null}
+
+                    <div
+                      className="w-full h-full flex items-center justify-center"
+                      style={{
+                        display:
+                          product.images && product.images.length > 0
+                            ? 'none'
+                            : 'flex',
+                      }}
+                    >
+                      <Package size={48} className="text-gray-400" />
+                    </div>
 
                     {/* Status Badge */}
                     <div
@@ -324,6 +349,13 @@ export default function ProductManager() {
                     >
                       {product.status}
                     </div>
+
+                    {/* Image count badge */}
+                    {product.images && product.images.length > 1 && (
+                      <div className="absolute top-3 left-3 bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs">
+                        {product.images.length} photos
+                      </div>
+                    )}
                   </div>
 
                   {/* Product Info */}
@@ -352,36 +384,46 @@ export default function ProductManager() {
                       )}
                     </div>
 
-                    {/* Stock Info */}
+                    {/* 👇 UPDATED: Stock Info - Only show current branches */}
                     <div className="flex flex-wrap gap-1 mb-3">
-                      {branches.map((branch) => {
-                        const stock = product.stock?.[`${branch}_stock`] || 0
-                        return (
-                          <div
-                            key={branch}
-                            className="flex items-center gap-1 text-xs"
-                          >
-                            <Store size={12} className="text-gray-400" />
-                            <span className="text-gray-600">
-                              {branch}: {stock}
-                            </span>
-                          </div>
-                        )
-                      })}
+                      {branches.length > 0 ? (
+                        branches.map((branch) => {
+                          const stock = product.stock?.[`${branch}_stock`] || 0
+                          return (
+                            <div
+                              key={branch}
+                              className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${
+                                stock > 0
+                                  ? 'bg-green-50 text-green-700'
+                                  : 'bg-red-50 text-red-700'
+                              }`}
+                            >
+                              <Store size={12} />
+                              <span>
+                                {branch}: {stock}
+                              </span>
+                            </div>
+                          )
+                        })
+                      ) : (
+                        <div className="text-xs text-gray-500 px-2 py-1">
+                          No branches configured
+                        </div>
+                      )}
                     </div>
 
                     {/* Actions */}
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleEditProduct(product._id)}
-                        className="flex-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center justify-center gap-1 text-sm"
+                        className="flex-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center justify-center gap-1 text-sm transition-colors"
                       >
                         <Edit size={14} />
                         Edit
                       </button>
                       <button
                         onClick={() => handleDeleteProduct(product._id)}
-                        className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                        className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -399,12 +441,12 @@ export default function ProductManager() {
                     setCurrentPage((prev) => Math.max(prev - 1, 1))
                   }
                   disabled={currentPage === 1}
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg disabled:opacity-50"
+                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50 transition-colors"
                 >
                   Previous
                 </button>
 
-                <span className="px-4 py-2">
+                <span className="px-4 py-2 bg-white rounded-lg border">
                   Page {currentPage} of {totalPages}
                 </span>
 
@@ -413,7 +455,7 @@ export default function ProductManager() {
                     setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                   }
                   disabled={currentPage === totalPages}
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg disabled:opacity-50"
+                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50 transition-colors"
                 >
                   Next
                 </button>

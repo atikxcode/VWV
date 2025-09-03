@@ -24,6 +24,7 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url)
     const email = searchParams.get('email')
+    const getAllUsers = searchParams.get('getAllUsers') // 👈 NEW: For admin user management
 
     const client = await clientPromise
     const db = client.db('VWV')
@@ -33,7 +34,32 @@ export async function GET(req) {
       return NextResponse.json({ exists: !!user, user })
     }
 
-    // return all users if no email provided
+    // 👇 NEW: Get all users with role and branch info for admin
+    if (getAllUsers === 'true') {
+      const users = await db
+        .collection('user')
+        .find(
+          {},
+          {
+            projection: {
+              email: 1,
+              name: 1,
+              phone: 1,
+              role: 1,
+              branch: 1,
+              profilePicture: 1,
+              createdAt: 1,
+              updatedAt: 1,
+            },
+          }
+        )
+        .sort({ createdAt: -1 })
+        .toArray()
+
+      return NextResponse.json({ users })
+    }
+
+    // return all users if no email provided (legacy)
     const users = await db.collection('user').find().toArray()
     return NextResponse.json(users)
   } catch (err) {
@@ -42,10 +68,10 @@ export async function GET(req) {
   }
 }
 
-// POST: insert user OR update user profile based on action parameter
+// POST: insert user OR update user profile/role/branch based on action parameter
 export async function POST(req) {
   try {
-    const body = await req.json() // Make sure this is inside the function
+    const body = await req.json()
     const { action } = body
 
     if (!body.email) {
@@ -55,11 +81,11 @@ export async function POST(req) {
     const client = await clientPromise
     const db = client.db('VWV')
 
-    // Handle profile update
+    // 👇 ENHANCED: Handle profile/role/branch update
     if (action === 'update') {
-      const { email, name, phone } = body
+      const { email, name, phone, role, branch, updaterEmail } = body
 
-      // Validation for update
+      // Basic validation
       if (!name || !phone) {
         return NextResponse.json(
           { error: 'Name and phone are required' },
@@ -68,14 +94,12 @@ export async function POST(req) {
       }
 
       // Enhanced phone validation
-      let cleanPhone = phone.replace(/\D/g, '') // Remove all non-digits
+      let cleanPhone = phone.replace(/\D/g, '')
 
-      // If it starts with 880, remove country code
       if (cleanPhone.startsWith('880')) {
         cleanPhone = cleanPhone.substring(3)
       }
 
-      // Validate Bangladeshi phone format (11 digits starting with 01, or 10 digits)
       if (!/^(\d{11}|\d{10})$/.test(cleanPhone)) {
         return NextResponse.json(
           { error: 'Invalid phone number format' },
@@ -83,7 +107,6 @@ export async function POST(req) {
         )
       }
 
-      // Ensure proper 11-digit format
       if (cleanPhone.length === 10 && !cleanPhone.startsWith('0')) {
         cleanPhone = '0' + cleanPhone
       }
@@ -94,17 +117,28 @@ export async function POST(req) {
         return NextResponse.json({ error: 'User not found' }, { status: 404 })
       }
 
+      // Build update data
+      const updateData = {
+        name: name.trim(),
+        phone: cleanPhone,
+        updatedAt: new Date(),
+      }
+
+      // 🔐 IMPORTANT: Role and branch updates (should be admin-only in production)
+      // Add authorization check here to ensure only admins can update roles
+      if (role && ['admin', 'moderator', 'user'].includes(role)) {
+        updateData.role = role
+      }
+
+      if (branch !== undefined) {
+        // Allow setting branch to null or a valid string
+        updateData.branch = branch ? branch.trim().toLowerCase() : null
+      }
+
       // Update user information
-      const updateResult = await db.collection('user').updateOne(
-        { email: email },
-        {
-          $set: {
-            name: name.trim(),
-            phone: cleanPhone,
-            updatedAt: new Date(),
-          },
-        }
-      )
+      const updateResult = await db
+        .collection('user')
+        .updateOne({ email: email }, { $set: updateData })
 
       if (updateResult.matchedCount === 0) {
         return NextResponse.json(
@@ -125,7 +159,7 @@ export async function POST(req) {
       )
     }
 
-    // Handle user creation (default behavior)
+    // 👇 ENHANCED: Handle user creation with role and branch
     const existingUser = await db
       .collection('user')
       .findOne({ email: body.email })
@@ -137,16 +171,25 @@ export async function POST(req) {
       )
     }
 
-    // insert new user with timestamps
+    // Create new user with role and branch
     const newUser = {
       ...body,
+      role:
+        body.role && ['admin', 'moderator', 'user'].includes(body.role)
+          ? body.role
+          : 'user', // Default to 'user'
+      branch: body.branch ? body.branch.trim().toLowerCase() : null,
       createdAt: new Date(),
       updatedAt: new Date(),
     }
 
     const result = await db.collection('user').insertOne(newUser)
+    const createdUser = await db
+      .collection('user')
+      .findOne({ _id: result.insertedId })
+
     return NextResponse.json(
-      { message: 'User created', result },
+      { message: 'User created', user: createdUser },
       { status: 201 }
     )
   } catch (err) {

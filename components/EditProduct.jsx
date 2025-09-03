@@ -33,7 +33,7 @@ import {
 } from 'lucide-react'
 import BarcodeReader from 'react-barcode-reader'
 
-// Image Management Component
+// Image Management Component (same as before)
 const ImageGallery = ({
   images,
   onImageDelete,
@@ -189,30 +189,111 @@ const ImageGallery = ({
   )
 }
 
-// Branch Management Modal
-const BranchModal = ({
-  isOpen,
-  onClose,
-  branches,
-  onAddBranch,
-  onDeleteBranch,
-}) => {
+// 👇 UPDATED: Branch Management Modal with API integration
+const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
   const [newBranchName, setNewBranchName] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!newBranchName.trim()) {
       setError('Branch name is required')
       return
     }
-    if (branches.includes(newBranchName.toLowerCase())) {
+
+    const cleanBranchName = newBranchName.trim().toLowerCase()
+    if (branches.includes(cleanBranchName)) {
       setError('Branch already exists')
       return
     }
-    onAddBranch(newBranchName.toLowerCase())
-    setNewBranchName('')
-    setError('')
+
+    setLoading(true)
+    try {
+      // 👇 API call to add branch
+      const response = await fetch('/api/branches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add',
+          branchName: cleanBranchName,
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to add branch')
+
+      // Update local state
+      const updatedBranches = [...branches, cleanBranchName]
+      onBranchUpdate(updatedBranches)
+
+      setNewBranchName('')
+      setError('')
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Branch Added!',
+        text: `${newBranchName} branch has been added successfully`,
+        timer: 2000,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end',
+      })
+    } catch (error) {
+      console.error('Error adding branch:', error)
+      setError('Failed to add branch')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteBranch = async (branchName) => {
+    const result = await Swal.fire({
+      title: 'Delete Branch?',
+      text: `Are you sure you want to delete "${branchName}" branch? This will affect all products using this branch.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel',
+    })
+
+    if (result.isConfirmed) {
+      setLoading(true)
+      try {
+        // 👇 API call to delete branch
+        const response = await fetch('/api/branches', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ branchName }),
+        })
+
+        if (!response.ok) throw new Error('Failed to delete branch')
+
+        // Update local state
+        const updatedBranches = branches.filter((b) => b !== branchName)
+        onBranchUpdate(updatedBranches)
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Deleted!',
+          text: `${branchName} branch has been deleted.`,
+          timer: 2000,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end',
+        })
+      } catch (error) {
+        console.error('Error deleting branch:', error)
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to delete branch',
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
   }
 
   const handleClose = () => {
@@ -259,12 +340,18 @@ const BranchModal = ({
                 }}
                 placeholder="Enter branch name"
                 className="flex-1 p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                disabled={loading}
               />
               <button
                 type="submit"
-                className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                disabled={loading}
+                className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
               >
-                <Plus size={16} />
+                {loading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  <Plus size={16} />
+                )}
               </button>
             </div>
             {error && (
@@ -286,13 +373,14 @@ const BranchModal = ({
                 key={branch}
                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
               >
-                <span className="font-medium text-gray-800 capitalize">
+                <span className="font-medium text-gray-800 capitalize flex items-center gap-2">
+                  <Store size={16} className="text-purple-600" />
                   {branch}
                 </span>
                 <button
-                  onClick={() => onDeleteBranch(branch)}
+                  onClick={() => handleDeleteBranch(branch)}
                   className="text-red-500 hover:text-red-700 p-1"
-                  disabled={branches.length <= 1}
+                  disabled={branches.length <= 1 || loading}
                   title={
                     branches.length <= 1
                       ? 'Cannot delete the last branch'
@@ -334,7 +422,7 @@ export default function EditProduct({ productId, onBack }) {
   const [product, setProduct] = useState(null)
   const [originalProduct, setOriginalProduct] = useState(null)
   const [images, setImages] = useState([])
-  const [branches, setBranches] = useState([])
+  const [branches, setBranches] = useState([]) // 👈 UPDATED: Start with empty array
   const [stock, setStock] = useState({})
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -353,7 +441,7 @@ export default function EditProduct({ productId, onBack }) {
 
   const category = watch('category')
 
-  // Load initial data
+  // 👇 UPDATED: Load initial data with correct branch endpoint
   useEffect(() => {
     const loadInitialData = async () => {
       try {
@@ -368,13 +456,14 @@ export default function EditProduct({ productId, onBack }) {
           setCategories(categoriesData.categories)
         }
 
-        // Load branches
-        const branchesResponse = await fetch(
-          '/api/products?getBranchesOnly=true'
-        )
+        // 👇 UPDATED: Load branches from dedicated API instead of products endpoint
+        const branchesResponse = await fetch('/api/branches')
         if (branchesResponse.ok) {
           const branchesData = await branchesResponse.json()
-          setBranches(branchesData.branches)
+          setBranches(branchesData.branches || ['mirpur', 'bashundhara'])
+        } else {
+          // Fallback to default branches if API fails
+          setBranches(['mirpur', 'bashundhara'])
         }
 
         // Load product data
@@ -388,11 +477,11 @@ export default function EditProduct({ productId, onBack }) {
           setProduct(productData)
           setOriginalProduct(productData)
 
-          // Populate form
+          // 👇 UPDATED: Populate form WITHOUT SKU
           reset({
             name: productData.name || '',
             brand: productData.brand || '',
-            sku: productData.sku || '',
+            // sku: productData.sku || '', // 👈 REMOVED
             barcode: productData.barcode || '',
             price: productData.price || '',
             comparePrice: productData.comparePrice || '',
@@ -420,17 +509,6 @@ export default function EditProduct({ productId, onBack }) {
 
           // Set stock
           setStock(productData.stock || {})
-
-          // Extract branches from stock if not already loaded
-          if (!branchesResponse.ok) {
-            const stockBranches = Object.keys(productData.stock || {})
-              .filter((key) => key.endsWith('_stock'))
-              .map((key) => key.replace('_stock', ''))
-
-            if (stockBranches.length > 0) {
-              setBranches(stockBranches)
-            }
-          }
         }
       } catch (error) {
         console.error('Error loading data:', error)
@@ -446,6 +524,17 @@ export default function EditProduct({ productId, onBack }) {
 
     loadInitialData()
   }, [productId, reset])
+
+  // 👇 UPDATED: Initialize stock for branches when branches change
+  useEffect(() => {
+    if (branches.length > 0 && product) {
+      const newStock = {}
+      branches.forEach((branch) => {
+        newStock[`${branch}_stock`] = stock[`${branch}_stock`] || 0
+      })
+      setStock(newStock)
+    }
+  }, [branches, product])
 
   // Update subcategories when category changes
   useEffect(() => {
@@ -467,6 +556,18 @@ export default function EditProduct({ productId, onBack }) {
       return () => clearTimeout(timer)
     }
   }, [watchedValues, autoSaveEnabled, originalProduct, isDirty])
+
+  // 👇 UPDATED: Handle branch updates from modal
+  const handleBranchUpdate = (updatedBranches) => {
+    setBranches(updatedBranches)
+
+    // Update stock object to include new branches and preserve existing stock
+    const newStock = {}
+    updatedBranches.forEach((branch) => {
+      newStock[`${branch}_stock`] = stock[`${branch}_stock`] || 0
+    })
+    setStock(newStock)
+  }
 
   // Image handlers
   const handleImageAdd = (newImage) => {
@@ -533,57 +634,7 @@ export default function EditProduct({ productId, onBack }) {
     setImages(reorderedImages)
   }
 
-  // Branch handlers
-  const handleAddBranch = (branchName) => {
-    if (branchName && !branches.includes(branchName.toLowerCase())) {
-      const newBranch = branchName.toLowerCase()
-      setBranches((prev) => [...prev, newBranch])
-      setStock((prev) => ({ ...prev, [`${newBranch}_stock`]: 0 }))
-
-      Swal.fire({
-        icon: 'success',
-        title: 'Branch Added!',
-        text: `${branchName} branch has been added successfully`,
-        timer: 2000,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end',
-      })
-    }
-  }
-
-  const handleDeleteBranch = (branchName) => {
-    Swal.fire({
-      title: 'Delete Branch?',
-      text: `Are you sure you want to delete "${branchName}" branch? This will remove all stock data for this branch.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!',
-      cancelButtonText: 'Cancel',
-    }).then((result) => {
-      if (result.isConfirmed) {
-        setBranches((prev) => prev.filter((branch) => branch !== branchName))
-        setStock((prev) => {
-          const newStock = { ...prev }
-          delete newStock[`${branchName}_stock`]
-          return newStock
-        })
-
-        Swal.fire({
-          icon: 'success',
-          title: 'Deleted!',
-          text: `${branchName} branch has been deleted.`,
-          timer: 2000,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end',
-        })
-      }
-    })
-  }
-
+  // Stock management
   const updateStock = (branchKey, value) => {
     setStock((prev) => ({ ...prev, [branchKey]: parseInt(value) || 0 }))
   }
@@ -710,7 +761,7 @@ export default function EditProduct({ productId, onBack }) {
           if (result.isConfirmed) {
             setValue('name', productData.name || '')
             setValue('brand', productData.brand || '')
-            setValue('sku', productData.sku || '')
+            // setValue('sku', productData.sku || '') // 👈 REMOVED
             setValue('price', productData.price || '')
             setValue('category', productData.category || '')
             setValue('subcategory', productData.subcategory || '')
@@ -747,12 +798,18 @@ export default function EditProduct({ productId, onBack }) {
         action: 'update',
         id: productId,
         ...data,
-        stock,
+        stock, // 👈 Include current stock object
         nicotineStrength: data.nicotineStrength || null,
         vgPgRatio: data.vgPgRatio || null,
         resistance: data.resistance || null,
         wattageRange: data.wattageRange || null,
         tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()) : [],
+        imageOrder: images.map((img, index) => ({
+          publicId: img.publicId,
+          url: img.url,
+          alt: img.alt,
+          order: index,
+        })),
       }
 
       const response = await fetch('/api/products', {
@@ -893,10 +950,11 @@ export default function EditProduct({ productId, onBack }) {
       cancelButtonText: 'Cancel',
     }).then((result) => {
       if (result.isConfirmed) {
+        // 👇 UPDATED: Reset without SKU
         reset({
           name: originalProduct.name || '',
           brand: originalProduct.brand || '',
-          sku: originalProduct.sku || '',
+          // sku: originalProduct.sku || '', // 👈 REMOVED
           barcode: originalProduct.barcode || '',
           price: originalProduct.price || '',
           comparePrice: originalProduct.comparePrice || '',
@@ -1108,30 +1166,17 @@ export default function EditProduct({ productId, onBack }) {
                     )}
                   </div>
 
-                  {/* Brand & SKU */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Brand
-                      </label>
-                      <input
-                        type="text"
-                        {...register('brand')}
-                        placeholder="Enter brand name"
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        SKU
-                      </label>
-                      <input
-                        type="text"
-                        {...register('sku')}
-                        placeholder="Enter SKU"
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                      />
-                    </div>
+                  {/* 👇 UPDATED: Brand - Now Full Width (SKU removed) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Brand
+                    </label>
+                    <input
+                      type="text"
+                      {...register('brand')}
+                      placeholder="Enter brand name"
+                      className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                    />
                   </div>
 
                   {/* Barcode */}
@@ -1445,12 +1490,12 @@ export default function EditProduct({ productId, onBack }) {
                   </div>
                 </div>
 
-                {/* Stock Management */}
+                {/* 👇 UPDATED: Stock Management with Dynamic Branches */}
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                       <Store size={20} className="text-purple-600" />
-                      Stock Management
+                      Stock Management ({branches.length} branches)
                     </h3>
                     <button
                       type="button"
@@ -1479,6 +1524,16 @@ export default function EditProduct({ productId, onBack }) {
                       </div>
                     ))}
                   </div>
+
+                  {branches.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Store size={48} className="mx-auto mb-2" />
+                      <p>
+                        No branches configured. Please add branches to manage
+                        stock.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1565,13 +1620,12 @@ export default function EditProduct({ productId, onBack }) {
           </form>
         </div>
 
-        {/* Modals */}
+        {/* 👇 UPDATED: Branch Management Modal with API integration */}
         <BranchModal
           isOpen={showBranchModal}
           onClose={() => setShowBranchModal(false)}
           branches={branches}
-          onAddBranch={handleAddBranch}
-          onDeleteBranch={handleDeleteBranch}
+          onBranchUpdate={handleBranchUpdate}
         />
 
         {/* Barcode Scanner Modal */}

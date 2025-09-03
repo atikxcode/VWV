@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'
 import Swal from 'sweetalert2'
-// Remove this line: import withReactContent from 'sweetalert2-react-content'
 import {
   PlusCircle,
   Upload,
@@ -71,33 +70,111 @@ const VAPE_CATEGORIES = {
   ],
 }
 
-// Default branches
-const DEFAULT_BRANCHES = ['ghatpar', 'mirpur']
-
-// Custom Branch Modal Component
-const BranchModal = ({
-  isOpen,
-  onClose,
-  branches,
-  onAddBranch,
-  onDeleteBranch,
-}) => {
+// 👇 UPDATED: Custom Branch Modal Component with API integration
+const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
   const [newBranchName, setNewBranchName] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!newBranchName.trim()) {
       setError('Branch name is required')
       return
     }
-    if (branches.includes(newBranchName.toLowerCase())) {
+
+    const cleanBranchName = newBranchName.trim().toLowerCase()
+    if (branches.includes(cleanBranchName)) {
       setError('Branch already exists')
       return
     }
-    onAddBranch(newBranchName.toLowerCase())
-    setNewBranchName('')
-    setError('')
+
+    setLoading(true)
+    try {
+      // 👇 API call to add branch
+      const response = await fetch('/api/branches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add',
+          branchName: cleanBranchName,
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to add branch')
+
+      // Update local state
+      const updatedBranches = [...branches, cleanBranchName]
+      onBranchUpdate(updatedBranches)
+
+      setNewBranchName('')
+      setError('')
+
+      MySwal.fire({
+        icon: 'success',
+        title: 'Branch Added!',
+        text: `${newBranchName} branch has been added successfully`,
+        timer: 2000,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end',
+      })
+    } catch (error) {
+      console.error('Error adding branch:', error)
+      setError('Failed to add branch')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteBranch = async (branchName) => {
+    const result = await MySwal.fire({
+      title: 'Delete Branch?',
+      text: `Are you sure you want to delete "${branchName}" branch? This will affect all products using this branch.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel',
+    })
+
+    if (result.isConfirmed) {
+      setLoading(true)
+      try {
+        // 👇 API call to delete branch
+        const response = await fetch('/api/branches', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ branchName }),
+        })
+
+        if (!response.ok) throw new Error('Failed to delete branch')
+
+        // Update local state
+        const updatedBranches = branches.filter((b) => b !== branchName)
+        onBranchUpdate(updatedBranches)
+
+        MySwal.fire({
+          icon: 'success',
+          title: 'Deleted!',
+          text: `${branchName} branch has been deleted.`,
+          timer: 2000,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end',
+        })
+      } catch (error) {
+        console.error('Error deleting branch:', error)
+        MySwal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to delete branch',
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
   }
 
   const handleClose = () => {
@@ -145,12 +222,18 @@ const BranchModal = ({
                 }}
                 placeholder="Enter branch name"
                 className="flex-1 p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                disabled={loading}
               />
               <button
                 type="submit"
-                className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                disabled={loading}
+                className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
               >
-                <Plus size={16} />
+                {loading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  <Plus size={16} />
+                )}
               </button>
             </div>
             {error && (
@@ -177,9 +260,9 @@ const BranchModal = ({
                   {branch}
                 </span>
                 <button
-                  onClick={() => onDeleteBranch(branch)}
+                  onClick={() => handleDeleteBranch(branch)}
                   className="text-red-500 hover:text-red-700 transition-colors p-1"
-                  disabled={branches.length <= 1}
+                  disabled={branches.length <= 1 || loading}
                   title={
                     branches.length <= 1
                       ? 'Cannot delete the last branch'
@@ -218,7 +301,7 @@ export default function AddProduct() {
   } = useForm()
 
   const [subCategoryOptions, setSubCategoryOptions] = useState([])
-  const [branches, setBranches] = useState(DEFAULT_BRANCHES)
+  const [branches, setBranches] = useState([]) // 👈 UPDATED: Start with empty array
   const [stock, setStock] = useState({})
   const [images, setImages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
@@ -237,7 +320,28 @@ export default function AddProduct() {
 
   const category = watch('category')
 
-  // Initialize stock for default branches
+  // 👇 UPDATED: Load branches on component mount
+  useEffect(() => {
+    const loadBranches = async () => {
+      try {
+        const response = await fetch('/api/branches')
+        if (response.ok) {
+          const data = await response.json()
+          setBranches(data.branches || ['ghatpar', 'mirpur', 'gazipur'])
+        } else {
+          // Fallback to default branches if API fails
+          setBranches(['ghatpar', 'mirpur', 'gazipur'])
+        }
+      } catch (error) {
+        console.error('Error loading branches:', error)
+        setBranches(['ghatpar', 'mirpur', 'gazipur'])
+      }
+    }
+
+    loadBranches()
+  }, [])
+
+  // Initialize stock for branches
   useEffect(() => {
     const initialStock = {}
     branches.forEach((branch) => {
@@ -255,6 +359,18 @@ export default function AddProduct() {
     }
   }, [category, dynamicCategories])
 
+  // 👇 UPDATED: Handle branch updates from modal
+  const handleBranchUpdate = (updatedBranches) => {
+    setBranches(updatedBranches)
+
+    // Update stock object to include new branches
+    const newStock = {}
+    updatedBranches.forEach((branch) => {
+      newStock[`${branch}_stock`] = stock[`${branch}_stock`] || 0
+    })
+    setStock(newStock)
+  }
+
   // Fixed: Real barcode scanning handler
   const handleBarcodeScan = async (data) => {
     try {
@@ -269,7 +385,6 @@ export default function AddProduct() {
           // Auto-fill form with existing product data
           setValue('name', productData.name || '')
           setValue('brand', productData.brand || '')
-          setValue('sku', productData.sku || '')
           setValue('barcode', data)
           setValue('price', productData.price || '')
           setValue('category', productData.category || '')
@@ -346,59 +461,6 @@ export default function AddProduct() {
     if (imageToRemove) {
       URL.revokeObjectURL(imageToRemove.preview)
     }
-  }
-
-  // Add new branch
-  const handleAddBranch = (branchName) => {
-    if (branchName && !branches.includes(branchName.toLowerCase())) {
-      const newBranch = branchName.toLowerCase()
-      setBranches((prev) => [...prev, newBranch])
-      setStock((prev) => ({ ...prev, [`${newBranch}_stock`]: 0 }))
-
-      MySwal.fire({
-        icon: 'success',
-        title: 'Branch Added!',
-        text: `${branchName} branch has been added successfully`,
-        timer: 2000,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end',
-      })
-    }
-  }
-
-  // Delete branch with confirmation
-  const handleDeleteBranch = (branchName) => {
-    MySwal.fire({
-      title: 'Delete Branch?',
-      text: `Are you sure you want to delete "${branchName}" branch? This action cannot be undone.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!',
-      cancelButtonText: 'Cancel',
-    }).then((result) => {
-      if (result.isConfirmed) {
-        setBranches((prev) => prev.filter((branch) => branch !== branchName))
-        // Remove stock for deleted branch
-        setStock((prev) => {
-          const newStock = { ...prev }
-          delete newStock[`${branchName}_stock`]
-          return newStock
-        })
-
-        MySwal.fire({
-          icon: 'success',
-          title: 'Deleted!',
-          text: `${branchName} branch has been deleted.`,
-          timer: 2000,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end',
-        })
-      }
-    })
   }
 
   // Update stock for specific branch
@@ -533,7 +595,7 @@ export default function AddProduct() {
     try {
       console.log('Submitting form data:', data)
 
-      // Create product
+      // Create product (removed SKU from data)
       const productData = {
         ...data,
         stock,
@@ -758,30 +820,17 @@ export default function AddProduct() {
                     </AnimatePresence>
                   </div>
 
-                  {/* Brand & SKU */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Brand
-                      </label>
-                      <input
-                        type="text"
-                        {...register('brand')}
-                        placeholder="Enter brand name"
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        SKU
-                      </label>
-                      <input
-                        type="text"
-                        {...register('sku')}
-                        placeholder="Enter SKU"
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                      />
-                    </div>
+                  {/* Brand - Now Full Width */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Brand
+                    </label>
+                    <input
+                      type="text"
+                      {...register('brand')}
+                      placeholder="Enter brand name"
+                      className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                    />
                   </div>
 
                   {/* Barcode */}
@@ -1118,7 +1167,7 @@ export default function AddProduct() {
                   <div className="flex justify-between items-center">
                     <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                       <Store size={20} className="text-purple-600" />
-                      Stock Management
+                      Stock Management ({branches.length} branches)
                     </h3>
                     <button
                       type="button"
@@ -1147,6 +1196,16 @@ export default function AddProduct() {
                       </div>
                     ))}
                   </div>
+
+                  {branches.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Store size={48} className="mx-auto mb-2" />
+                      <p>
+                        No branches configured. Please add branches to manage
+                        stock.
+                      </p>
+                    </div>
+                  )}
                 </motion.div>
 
                 {/* Image Upload */}
@@ -1280,13 +1339,12 @@ export default function AddProduct() {
           </form>
         </motion.div>
 
-        {/* Branch Management Modal */}
+        {/* 👇 UPDATED: Branch Management Modal with API integration */}
         <BranchModal
           isOpen={showBranchModal}
           onClose={() => setShowBranchModal(false)}
           branches={branches}
-          onAddBranch={handleAddBranch}
-          onDeleteBranch={handleDeleteBranch}
+          onBranchUpdate={handleBranchUpdate}
         />
 
         {/* Barcode Scanner Modal */}
