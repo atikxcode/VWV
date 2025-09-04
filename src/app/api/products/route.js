@@ -210,11 +210,9 @@ export async function GET(req) {
         console.log(
           'GET: Exact barcode not found, trying case-insensitive search...'
         )
-        product = await db
-          .collection('products')
-          .findOne({
-            barcode: { $regex: `^${barcode.trim()}$`, $options: 'i' },
-          })
+        product = await db.collection('products').findOne({
+          barcode: { $regex: `^${barcode.trim()}$`, $options: 'i' },
+        })
       }
 
       if (!product) {
@@ -310,10 +308,6 @@ export async function GET(req) {
       ]
     }
 
-    // 🔥 FIXED: Improved barcode filtering for general search
-    // This is now handled above in the barcode-specific search
-    // Remove the duplicate barcode filtering here to avoid conflicts
-
     // Filter by branch stock availability
     if (branch && inStock === 'true') {
       query[`stock.${branch}_stock`] = { $gt: 0 }
@@ -369,7 +363,7 @@ export async function GET(req) {
   }
 }
 
-// POST: create new product, update product, or manage categories (same as before)
+// 🔥 UPDATED POST: Added delete category and subcategory functionality
 export async function POST(req) {
   logRequest(req, 'POST')
 
@@ -438,6 +432,93 @@ export async function POST(req) {
       )
     }
 
+    // 🔥 NEW: Handle category deletion
+    if (action === 'delete_category') {
+      console.log('POST: Deleting category:', body.categoryName)
+      const { categoryName } = body
+
+      if (!categoryName) {
+        console.log('POST: Category name missing for deletion')
+        return NextResponse.json(
+          { error: 'Category name is required' },
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      }
+
+      // Check if category exists in custom categories
+      const existingCategory = await db.collection('categories').findOne({
+        name: categoryName.toUpperCase(),
+      })
+
+      // Check if it's a default category
+      const isDefaultCategory = VAPE_CATEGORIES[categoryName.toUpperCase()]
+
+      if (!existingCategory && !isDefaultCategory) {
+        console.log('POST: Category not found for deletion:', categoryName)
+        return NextResponse.json(
+          { error: 'Category not found' },
+          {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      }
+
+      // Prevent deletion of default categories
+      if (isDefaultCategory && !existingCategory) {
+        console.log('POST: Cannot delete default category:', categoryName)
+        return NextResponse.json(
+          { error: 'Cannot delete default categories' },
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      }
+
+      // Check if any products are using this category
+      const productsUsingCategory = await db
+        .collection('products')
+        .countDocuments({
+          category: { $regex: `^${categoryName}$`, $options: 'i' },
+        })
+
+      if (productsUsingCategory > 0) {
+        console.log(
+          `POST: Cannot delete category ${categoryName}, ${productsUsingCategory} products are using it`
+        )
+        return NextResponse.json(
+          {
+            error: `Cannot delete category. ${productsUsingCategory} products are currently using this category.`,
+            productsCount: productsUsingCategory,
+          },
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      }
+
+      // Delete category from custom categories collection
+      const deleteResult = await db.collection('categories').deleteOne({
+        name: categoryName.toUpperCase(),
+      })
+
+      console.log('POST: Category deleted successfully ✓')
+      return NextResponse.json(
+        {
+          message: 'Category and all its subcategories deleted successfully',
+          deletedCount: deleteResult.deletedCount,
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
     // Handle subcategory management
     if (action === 'add_subcategory') {
       console.log(
@@ -497,6 +578,103 @@ export async function POST(req) {
       console.log('POST: Subcategory added successfully ✓')
       return NextResponse.json(
         { message: 'Subcategory added successfully' },
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
+    // 🔥 NEW: Handle subcategory deletion
+    if (action === 'delete_subcategory') {
+      console.log(
+        'POST: Deleting subcategory:',
+        body.subcategoryName,
+        'from category:',
+        body.categoryName
+      )
+      const { categoryName, subcategoryName } = body
+
+      if (!categoryName || !subcategoryName) {
+        console.log('POST: Category or subcategory name missing for deletion')
+        return NextResponse.json(
+          {
+            error: 'Category name and subcategory name are required',
+          },
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      }
+
+      // Check if any products are using this subcategory
+      const productsUsingSubcategory = await db
+        .collection('products')
+        .countDocuments({
+          category: { $regex: `^${categoryName}$`, $options: 'i' },
+          subcategory: { $regex: `^${subcategoryName}$`, $options: 'i' },
+        })
+
+      if (productsUsingSubcategory > 0) {
+        console.log(
+          `POST: Cannot delete subcategory ${subcategoryName}, ${productsUsingSubcategory} products are using it`
+        )
+        return NextResponse.json(
+          {
+            error: `Cannot delete subcategory. ${productsUsingSubcategory} products are currently using this subcategory.`,
+            productsCount: productsUsingSubcategory,
+          },
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      }
+
+      // Try to remove subcategory from custom category
+      const updateResult = await db.collection('categories').updateOne(
+        { name: categoryName.toUpperCase() },
+        {
+          $pull: { subcategories: subcategoryName },
+          $set: { updatedAt: new Date() },
+        }
+      )
+
+      if (updateResult.matchedCount === 0) {
+        // Check if it's a default category
+        if (VAPE_CATEGORIES[categoryName.toUpperCase()]) {
+          // Create custom category without the deleted subcategory
+          const existingSubcategories =
+            VAPE_CATEGORIES[categoryName.toUpperCase()]
+          const filteredSubcategories = existingSubcategories.filter(
+            (sub) => sub.toLowerCase() !== subcategoryName.toLowerCase()
+          )
+
+          const newCategory = {
+            name: categoryName.toUpperCase(),
+            subcategories: filteredSubcategories,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }
+          await db.collection('categories').insertOne(newCategory)
+        } else {
+          console.log(
+            'POST: Category not found for subcategory deletion:',
+            categoryName
+          )
+          return NextResponse.json(
+            { error: 'Category not found' },
+            {
+              status: 404,
+              headers: { 'Content-Type': 'application/json' },
+            }
+          )
+        }
+      }
+
+      console.log('POST: Subcategory deleted successfully ✓')
+      return NextResponse.json(
+        { message: 'Subcategory deleted successfully' },
         {
           headers: { 'Content-Type': 'application/json' },
         }

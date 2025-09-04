@@ -15,8 +15,24 @@ export default function AdminRoute({ children }) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [fetching, setFetching] = useState(true)
   const [error, setError] = useState(null)
-  const [showAlert, setShowAlert] = useState(false)
+  const [shouldRedirectToLogin, setShouldRedirectToLogin] = useState(false)
+  const [shouldShowAccessDenied, setShouldShowAccessDenied] = useState(false)
 
+  // 🔥 FIX 1: Handle login redirect in useEffect
+  useEffect(() => {
+    if (!loading && !user) {
+      setShouldRedirectToLogin(true)
+    }
+  }, [user, loading])
+
+  // 🔥 FIX 2: Redirect to login in useEffect
+  useEffect(() => {
+    if (shouldRedirectToLogin) {
+      router.push(`/RegistrationPage?redirect=${pathname}`)
+    }
+  }, [shouldRedirectToLogin, router, pathname])
+
+  // Fetch user role
   useEffect(() => {
     if (!user) {
       setFetching(false)
@@ -32,7 +48,11 @@ export default function AdminRoute({ children }) {
         if (!res.ok) throw new Error('Failed to fetch user data')
         const data = await res.json()
         setIsAdmin(data.user?.role === 'admin')
-        if (data.user?.role !== 'admin') setShowAlert(true)
+
+        // 🔥 FIX 3: Set state instead of direct alert
+        if (data.user?.role !== 'admin') {
+          setShouldShowAccessDenied(true)
+        }
       } catch (err) {
         setError(err)
       } finally {
@@ -43,42 +63,41 @@ export default function AdminRoute({ children }) {
     fetchCurrentUser()
   }, [user])
 
-  // Show SweetAlert2 if user is logged in but not admin
+  // 🔥 FIX 4: Handle access denied in separate useEffect
   useEffect(() => {
-    if (showAlert) {
+    if (shouldShowAccessDenied) {
       Swal.fire({
         icon: 'warning',
         title: 'Access Denied',
         text: 'You do not have permission to access admin routes.',
-        confirmButtonColor: '#6b21a8', // purple
+        confirmButtonColor: '#6b21a8',
       }).then(() => {
-        router.push('/') // redirect to home or dashboard
+        router.push('/')
       })
     }
-  }, [showAlert, router])
+  }, [shouldShowAccessDenied, router])
 
-  // Vape-themed loader
+  // Show loader
   if (loading || fetching) {
     return <Loading />
   }
 
-  // Error handling
+  // Show error
   if (error) {
     return (
       <p className="text-red-600 text-center mt-8">Error: {error.message}</p>
     )
   }
 
-  // Redirect if not logged in
+  // 🔥 FIX 5: Early return without router.push call
   if (!user) {
-    router.push(`/RegistrationPage?redirect=${pathname}`)
+    return null // Let useEffect handle redirect
+  }
+
+  // Don't render if not admin (let useEffect handle alert)
+  if (!isAdmin) {
     return null
   }
 
-  // If user is logged in but admin check is handled by SweetAlert
-  if (!isAdmin) return null
-
   return children
 }
-
-// Admin Routing checks if outsider rather than admin didn't get access

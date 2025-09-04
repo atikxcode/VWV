@@ -1,6 +1,6 @@
 'use client'
 
-import { useContext } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { AuthContext } from '../Provider/AuthProvider'
 import { motion } from 'framer-motion'
@@ -11,15 +11,31 @@ export default function PrivateRoute({ children }) {
   const router = useRouter()
   const pathname = usePathname()
 
+  // 🔥 NEW: State to control redirect
+  const [shouldRedirectToLogin, setShouldRedirectToLogin] = useState(false)
+
+  // 🔥 FIX 1: Handle login redirect in useEffect
+  useEffect(() => {
+    if (!loading && !user) {
+      setShouldRedirectToLogin(true)
+    }
+  }, [user, loading])
+
+  // 🔥 FIX 2: Redirect to login in useEffect
+  useEffect(() => {
+    if (shouldRedirectToLogin) {
+      router.push(`/RegistrationPage?redirect=${pathname}`)
+    }
+  }, [shouldRedirectToLogin, router, pathname])
+
   // Show loading animation while checking auth
   if (loading) {
     return <Loading />
   }
 
-  // Redirect if user is not logged in
+  // 🔥 FIX 3: Early return without router.push call
   if (!user) {
-    router.push(`/RegistrationPage?redirect=${pathname}`)
-    return null
+    return null // Let useEffect handle redirect
   }
 
   return children

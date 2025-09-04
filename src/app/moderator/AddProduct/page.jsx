@@ -5,7 +5,6 @@ import { useForm, Controller } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'
 import Swal from 'sweetalert2'
 import {
-  PlusCircle,
   Upload,
   AlertCircle,
   Scan,
@@ -18,11 +17,9 @@ import {
   Trash2,
   Save,
   RotateCcw,
-  Plus,
   Zap,
   X,
-  Edit,
-  Settings,
+  Lock,
 } from 'lucide-react'
 
 // For barcode scanning
@@ -31,7 +28,7 @@ import BarcodeReader from 'react-barcode-reader'
 // Use SweetAlert2 directly without React content wrapper
 const MySwal = Swal
 
-// Vape shop categories
+// Vape shop categories (same as admin)
 const VAPE_CATEGORIES = {
   'E-LIQUID': [
     'Fruits',
@@ -71,445 +68,7 @@ const VAPE_CATEGORIES = {
   ],
 }
 
-// Category Management Modal Component with Delete Functionality
-const CategoryManagementModal = ({
-  isOpen,
-  onClose,
-  categories,
-  onCategoryUpdate,
-}) => {
-  const [loading, setLoading] = useState(false)
-
-  const handleDeleteCategory = async (categoryName) => {
-    const result = await MySwal.fire({
-      title: 'Delete Category?',
-      text: `Are you sure you want to delete "${categoryName}" category? This will delete all its subcategories and cannot be undone.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!',
-      cancelButtonText: 'Cancel',
-    })
-
-    if (result.isConfirmed) {
-      setLoading(true)
-      try {
-        const response = await fetch('/api/products', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'delete_category',
-            categoryName: categoryName,
-          }),
-        })
-
-        const data = await response.json()
-
-        if (response.ok) {
-          // Update categories by removing the deleted category
-          const updatedCategories = { ...categories }
-          delete updatedCategories[categoryName]
-          onCategoryUpdate(updatedCategories)
-
-          MySwal.fire({
-            icon: 'success',
-            title: 'Deleted!',
-            text: `${categoryName} category and all its subcategories have been deleted.`,
-            timer: 2000,
-            showConfirmButton: false,
-            toast: true,
-            position: 'top-end',
-          })
-        } else {
-          MySwal.fire({
-            icon: 'error',
-            title: 'Cannot Delete',
-            text: data.error || 'Failed to delete category',
-          })
-        }
-      } catch (error) {
-        console.error('Error deleting category:', error)
-        MySwal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Failed to delete category',
-        })
-      } finally {
-        setLoading(false)
-      }
-    }
-  }
-
-  const handleDeleteSubcategory = async (categoryName, subcategoryName) => {
-    const result = await MySwal.fire({
-      title: 'Delete Subcategory?',
-      text: `Are you sure you want to delete "${subcategoryName}" from "${categoryName}" category?`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!',
-      cancelButtonText: 'Cancel',
-    })
-
-    if (result.isConfirmed) {
-      setLoading(true)
-      try {
-        const response = await fetch('/api/products', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'delete_subcategory',
-            categoryName: categoryName,
-            subcategoryName: subcategoryName,
-          }),
-        })
-
-        const data = await response.json()
-
-        if (response.ok) {
-          // Update categories by removing the deleted subcategory
-          const updatedCategories = { ...categories }
-          if (updatedCategories[categoryName]) {
-            updatedCategories[categoryName] = updatedCategories[
-              categoryName
-            ].filter((sub) => sub !== subcategoryName)
-          }
-          onCategoryUpdate(updatedCategories)
-
-          MySwal.fire({
-            icon: 'success',
-            title: 'Deleted!',
-            text: `${subcategoryName} subcategory has been deleted.`,
-            timer: 2000,
-            showConfirmButton: false,
-            toast: true,
-            position: 'top-end',
-          })
-        } else {
-          MySwal.fire({
-            icon: 'error',
-            title: 'Cannot Delete',
-            text: data.error || 'Failed to delete subcategory',
-          })
-        }
-      } catch (error) {
-        console.error('Error deleting subcategory:', error)
-        MySwal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Failed to delete subcategory',
-        })
-      } finally {
-        setLoading(false)
-      }
-    }
-  }
-
-  if (!isOpen) return null
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto"
-      >
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Settings size={24} className="text-purple-600" />
-            Manage Categories & Subcategories
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X size={24} />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          {Object.entries(categories).map(([categoryName, subcategories]) => (
-            <div
-              key={categoryName}
-              className="border border-gray-200 rounded-lg p-4"
-            >
-              {/* Category Header */}
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <Tag size={18} className="text-purple-600" />
-                  {categoryName}
-                </h4>
-                <button
-                  onClick={() => handleDeleteCategory(categoryName)}
-                  disabled={loading}
-                  className="text-red-500 hover:text-red-700 transition-colors p-2 rounded-lg hover:bg-red-50 disabled:opacity-50"
-                  title="Delete entire category"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-
-              {/* Subcategories */}
-              <div className="ml-6 space-y-2">
-                {subcategories && subcategories.length > 0 ? (
-                  subcategories.map((subcategory) => (
-                    <div
-                      key={subcategory}
-                      className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
-                    >
-                      <span className="text-gray-700">{subcategory}</span>
-                      <button
-                        onClick={() =>
-                          handleDeleteSubcategory(categoryName, subcategory)
-                        }
-                        disabled={loading}
-                        className="text-red-400 hover:text-red-600 transition-colors p-1 rounded hover:bg-red-100 disabled:opacity-50"
-                        title="Delete subcategory"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-500 italic">No subcategories</p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex justify-end mt-6">
-          <button
-            onClick={onClose}
-            className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  )
-}
-
-// Branch Modal Component (same as before)
-const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
-  const [newBranchName, setNewBranchName] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!newBranchName.trim()) {
-      setError('Branch name is required')
-      return
-    }
-
-    const cleanBranchName = newBranchName.trim().toLowerCase()
-    if (branches.includes(cleanBranchName)) {
-      setError('Branch already exists')
-      return
-    }
-
-    setLoading(true)
-    try {
-      const response = await fetch('/api/branches', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'add',
-          branchName: cleanBranchName,
-        }),
-      })
-
-      if (!response.ok) throw new Error('Failed to add branch')
-
-      const updatedBranches = [...branches, cleanBranchName]
-      onBranchUpdate(updatedBranches)
-
-      setNewBranchName('')
-      setError('')
-
-      MySwal.fire({
-        icon: 'success',
-        title: 'Branch Added!',
-        text: `${newBranchName} branch has been added successfully`,
-        timer: 2000,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end',
-      })
-    } catch (error) {
-      console.error('Error adding branch:', error)
-      setError('Failed to add branch')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleDeleteBranch = async (branchName) => {
-    const result = await MySwal.fire({
-      title: 'Delete Branch?',
-      text: `Are you sure you want to delete "${branchName}" branch? This will affect all products using this branch.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!',
-      cancelButtonText: 'Cancel',
-    })
-
-    if (result.isConfirmed) {
-      setLoading(true)
-      try {
-        const response = await fetch('/api/branches', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ branchName }),
-        })
-
-        if (!response.ok) throw new Error('Failed to delete branch')
-
-        const updatedBranches = branches.filter((b) => b !== branchName)
-        onBranchUpdate(updatedBranches)
-
-        MySwal.fire({
-          icon: 'success',
-          title: 'Deleted!',
-          text: `${branchName} branch has been deleted.`,
-          timer: 2000,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end',
-        })
-      } catch (error) {
-        console.error('Error deleting branch:', error)
-        MySwal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Failed to delete branch',
-        })
-      } finally {
-        setLoading(false)
-      }
-    }
-  }
-
-  const handleClose = () => {
-    setNewBranchName('')
-    setError('')
-    onClose()
-  }
-
-  if (!isOpen) return null
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto"
-      >
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Store size={24} className="text-purple-600" />
-            Manage Branches
-          </h3>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X size={24} />
-          </button>
-        </div>
-
-        {/* Add New Branch Form */}
-        <form onSubmit={handleSubmit} className="mb-6">
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Add New Branch
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newBranchName}
-                onChange={(e) => {
-                  setNewBranchName(e.target.value)
-                  setError('')
-                }}
-                placeholder="Enter branch name"
-                className="flex-1 p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                disabled={loading}
-              />
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
-              >
-                {loading ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                ) : (
-                  <Plus size={16} />
-                )}
-              </button>
-            </div>
-            {error && (
-              <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-                <AlertCircle size={16} />
-                {error}
-              </p>
-            )}
-          </div>
-        </form>
-
-        {/* Current Branches List */}
-        <div>
-          <h4 className="text-lg font-semibold text-gray-800 mb-3">
-            Current Branches ({branches.length})
-          </h4>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {branches.map((branch) => (
-              <div
-                key={branch}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-              >
-                <span className="font-medium text-gray-800 capitalize">
-                  {branch}
-                </span>
-                <button
-                  onClick={() => handleDeleteBranch(branch)}
-                  className="text-red-500 hover:text-red-700 transition-colors p-1"
-                  disabled={branches.length <= 1 || loading}
-                  title={
-                    branches.length <= 1
-                      ? 'Cannot delete the last branch'
-                      : 'Delete branch'
-                  }
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex justify-end mt-6">
-          <button
-            onClick={handleClose}
-            className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  )
-}
-
-export default function AddProduct() {
+export default function ModeratorAddProduct() {
   const {
     register,
     handleSubmit,
@@ -520,24 +79,18 @@ export default function AddProduct() {
     reset,
   } = useForm()
 
+  // 🔒 MODERATOR RESTRICTIONS: Get moderator info
+  const MODERATOR_BRANCH = 'mirpur' // This should come from auth context/session
+  const USER_ROLE = 'moderator'
+
   const [subCategoryOptions, setSubCategoryOptions] = useState([])
-  const [branches, setBranches] = useState([])
+  const [branches, setBranches] = useState([]) // Will load all branches but only moderator's is editable
   const [stock, setStock] = useState({})
   const [images, setImages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
-  const [showBranchModal, setShowBranchModal] = useState(false)
 
-  // State for category management modal
-  const [showCategoryModal, setShowCategoryModal] = useState(false)
-
-  // Separate states for category and subcategory custom inputs
-  const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false)
-  const [isAddingCustomSubcategory, setIsAddingCustomSubcategory] =
-    useState(false)
-  const [customCategoryInput, setCustomCategoryInput] = useState('')
-  const [customSubcategoryInput, setCustomSubcategoryInput] = useState('')
-
+  // 🔥 FIXED: Load dynamic categories from API instead of static ones
   const [dynamicCategories, setDynamicCategories] = useState(VAPE_CATEGORIES)
   const fileInputRef = useRef(null)
 
@@ -551,7 +104,6 @@ export default function AddProduct() {
         if (response.ok) {
           const data = await response.json()
           setDynamicCategories(data.categories || VAPE_CATEGORIES)
-          console.log('Loaded categories:', data.categories)
         } else {
           console.error('Failed to load categories, using defaults')
           setDynamicCategories(VAPE_CATEGORIES)
@@ -585,7 +137,7 @@ export default function AddProduct() {
     loadBranches()
   }, [])
 
-  // Initialize stock for branches
+  // 🔒 Initialize stock for all branches but only moderator's is editable
   useEffect(() => {
     const initialStock = {}
     branches.forEach((branch) => {
@@ -603,23 +155,7 @@ export default function AddProduct() {
     }
   }, [category, dynamicCategories])
 
-  // Handle branch updates from modal
-  const handleBranchUpdate = (updatedBranches) => {
-    setBranches(updatedBranches)
-
-    const newStock = {}
-    updatedBranches.forEach((branch) => {
-      newStock[`${branch}_stock`] = stock[`${branch}_stock`] || 0
-    })
-    setStock(newStock)
-  }
-
-  // Handle category updates from category management modal
-  const handleCategoryUpdate = (updatedCategories) => {
-    setDynamicCategories(updatedCategories)
-  }
-
-  // Real barcode scanning handler
+  // Barcode scanning handler
   const handleBarcodeScan = async (data) => {
     try {
       if (data) {
@@ -681,12 +217,10 @@ export default function AddProduct() {
     }
   }
 
-  // Handle barcode scan error
   const handleBarcodeScanError = (err) => {
     console.error('Barcode scan error:', err)
   }
 
-  // Handle image upload
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files)
     const newImages = files.map((file) => ({
@@ -697,7 +231,6 @@ export default function AddProduct() {
     setImages((prev) => [...prev, ...newImages])
   }
 
-  // Remove image
   const removeImage = (imageId) => {
     setImages((prev) => prev.filter((img) => img.id !== imageId))
     const imageToRemove = images.find((img) => img.id === imageId)
@@ -706,129 +239,25 @@ export default function AddProduct() {
     }
   }
 
-  // Update stock for specific branch
+  // 🔒 RESTRICTED: Update stock only for moderator's branch
   const updateStock = (branchKey, value) => {
-    setStock((prev) => ({ ...prev, [branchKey]: parseInt(value) || 0 }))
-  }
-
-  // Add custom category
-  const handleAddCustomCategory = async () => {
-    if (customCategoryInput.trim()) {
-      try {
-        const response = await fetch('/api/products', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'add_category',
-            categoryName: customCategoryInput.toUpperCase(),
-            subcategories: [],
-          }),
-        })
-
-        if (response.ok) {
-          setDynamicCategories((prev) => ({
-            ...prev,
-            [customCategoryInput.toUpperCase()]: [],
-          }))
-          setValue('category', customCategoryInput.toUpperCase())
-          setCustomCategoryInput('')
-          setIsAddingCustomCategory(false)
-
-          MySwal.fire({
-            icon: 'success',
-            title: 'Category Added!',
-            text: 'Custom category has been added successfully',
-            timer: 2000,
-            showConfirmButton: false,
-            toast: true,
-            position: 'top-end',
-          })
-        } else {
-          MySwal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Failed to add custom category',
-            timer: 2000,
-            showConfirmButton: false,
-            toast: true,
-            position: 'top-end',
-          })
-        }
-      } catch (error) {
-        console.error('Error adding category:', error)
-        MySwal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Error adding custom category',
-          timer: 2000,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end',
-        })
-      }
+    if (branchKey === `${MODERATOR_BRANCH}_stock`) {
+      setStock((prev) => ({ ...prev, [branchKey]: parseInt(value) || 0 }))
+    } else {
+      // Show restriction message
+      MySwal.fire({
+        icon: 'warning',
+        title: 'Access Restricted',
+        text: `You can only manage stock for ${MODERATOR_BRANCH} branch`,
+        timer: 2000,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end',
+      })
     }
   }
 
-  // Add custom subcategory
-  const handleAddCustomSubcategory = async () => {
-    if (customSubcategoryInput.trim() && category) {
-      try {
-        const response = await fetch('/api/products', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'add_subcategory',
-            categoryName: category,
-            subcategoryName: customSubcategoryInput,
-          }),
-        })
-
-        if (response.ok) {
-          setDynamicCategories((prev) => ({
-            ...prev,
-            [category]: [...(prev[category] || []), customSubcategoryInput],
-          }))
-          setSubCategoryOptions((prev) => [...prev, customSubcategoryInput])
-          setValue('subcategory', customSubcategoryInput)
-          setCustomSubcategoryInput('')
-          setIsAddingCustomSubcategory(false)
-
-          MySwal.fire({
-            icon: 'success',
-            title: 'Subcategory Added!',
-            text: 'Custom subcategory has been added successfully',
-            timer: 2000,
-            showConfirmButton: false,
-            toast: true,
-            position: 'top-end',
-          })
-        } else {
-          MySwal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Failed to add custom subcategory',
-            timer: 2000,
-            showConfirmButton: false,
-            toast: true,
-            position: 'top-end',
-          })
-        }
-      } catch (error) {
-        console.error('Error adding subcategory:', error)
-        MySwal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Error adding custom subcategory',
-          timer: 2000,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end',
-        })
-      }
-    }
-  }
-
-  // Form submission with enhanced error handling
+  // Form submission
   const onSubmit = async (data) => {
     setIsLoading(true)
     try {
@@ -851,9 +280,6 @@ export default function AddProduct() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(productData),
       })
-
-      console.log('Response status:', response.status)
-      console.log('Response headers:', response.headers.get('content-type'))
 
       const contentType = response.headers.get('content-type')
       if (!contentType || !contentType.includes('application/json')) {
@@ -911,10 +337,6 @@ export default function AddProduct() {
       reset()
       setStock({})
       setImages([])
-      setIsAddingCustomCategory(false)
-      setIsAddingCustomSubcategory(false)
-      setCustomCategoryInput('')
-      setCustomSubcategoryInput('')
 
       MySwal.fire({
         icon: 'success',
@@ -978,14 +400,17 @@ export default function AddProduct() {
         animate="visible"
         className="max-w-6xl mx-auto"
       >
-        {/* Header */}
+        {/* Header with Moderator Badge */}
         <motion.div variants={itemVariants} className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center justify-center gap-3">
             <Package className="text-purple-600" size={40} />
             Add New Vape Product
+            <span className="text-sm bg-orange-100 text-orange-800 px-3 py-1 rounded-full font-medium">
+              Moderator
+            </span>
           </h1>
           <p className="text-gray-600">
-            Manage your vape shop inventory with style
+            Managing inventory for <strong>{MODERATOR_BRANCH}</strong> branch
           </p>
         </motion.div>
 
@@ -1087,84 +512,37 @@ export default function AddProduct() {
                   </div>
                 </motion.div>
 
-                {/* Categories */}
+                {/* 🔒 RESTRICTED: Categories (No Add Buttons) */}
                 <motion.div variants={itemVariants} className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                       <Tag size={20} className="text-purple-600" />
                       Categories
                     </h3>
-                    {/* Button to open category management modal */}
-                    <button
-                      type="button"
-                      onClick={() => setShowCategoryModal(true)}
-                      className="text-purple-600 hover:text-purple-700 text-sm flex items-center gap-1"
-                    >
-                      <Settings size={14} /> Manage Categories
-                    </button>
+                    {/* 🔥 UPDATED: Show info about restrictions */}
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
+                      Read Only
+                    </span>
                   </div>
 
-                  {/* Category */}
+                  {/* Category - No Add Custom Button */}
                   <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <label className="block text-sm font-medium text-gray-700">
-                        Category *
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setIsAddingCustomCategory(!isAddingCustomCategory)
-                        }
-                        className="text-purple-600 hover:text-purple-700 text-sm flex items-center gap-1"
-                      >
-                        <Plus size={14} /> Add Custom
-                      </button>
-                    </div>
-
-                    {isAddingCustomCategory ? (
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={customCategoryInput}
-                          onChange={(e) =>
-                            setCustomCategoryInput(e.target.value)
-                          }
-                          placeholder="Enter custom category"
-                          className="flex-1 p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleAddCustomCategory}
-                          className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700"
-                        >
-                          Add
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsAddingCustomCategory(false)
-                            setCustomCategoryInput('')
-                          }}
-                          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    ) : (
-                      <select
-                        {...register('category', {
-                          required: 'Category is required',
-                        })}
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                      >
-                        <option value="">Select Category</option>
-                        {Object.keys(dynamicCategories).map((cat) => (
-                          <option key={cat} value={cat}>
-                            {cat}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Category *
+                    </label>
+                    <select
+                      {...register('category', {
+                        required: 'Category is required',
+                      })}
+                      className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                    >
+                      <option value="">Select Category</option>
+                      {Object.keys(dynamicCategories).map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
                     <AnimatePresence>
                       {errors.category && (
                         <motion.span
@@ -1179,71 +557,24 @@ export default function AddProduct() {
                     </AnimatePresence>
                   </div>
 
-                  {/* Subcategory */}
+                  {/* Subcategory - No Add Custom Button */}
                   <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <label className="block text-sm font-medium text-gray-700">
-                        Subcategory *
-                      </label>
-                      {category && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setIsAddingCustomSubcategory(
-                              !isAddingCustomSubcategory
-                            )
-                          }
-                          className="text-purple-600 hover:text-purple-700 text-sm flex items-center gap-1"
-                        >
-                          <Plus size={14} /> Add Custom
-                        </button>
-                      )}
-                    </div>
-
-                    {isAddingCustomSubcategory ? (
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={customSubcategoryInput}
-                          onChange={(e) =>
-                            setCustomSubcategoryInput(e.target.value)
-                          }
-                          placeholder="Enter custom subcategory"
-                          className="flex-1 p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleAddCustomSubcategory}
-                          className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700"
-                        >
-                          Add
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsAddingCustomSubcategory(false)
-                            setCustomSubcategoryInput('')
-                          }}
-                          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    ) : (
-                      <select
-                        {...register('subcategory', {
-                          required: 'Subcategory is required',
-                        })}
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                      >
-                        <option value="">Select Subcategory</option>
-                        {subCategoryOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Subcategory *
+                    </label>
+                    <select
+                      {...register('subcategory', {
+                        required: 'Subcategory is required',
+                      })}
+                      className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                    >
+                      <option value="">Select Subcategory</option>
+                      {subCategoryOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
                     <AnimatePresence>
                       {errors.subcategory && (
                         <motion.span
@@ -1256,6 +587,18 @@ export default function AddProduct() {
                         </motion.span>
                       )}
                     </AnimatePresence>
+                  </div>
+
+                  {/* 🔥 NEW: Info box about category restrictions */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle size={14} />
+                      <span className="font-medium">Note:</span>
+                    </div>
+                    <p className="mt-1">
+                      Categories are managed by administrators. You can see all
+                      available options including newly added ones.
+                    </p>
                   </div>
                 </motion.div>
 
@@ -1406,27 +749,26 @@ export default function AddProduct() {
                   </div>
                 </motion.div>
 
-                {/* Stock Management */}
+                {/* 🔒 RESTRICTED: Stock Management */}
                 <motion.div variants={itemVariants} className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                       <Store size={20} className="text-purple-600" />
-                      Stock Management ({branches.length} branches)
+                      Stock Management
                     </h3>
-                    <button
-                      type="button"
-                      onClick={() => setShowBranchModal(true)}
-                      className="text-purple-600 hover:text-purple-700 text-sm flex items-center gap-1"
-                    >
-                      <Edit size={14} /> Manage Branches
-                    </button>
+                    <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full font-medium">
+                      Limited Access
+                    </span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {branches.map((branch) => (
                       <div key={branch}>
-                        <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
+                        <label className="block text-sm font-medium text-gray-700 mb-2 capitalize flex items-center gap-2">
                           {branch} Stock
+                          {branch !== MODERATOR_BRANCH && (
+                            <Lock size={14} className="text-gray-400" />
+                          )}
                         </label>
                         <input
                           type="number"
@@ -1435,7 +777,15 @@ export default function AddProduct() {
                           onChange={(e) =>
                             updateStock(`${branch}_stock`, e.target.value)
                           }
-                          className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          disabled={branch !== MODERATOR_BRANCH}
+                          className={`w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                            branch !== MODERATOR_BRANCH
+                              ? 'bg-gray-100 cursor-not-allowed opacity-60'
+                              : 'bg-white'
+                          }`}
+                          placeholder={
+                            branch !== MODERATOR_BRANCH ? 'Restricted' : '0'
+                          }
                         />
                       </div>
                     ))}
@@ -1444,12 +794,20 @@ export default function AddProduct() {
                   {branches.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
                       <Store size={48} className="mx-auto mb-2" />
-                      <p>
-                        No branches configured. Please add branches to manage
-                        stock.
-                      </p>
+                      <p>No branches configured.</p>
                     </div>
                   )}
+
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-sm text-orange-800">
+                    <div className="flex items-center gap-2 mb-1">
+                      <AlertCircle size={16} />
+                      <span className="font-medium">Access Limitation</span>
+                    </div>
+                    <p>
+                      You can only manage stock for your assigned branch:{' '}
+                      <strong>{MODERATOR_BRANCH}</strong>
+                    </p>
+                  </div>
                 </motion.div>
 
                 {/* Image Upload */}
@@ -1549,10 +907,6 @@ export default function AddProduct() {
                   reset()
                   setStock({})
                   setImages([])
-                  setIsAddingCustomCategory(false)
-                  setIsAddingCustomSubcategory(false)
-                  setCustomCategoryInput('')
-                  setCustomSubcategoryInput('')
                 }}
                 className="flex-1 py-4 px-6 bg-gray-100 text-gray-700 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
               >
@@ -1582,22 +936,6 @@ export default function AddProduct() {
             </motion.div>
           </form>
         </motion.div>
-
-        {/* Branch Management Modal */}
-        <BranchModal
-          isOpen={showBranchModal}
-          onClose={() => setShowBranchModal(false)}
-          branches={branches}
-          onBranchUpdate={handleBranchUpdate}
-        />
-
-        {/* Category Management Modal */}
-        <CategoryManagementModal
-          isOpen={showCategoryModal}
-          onClose={() => setShowCategoryModal(false)}
-          categories={dynamicCategories}
-          onCategoryUpdate={handleCategoryUpdate}
-        />
 
         {/* Barcode Scanner Modal */}
         <AnimatePresence>

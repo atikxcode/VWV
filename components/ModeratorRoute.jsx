@@ -15,8 +15,24 @@ export default function ModeratorRoute({ children }) {
   const [isModerator, setIsModerator] = useState(false)
   const [fetching, setFetching] = useState(true)
   const [error, setError] = useState(null)
-  const [showAlert, setShowAlert] = useState(false)
+  const [shouldRedirectToLogin, setShouldRedirectToLogin] = useState(false)
+  const [shouldShowAccessDenied, setShouldShowAccessDenied] = useState(false)
 
+  // 🔥 FIX 1: Handle login redirect in useEffect
+  useEffect(() => {
+    if (!loading && !user) {
+      setShouldRedirectToLogin(true)
+    }
+  }, [user, loading])
+
+  // 🔥 FIX 2: Redirect to login in useEffect
+  useEffect(() => {
+    if (shouldRedirectToLogin) {
+      router.push(`/RegistrationPage?redirect=${pathname}`)
+    }
+  }, [shouldRedirectToLogin, router, pathname])
+
+  // Fetch user role
   useEffect(() => {
     if (!user) {
       setFetching(false)
@@ -35,7 +51,10 @@ export default function ModeratorRoute({ children }) {
         // 🔧 Only allow 'moderator' role (not admin)
         setIsModerator(data.user?.role === 'moderator')
 
-        if (data.user?.role !== 'moderator') setShowAlert(true)
+        // 🔥 FIX 3: Set state instead of direct alert
+        if (data.user?.role !== 'moderator') {
+          setShouldShowAccessDenied(true)
+        }
       } catch (err) {
         setError(err)
       } finally {
@@ -46,9 +65,9 @@ export default function ModeratorRoute({ children }) {
     fetchCurrentUser()
   }, [user])
 
-  // Show SweetAlert2 if user is logged in but not moderator
+  // 🔥 FIX 4: Handle access denied in separate useEffect
   useEffect(() => {
-    if (showAlert) {
+    if (shouldShowAccessDenied) {
       Swal.fire({
         icon: 'warning',
         title: 'Access Denied',
@@ -58,30 +77,29 @@ export default function ModeratorRoute({ children }) {
         router.push('/') // redirect to home or dashboard
       })
     }
-  }, [showAlert, router])
+  }, [shouldShowAccessDenied, router])
 
-  // Vape-themed loader
+  // Show loader
   if (loading || fetching) {
     return <Loading />
   }
 
-  // Error handling
+  // Show error
   if (error) {
     return (
       <p className="text-red-600 text-center mt-8">Error: {error.message}</p>
     )
   }
 
-  // Redirect if not logged in
+  // 🔥 FIX 5: Early return without router.push call
   if (!user) {
-    router.push(`/RegistrationPage?redirect=${pathname}`)
+    return null // Let useEffect handle redirect
+  }
+
+  // Don't render if not moderator (let useEffect handle alert)
+  if (!isModerator) {
     return null
   }
 
-  // If user is logged in but moderator check is handled by SweetAlert
-  if (!isModerator) return null
-
   return children
 }
-
-// Moderator Routing checks if user has moderator role specifically
