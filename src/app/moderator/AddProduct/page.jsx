@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useContext } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'
 import Swal from 'sweetalert2'
@@ -22,13 +22,12 @@ import {
   Lock,
 } from 'lucide-react'
 
-// For barcode scanning
 import BarcodeReader from 'react-barcode-reader'
 
-// Use SweetAlert2 directly without React content wrapper
+import { AuthContext } from '../../../../Provider/AuthProvider'
+
 const MySwal = Swal
 
-// Vape shop categories (same as admin)
 const VAPE_CATEGORIES = {
   'E-LIQUID': [
     'Fruits',
@@ -69,6 +68,8 @@ const VAPE_CATEGORIES = {
 }
 
 export default function ModeratorAddProduct() {
+  const { user } = useContext(AuthContext)
+
   const {
     register,
     handleSubmit,
@@ -79,24 +80,68 @@ export default function ModeratorAddProduct() {
     reset,
   } = useForm()
 
-  // 🔒 MODERATOR RESTRICTIONS: Get moderator info
-  const MODERATOR_BRANCH = 'mirpur' // This should come from auth context/session
-  const USER_ROLE = 'moderator'
+  const [moderatorBranch, setModeratorBranch] = useState(null)
+  const [moderatorRole, setModeratorRole] = useState(null)
+  const [userLoading, setUserLoading] = useState(true)
 
   const [subCategoryOptions, setSubCategoryOptions] = useState([])
-  const [branches, setBranches] = useState([]) // Will load all branches but only moderator's is editable
+  const [branches, setBranches] = useState([])
   const [stock, setStock] = useState({})
   const [images, setImages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
 
-  // 🔥 FIXED: Load dynamic categories from API instead of static ones
   const [dynamicCategories, setDynamicCategories] = useState(VAPE_CATEGORIES)
   const fileInputRef = useRef(null)
 
   const category = watch('category')
 
-  // 🔥 NEW: Load dynamic categories from API on component mount
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      if (!user?.email) {
+        setUserLoading(false)
+        return
+      }
+
+      try {
+        setUserLoading(true)
+        const response = await fetch(
+          `/api/user?email=${encodeURIComponent(user.email)}`
+        )
+        if (response.ok) {
+          const data = await response.json()
+          if (data.user) {
+            setModeratorRole(data.user.role)
+            setModeratorBranch(data.user.branch)
+            console.log('Moderator Details:', {
+              email: data.user.email,
+              role: data.user.role,
+              branch: data.user.branch,
+            })
+          }
+        } else {
+          console.error('Failed to fetch user details')
+          MySwal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to load user details',
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching user details:', error)
+        MySwal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Error loading user information',
+        })
+      } finally {
+        setUserLoading(false)
+      }
+    }
+
+    fetchUserDetails()
+  }, [user])
+
   useEffect(() => {
     const loadCategories = async () => {
       try {
@@ -104,6 +149,7 @@ export default function ModeratorAddProduct() {
         if (response.ok) {
           const data = await response.json()
           setDynamicCategories(data.categories || VAPE_CATEGORIES)
+          console.log('Loaded categories:', data.categories)
         } else {
           console.error('Failed to load categories, using defaults')
           setDynamicCategories(VAPE_CATEGORIES)
@@ -117,7 +163,6 @@ export default function ModeratorAddProduct() {
     loadCategories()
   }, [])
 
-  // Load branches on component mount
   useEffect(() => {
     const loadBranches = async () => {
       try {
@@ -137,16 +182,16 @@ export default function ModeratorAddProduct() {
     loadBranches()
   }, [])
 
-  // 🔒 Initialize stock for all branches but only moderator's is editable
   useEffect(() => {
-    const initialStock = {}
-    branches.forEach((branch) => {
-      initialStock[`${branch}_stock`] = 0
-    })
-    setStock(initialStock)
+    if (branches.length > 0) {
+      const initialStock = {}
+      branches.forEach((branch) => {
+        initialStock[`${branch}_stock`] = 0
+      })
+      setStock(initialStock)
+    }
   }, [branches])
 
-  // Update subcategories when category changes
   useEffect(() => {
     if (category && dynamicCategories[category]) {
       setSubCategoryOptions(dynamicCategories[category])
@@ -155,7 +200,6 @@ export default function ModeratorAddProduct() {
     }
   }, [category, dynamicCategories])
 
-  // Barcode scanning handler
   const handleBarcodeScan = async (data) => {
     try {
       if (data) {
@@ -239,17 +283,31 @@ export default function ModeratorAddProduct() {
     }
   }
 
-  // 🔒 RESTRICTED: Update stock only for moderator's branch
   const updateStock = (branchKey, value) => {
-    if (branchKey === `${MODERATOR_BRANCH}_stock`) {
+    if (!moderatorBranch) {
+      console.log('Moderator branch not loaded yet')
+      return
+    }
+
+    const expectedBranchKey = `${moderatorBranch}_stock`
+
+    if (branchKey === expectedBranchKey) {
+      console.log(
+        `Updating ${branchKey} for moderator branch ${moderatorBranch}`
+      )
       setStock((prev) => ({ ...prev, [branchKey]: parseInt(value) || 0 }))
     } else {
-      // Show restriction message
+      console.log(
+        `Blocked update attempt: ${branchKey} by moderator assigned to ${moderatorBranch}`
+      )
       MySwal.fire({
         icon: 'warning',
         title: 'Access Restricted',
-        text: `You can only manage stock for ${MODERATOR_BRANCH} branch`,
-        timer: 2000,
+        text: `You can only manage stock for ${moderatorBranch} branch. You cannot update ${branchKey.replace(
+          '_stock',
+          ''
+        )} branch stock.`,
+        timer: 3000,
         showConfirmButton: false,
         toast: true,
         position: 'top-end',
@@ -257,7 +315,6 @@ export default function ModeratorAddProduct() {
     }
   }
 
-  // Form submission
   const onSubmit = async (data) => {
     setIsLoading(true)
     try {
@@ -299,7 +356,6 @@ export default function ModeratorAddProduct() {
       console.log('Product created:', result)
       const productId = result.product._id
 
-      // Upload images if any
       if (images.length > 0) {
         console.log('Uploading images...')
         const formData = new FormData()
@@ -333,7 +389,6 @@ export default function ModeratorAddProduct() {
         }
       }
 
-      // Reset form and states
       reset()
       setStock({})
       setImages([])
@@ -361,7 +416,6 @@ export default function ModeratorAddProduct() {
     }
   }
 
-  // Animation variants
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
@@ -392,6 +446,44 @@ export default function ModeratorAddProduct() {
     },
   }
 
+  if (userLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading user information...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (moderatorRole !== 'moderator') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <Package size={64} className="mx-auto text-red-500 mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Access Denied
+          </h1>
+          <p className="text-gray-600">
+            You need moderator privileges to access this page.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!moderatorBranch) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading branch information...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 p-4">
       <motion.div
@@ -410,7 +502,8 @@ export default function ModeratorAddProduct() {
             </span>
           </h1>
           <p className="text-gray-600">
-            Managing inventory for <strong>{MODERATOR_BRANCH}</strong> branch
+            Managing inventory for{' '}
+            <strong className="capitalize">{moderatorBranch}</strong> branch
           </p>
         </motion.div>
 
@@ -519,7 +612,6 @@ export default function ModeratorAddProduct() {
                       <Tag size={20} className="text-purple-600" />
                       Categories
                     </h3>
-                    {/* 🔥 UPDATED: Show info about restrictions */}
                     <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
                       Read Only
                     </span>
@@ -589,7 +681,7 @@ export default function ModeratorAddProduct() {
                     </AnimatePresence>
                   </div>
 
-                  {/* 🔥 NEW: Info box about category restrictions */}
+                  {/* Info box about category restrictions */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
                     <div className="flex items-center gap-2">
                       <AlertCircle size={14} />
@@ -749,7 +841,7 @@ export default function ModeratorAddProduct() {
                   </div>
                 </motion.div>
 
-                {/* 🔒 RESTRICTED: Stock Management */}
+                {/* Stock Management */}
                 <motion.div variants={itemVariants} className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
@@ -766,7 +858,7 @@ export default function ModeratorAddProduct() {
                       <div key={branch}>
                         <label className="block text-sm font-medium text-gray-700 mb-2 capitalize flex items-center gap-2">
                           {branch} Stock
-                          {branch !== MODERATOR_BRANCH && (
+                          {branch !== moderatorBranch && (
                             <Lock size={14} className="text-gray-400" />
                           )}
                         </label>
@@ -777,14 +869,14 @@ export default function ModeratorAddProduct() {
                           onChange={(e) =>
                             updateStock(`${branch}_stock`, e.target.value)
                           }
-                          disabled={branch !== MODERATOR_BRANCH}
+                          disabled={branch !== moderatorBranch}
                           className={`w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                            branch !== MODERATOR_BRANCH
+                            branch !== moderatorBranch
                               ? 'bg-gray-100 cursor-not-allowed opacity-60'
                               : 'bg-white'
                           }`}
                           placeholder={
-                            branch !== MODERATOR_BRANCH ? 'Restricted' : '0'
+                            branch !== moderatorBranch ? 'Restricted' : '0'
                           }
                         />
                       </div>
@@ -805,7 +897,7 @@ export default function ModeratorAddProduct() {
                     </div>
                     <p>
                       You can only manage stock for your assigned branch:{' '}
-                      <strong>{MODERATOR_BRANCH}</strong>
+                      <strong className="capitalize">{moderatorBranch}</strong>
                     </p>
                   </div>
                 </motion.div>

@@ -19,7 +19,7 @@ import {
 import EditProduct from '../../../../components/EditProduct'
 import Swal from 'sweetalert2'
 
-export default function ProductManager() {
+export default function ManageProductAdmin() {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState({})
   const [branches, setBranches] = useState([]) // 👈 UPDATED: Start with empty array
