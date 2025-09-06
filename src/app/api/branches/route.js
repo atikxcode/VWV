@@ -2,7 +2,7 @@
 import clientPromise from '@/lib/mongodb'
 import { NextResponse } from 'next/server'
 
-// Enhanced error handling wrapper
+
 function handleApiError(error, context = '') {
   console.error(`API Error in ${context}:`, error)
   console.error('Error stack:', error.stack)
