@@ -14,6 +14,9 @@ import {
   ChevronDown,
   Store,
   Tag,
+  ChevronLeft,
+  ChevronRight,
+  MoreHorizontal,
 } from 'lucide-react'
 import EditProduct from '../../../../components/EditProduct'
 import Swal from 'sweetalert2'
@@ -40,9 +43,10 @@ export default function ManageProductModerator() {
   const [selectedSubcategory, setSelectedSubcategory] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('')
 
-  // Pagination
+  // 🔥 ENHANCED Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [totalProducts, setTotalProducts] = useState(0)
   const itemsPerPage = 12
 
   // 🔥 Fetch user details from database to get role and branch
@@ -139,6 +143,7 @@ export default function ManageProductModerator() {
         const data = await response.json()
         setProducts(data.products || [])
         setTotalPages(data.pagination?.totalPages || 1)
+        setTotalProducts(data.pagination?.total || 0)
       }
     } catch (error) {
       console.error('Error fetching products:', error)
@@ -166,6 +171,45 @@ export default function ManageProductModerator() {
       fetchProducts()
     }
   }, [currentPage, moderatorBranch])
+
+  // 🔥 ENHANCED Pagination functions
+  const goToFirstPage = () => setCurrentPage(1)
+  const goToLastPage = () => setCurrentPage(totalPages)
+  const goToNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+  const goToPrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1))
+  const goToPage = (pageNumber) => setCurrentPage(pageNumber)
+
+  // Generate page numbers for pagination
+  const generatePageNumbers = () => {
+    const pageNumbers = []
+    const maxVisiblePages = 5
+    
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total pages are less than or equal to maxVisiblePages
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i)
+      }
+    } else {
+      // Show first page, current page neighbors, and last page with ellipsis
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pageNumbers.push(i)
+        if (totalPages > 5) pageNumbers.push('ellipsis')
+        pageNumbers.push(totalPages)
+      } else if (currentPage >= totalPages - 2) {
+        pageNumbers.push(1)
+        if (totalPages > 5) pageNumbers.push('ellipsis')
+        for (let i = totalPages - 3; i <= totalPages; i++) pageNumbers.push(i)
+      } else {
+        pageNumbers.push(1)
+        pageNumbers.push('ellipsis')
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pageNumbers.push(i)
+        pageNumbers.push('ellipsis')
+        pageNumbers.push(totalPages)
+      }
+    }
+    
+    return pageNumbers
+  }
 
   // Handle edit product
   const handleEditProduct = (productId) => {
@@ -236,7 +280,7 @@ export default function ManageProductModerator() {
           </h1>
           <p className="text-gray-600">
             Managing products for{' '}
-            <strong className="capitalize">{moderatorBranch}</strong> branch
+            <strong className="capitalize">{moderatorBranch}</strong> branch • {totalProducts} total products
           </p>
         </div>
 
@@ -497,32 +541,89 @@ export default function ManageProductModerator() {
               ))}
             </div>
 
-            {/* Pagination */}
+            {/* 🔥 ENHANCED Pagination */}
             {totalPages > 1 && (
-              <div className="flex justify-center items-center mt-8 gap-2">
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(prev - 1, 1))
-                  }
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50 transition-colors"
-                >
-                  Previous
-                </button>
+              <div className="bg-white rounded-2xl shadow-lg p-6 mt-8">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                  {/* Page Info */}
+                  <div className="text-sm text-gray-600">
+                    Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
+                    {Math.min(currentPage * itemsPerPage, totalProducts)} of{' '}
+                    {totalProducts} products
+                  </div>
 
-                <span className="px-4 py-2 bg-white rounded-lg border">
-                  Page {currentPage} of {totalPages}
-                </span>
+                  {/* Pagination Controls */}
+                  <div className="flex items-center gap-1">
+                    {/* First Page */}
+                    <button
+                      onClick={goToFirstPage}
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      title="First page"
+                    >
+                      First
+                    </button>
 
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50 transition-colors"
-                >
-                  Next
-                </button>
+                    {/* Previous Page */}
+                    <button
+                      onClick={goToPrevPage}
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border-t border-b border-gray-300 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                      title="Previous page"
+                    >
+                      <ChevronLeft size={16} />
+                      Prev
+                    </button>
+
+                    {/* Page Numbers */}
+                    {generatePageNumbers().map((pageNum, index) => (
+                      <button
+                        key={index}
+                        onClick={() => pageNum !== 'ellipsis' && goToPage(pageNum)}
+                        disabled={pageNum === 'ellipsis' || pageNum === currentPage}
+                        className={`px-3 py-2 text-sm font-medium border-t border-b border-gray-300 transition-colors ${
+                          pageNum === currentPage
+                            ? 'bg-purple-600 text-white border-purple-600'
+                            : pageNum === 'ellipsis'
+                            ? 'bg-white text-gray-400 cursor-not-allowed'
+                            : 'bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                        }`}
+                      >
+                        {pageNum === 'ellipsis' ? (
+                          <MoreHorizontal size={16} />
+                        ) : (
+                          pageNum
+                        )}
+                      </button>
+                    ))}
+
+                    {/* Next Page */}
+                    <button
+                      onClick={goToNextPage}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border-t border-b border-gray-300 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                      title="Next page"
+                    >
+                      Next
+                      <ChevronRight size={16} />
+                    </button>
+
+                    {/* Last Page */}
+                    <button
+                      onClick={goToLastPage}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      title="Last page"
+                    >
+                      Last
+                    </button>
+                  </div>
+
+                  {/* Items per page (optional) */}
+                  <div className="text-sm text-gray-600">
+                    {itemsPerPage} per page
+                  </div>
+                </div>
               </div>
             )}
 

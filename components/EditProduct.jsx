@@ -1,12 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useContext, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'
 import Swal from 'sweetalert2'
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd' // Updated import
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import {
-  PlusCircle,
   Upload,
   AlertCircle,
   Scan,
@@ -27,13 +26,12 @@ import {
   EyeOff,
   Move,
   ArrowLeft,
-  History,
-  Clock,
-  Settings,
+  Lock,
 } from 'lucide-react'
 import BarcodeReader from 'react-barcode-reader'
+import { AuthContext } from '../Provider/AuthProvider'
 
-// Image Management Component (same as before)
+// Image Gallery Component
 const ImageGallery = ({
   images,
   onImageDelete,
@@ -42,7 +40,6 @@ const ImageGallery = ({
   isLoading,
 }) => {
   const fileInputRef = useRef(null)
-  const [uploadProgress, setUploadProgress] = useState({})
 
   const handleDragEnd = (result) => {
     if (!result.destination) return
@@ -189,11 +186,14 @@ const ImageGallery = ({
   )
 }
 
-// 👇 UPDATED: Branch Management Modal with API integration
-const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
+// Branch Management Modal (Admin Only)
+const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate, isAdmin }) => {
   const [newBranchName, setNewBranchName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Don't show modal for moderators
+  if (!isOpen || !isAdmin) return null
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -210,7 +210,6 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
 
     setLoading(true)
     try {
-      // 👇 API call to add branch
       const response = await fetch('/api/branches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -222,7 +221,6 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
 
       if (!response.ok) throw new Error('Failed to add branch')
 
-      // Update local state
       const updatedBranches = [...branches, cleanBranchName]
       onBranchUpdate(updatedBranches)
 
@@ -261,7 +259,6 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
     if (result.isConfirmed) {
       setLoading(true)
       try {
-        // 👇 API call to delete branch
         const response = await fetch('/api/branches', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
@@ -270,7 +267,6 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
 
         if (!response.ok) throw new Error('Failed to delete branch')
 
-        // Update local state
         const updatedBranches = branches.filter((b) => b !== branchName)
         onBranchUpdate(updatedBranches)
 
@@ -301,8 +297,6 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
     setError('')
     onClose()
   }
-
-  if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -409,6 +403,7 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
 
 // Main Edit Product Component
 export default function EditProduct({ productId, onBack }) {
+  const { user } = useContext(AuthContext)
   const {
     register,
     handleSubmit,
@@ -418,11 +413,16 @@ export default function EditProduct({ productId, onBack }) {
     reset,
   } = useForm()
 
-  // States
+  // 🔒 User role and branch states
+  const [userLoading, setUserLoading] = useState(true)
+  const [userRole, setUserRole] = useState(null)
+  const [userBranch, setUserBranch] = useState(null)
+
+  // Product states
   const [product, setProduct] = useState(null)
   const [originalProduct, setOriginalProduct] = useState(null)
   const [images, setImages] = useState([])
-  const [branches, setBranches] = useState([]) // 👈 UPDATED: Start with empty array
+  const [branches, setBranches] = useState([])
   const [stock, setStock] = useState({})
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -430,18 +430,64 @@ export default function EditProduct({ productId, onBack }) {
   const [showBranchModal, setShowBranchModal] = useState(false)
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false)
 
-  // Dynamic categories
+  // Category states
   const [categories, setCategories] = useState({})
   const [subCategoryOptions, setSubCategoryOptions] = useState([])
   const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false)
-  const [isAddingCustomSubcategory, setIsAddingCustomSubcategory] =
-    useState(false)
+  const [isAddingCustomSubcategory, setIsAddingCustomSubcategory] = useState(false)
   const [customCategoryInput, setCustomCategoryInput] = useState('')
   const [customSubcategoryInput, setCustomSubcategoryInput] = useState('')
 
   const category = watch('category')
 
-  // 👇 UPDATED: Load initial data with correct branch endpoint
+  // 🔥 Fetch user details from database to get role and branch
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      if (!user?.email) {
+        setUserLoading(false)
+        return
+      }
+
+      try {
+        setUserLoading(true)
+        const response = await fetch(
+          `/api/user?email=${encodeURIComponent(user.email)}`
+        )
+        if (response.ok) {
+          const data = await response.json()
+          if (data.user) {
+            setUserRole(data.user.role)
+            setUserBranch(data.user.branch)
+            console.log('User Details:', {
+              email: data.user.email,
+              role: data.user.role,
+              branch: data.user.branch,
+            })
+          }
+        } else {
+          console.error('Failed to fetch user details')
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to load user details',
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching user details:', error)
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Error loading user information',
+        })
+      } finally {
+        setUserLoading(false)
+      }
+    }
+
+    fetchUserDetails()
+  }, [user])
+
+  // Load initial data
   useEffect(() => {
     const loadInitialData = async () => {
       try {
@@ -453,16 +499,15 @@ export default function EditProduct({ productId, onBack }) {
         )
         if (categoriesResponse.ok) {
           const categoriesData = await categoriesResponse.json()
-          setCategories(categoriesData.categories)
+          setCategories(categoriesData.categories || {})
         }
 
-        // 👇 UPDATED: Load branches from dedicated API instead of products endpoint
+        // Load branches
         const branchesResponse = await fetch('/api/branches')
         if (branchesResponse.ok) {
           const branchesData = await branchesResponse.json()
           setBranches(branchesData.branches || ['mirpur', 'bashundhara'])
         } else {
-          // Fallback to default branches if API fails
           setBranches(['mirpur', 'bashundhara'])
         }
 
@@ -477,11 +522,9 @@ export default function EditProduct({ productId, onBack }) {
           setProduct(productData)
           setOriginalProduct(productData)
 
-          // 👇 UPDATED: Populate form WITHOUT SKU
           reset({
             name: productData.name || '',
             brand: productData.brand || '',
-            // sku: productData.sku || '', // 👈 REMOVED
             barcode: productData.barcode || '',
             price: productData.price || '',
             comparePrice: productData.comparePrice || '',
@@ -525,7 +568,7 @@ export default function EditProduct({ productId, onBack }) {
     loadInitialData()
   }, [productId, reset])
 
-  // 👇 UPDATED: Initialize stock for branches when branches change
+  // Initialize stock for branches when branches change
   useEffect(() => {
     if (branches.length > 0 && product) {
       const newStock = {}
@@ -545,19 +588,159 @@ export default function EditProduct({ productId, onBack }) {
     }
   }, [category, categories])
 
-  // Auto-save functionality
+  // 🔥 FIXED: Save product function with useCallback to prevent infinite re-renders
+  const handleSave = useCallback(async (data, isSilent = false) => {
+    console.log('🔄 handleSave called', { isSaving, isSilent })
+    
+    // Prevent multiple simultaneous saves
+    if (isSaving) {
+      console.log('⚠️ Save already in progress, skipping')
+      return
+    }
+    
+    setIsSaving(true)
+    try {
+      console.log('💾 Starting save process...', { isSilent, hasData: !!data })
+      
+      const productData = {
+        action: 'update',
+        id: productId,
+        ...data,
+        stock,
+        nicotineStrength: data.nicotineStrength || null,
+        vgPgRatio: data.vgPgRatio || null,
+        resistance: data.resistance || null,
+        wattageRange: data.wattageRange || null,
+        tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()) : [],
+        imageOrder: images.map((img, index) => ({
+          publicId: img.publicId,
+          url: img.url,
+          alt: img.alt,
+          order: index,
+        })),
+      }
+
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(productData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update product')
+      }
+
+      const result = await response.json()
+
+      // Upload new images
+      const newImages = images.filter((img) => img.isNew && img.file)
+      if (newImages.length > 0) {
+        const formData = new FormData()
+        formData.append('productId', productId)
+        newImages.forEach((image) => {
+          formData.append('images', image.file)
+        })
+
+        const imageResponse = await fetch('/api/products', {
+          method: 'PUT',
+          body: formData,
+        })
+
+        if (imageResponse.ok) {
+          const imageResult = await imageResponse.json()
+          // Update images with actual URLs and publicIds
+          setImages((prev) =>
+            prev.map((img) => {
+              if (img.isNew) {
+                const uploadedImg = imageResult.uploadedImages.find(
+                  (uploaded) => uploaded.alt.includes(img.alt.split(' ').pop())
+                )
+                if (uploadedImg) {
+                  return {
+                    ...img,
+                    url: uploadedImg.url,
+                    publicId: uploadedImg.publicId,
+                    isNew: false,
+                  }
+                }
+              }
+              return img
+            })
+          )
+        }
+      }
+
+      setOriginalProduct(result.product)
+
+      if (!isSilent) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'Product has been updated successfully!',
+          confirmButtonColor: '#8B5CF6',
+        })
+      } else {
+        console.log('✅ Auto-save completed successfully')
+        Swal.fire({
+          icon: 'success',
+          title: 'Auto-saved',
+          timer: 1500,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end',
+        })
+      }
+    } catch (error) {
+      console.error('❌ Save error:', error)
+      if (!isSilent) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Oops...',
+          text: 'Error updating product: ' + error.message,
+          confirmButtonColor: '#8B5CF6',
+        })
+      }
+    } finally {
+      setIsSaving(false)
+      console.log('🏁 Save process completed')
+    }
+  }, [productId, stock, images, isSaving])
+
+  // 🔥 FIXED: Auto-save functionality with stable dependencies
   const watchedValues = watch()
+  
   useEffect(() => {
-    if (autoSaveEnabled && originalProduct && isDirty) {
+    // Only setup auto-save if all conditions are met
+    if (autoSaveEnabled && originalProduct && isDirty && !isSaving) {
+      console.log('🔄 Setting up auto-save timer...', { 
+        autoSaveEnabled, 
+        hasOriginalProduct: !!originalProduct, 
+        isDirty, 
+        isSaving 
+      })
+      
       const timer = setTimeout(() => {
+        console.log('⏰ Auto-save timer triggered, calling handleSave')
         handleSave(watchedValues, true) // Silent save
       }, 3000)
 
-      return () => clearTimeout(timer)
+      // Cleanup function to clear timer
+      return () => {
+        console.log('🧹 Clearing auto-save timer')
+        clearTimeout(timer)
+      }
+    } else {
+      console.log('⏸️ Auto-save conditions not met:', {
+        autoSaveEnabled,
+        hasOriginalProduct: !!originalProduct,
+        isDirty,
+        isSaving
+      })
     }
-  }, [watchedValues, autoSaveEnabled, originalProduct, isDirty])
+  }, [autoSaveEnabled, originalProduct, isDirty, isSaving, watchedValues, handleSave])
 
-  // 👇 UPDATED: Handle branch updates from modal
+  // Handle branch updates from modal
   const handleBranchUpdate = (updatedBranches) => {
     setBranches(updatedBranches)
 
@@ -634,13 +817,54 @@ export default function EditProduct({ productId, onBack }) {
     setImages(reorderedImages)
   }
 
-  // Stock management
+  // 🔒 Stock management with restrictions for moderators
   const updateStock = (branchKey, value) => {
-    setStock((prev) => ({ ...prev, [branchKey]: parseInt(value) || 0 }))
+    if (userRole === 'moderator') {
+      if (!userBranch) {
+        console.log('User branch not loaded yet')
+        return
+      }
+
+      const expectedBranchKey = `${userBranch}_stock`
+      
+      if (branchKey === expectedBranchKey) {
+        // ✅ ALLOWED: Update moderator's branch stock
+        console.log(`Updating ${branchKey} for moderator branch ${userBranch}`)
+        setStock((prev) => ({ ...prev, [branchKey]: parseInt(value) || 0 }))
+      } else {
+        // ❌ RESTRICTED: Show restriction message (this shouldn't happen with filtered UI)
+        console.log(`Blocked update attempt: ${branchKey} by moderator assigned to ${userBranch}`)
+        Swal.fire({
+          icon: 'warning',
+          title: 'Access Restricted',
+          text: `You can only manage stock for ${userBranch} branch.`,
+          timer: 3000,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end',
+        })
+      }
+    } else {
+      // Admin can update any branch
+      setStock((prev) => ({ ...prev, [branchKey]: parseInt(value) || 0 }))
+    }
   }
 
-  // Category handlers
+  // 🔒 Category handlers (admin only)
   const handleAddCustomCategory = async () => {
+    if (userRole === 'moderator') {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Access Restricted',
+        text: 'Only administrators can add custom categories.',
+        timer: 2000,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end',
+      })
+      return
+    }
+
     if (customCategoryInput.trim()) {
       try {
         const response = await fetch('/api/products', {
@@ -690,6 +914,19 @@ export default function EditProduct({ productId, onBack }) {
   }
 
   const handleAddCustomSubcategory = async () => {
+    if (userRole === 'moderator') {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Access Restricted',
+        text: 'Only administrators can add custom subcategories.',
+        timer: 2000,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end',
+      })
+      return
+    }
+
     if (customSubcategoryInput.trim() && category) {
       try {
         const response = await fetch('/api/products', {
@@ -761,7 +998,6 @@ export default function EditProduct({ productId, onBack }) {
           if (result.isConfirmed) {
             setValue('name', productData.name || '')
             setValue('brand', productData.brand || '')
-            // setValue('sku', productData.sku || '') // 👈 REMOVED
             setValue('price', productData.price || '')
             setValue('category', productData.category || '')
             setValue('subcategory', productData.subcategory || '')
@@ -790,113 +1026,18 @@ export default function EditProduct({ productId, onBack }) {
     }
   }
 
-  // Save product
-  const handleSave = async (data, isSilent = false) => {
-    setIsSaving(true)
-    try {
-      const productData = {
-        action: 'update',
-        id: productId,
-        ...data,
-        stock, // 👈 Include current stock object
-        nicotineStrength: data.nicotineStrength || null,
-        vgPgRatio: data.vgPgRatio || null,
-        resistance: data.resistance || null,
-        wattageRange: data.wattageRange || null,
-        tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()) : [],
-        imageOrder: images.map((img, index) => ({
-          publicId: img.publicId,
-          url: img.url,
-          alt: img.alt,
-          order: index,
-        })),
-      }
-
-      const response = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(productData),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update product')
-      }
-
-      const result = await response.json()
-
-      // Upload new images
-      const newImages = images.filter((img) => img.isNew && img.file)
-      if (newImages.length > 0) {
-        const formData = new FormData()
-        formData.append('productId', productId)
-        newImages.forEach((image) => {
-          formData.append('images', image.file)
-        })
-
-        const imageResponse = await fetch('/api/products', {
-          method: 'PUT',
-          body: formData,
-        })
-
-        if (imageResponse.ok) {
-          const imageResult = await imageResponse.json()
-          // Update images with actual URLs and publicIds
-          setImages((prev) =>
-            prev.map((img) => {
-              if (img.isNew) {
-                const uploadedImg = imageResult.uploadedImages.find(
-                  (uploaded) => uploaded.alt.includes(img.alt.split(' ').pop())
-                )
-                if (uploadedImg) {
-                  return {
-                    ...img,
-                    url: uploadedImg.url,
-                    publicId: uploadedImg.publicId,
-                    isNew: false,
-                  }
-                }
-              }
-              return img
-            })
-          )
-        }
-      }
-
-      setOriginalProduct(result.product)
-
-      if (!isSilent) {
-        Swal.fire({
-          icon: 'success',
-          title: 'Success!',
-          text: 'Product has been updated successfully!',
-          confirmButtonColor: '#8B5CF6',
-        })
-      } else {
-        Swal.fire({
-          icon: 'success',
-          title: 'Auto-saved',
-          timer: 1500,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end',
-        })
-      }
-    } catch (error) {
-      console.error('Error updating product:', error)
+  // Delete product (admin only)
+  const handleDelete = async () => {
+    if (userRole === 'moderator') {
       Swal.fire({
-        icon: 'error',
-        title: 'Oops...',
-        text: 'Error updating product: ' + error.message,
+        icon: 'warning',
+        title: 'Access Restricted',
+        text: 'Only administrators can delete products.',
         confirmButtonColor: '#8B5CF6',
       })
-    } finally {
-      setIsSaving(false)
+      return
     }
-  }
 
-  // Delete product
-  const handleDelete = async () => {
     const result = await Swal.fire({
       title: 'Delete Product?',
       text: 'This will permanently delete the product and all its images. This action cannot be undone!',
@@ -950,11 +1091,9 @@ export default function EditProduct({ productId, onBack }) {
       cancelButtonText: 'Cancel',
     }).then((result) => {
       if (result.isConfirmed) {
-        // 👇 UPDATED: Reset without SKU
         reset({
           name: originalProduct.name || '',
           brand: originalProduct.brand || '',
-          // sku: originalProduct.sku || '', // 👈 REMOVED
           barcode: originalProduct.barcode || '',
           price: originalProduct.price || '',
           comparePrice: originalProduct.comparePrice || '',
@@ -993,12 +1132,22 @@ export default function EditProduct({ productId, onBack }) {
     })
   }
 
-  if (isLoading) {
+  // 🔥 FIXED: Filter branches for stock display based on user role
+  const getVisibleBranches = () => {
+    if (userRole === 'moderator' && userBranch) {
+      // Moderator can only see their assigned branch
+      return [userBranch]
+    }
+    // Admin can see all branches
+    return branches
+  }
+
+  if (userLoading || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading product...</p>
+          <p className="text-gray-600">Loading...</p>
         </div>
       </div>
     )
@@ -1026,6 +1175,8 @@ export default function EditProduct({ productId, onBack }) {
     )
   }
 
+  const visibleBranches = getVisibleBranches()
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 p-4">
       <motion.div
@@ -1047,9 +1198,17 @@ export default function EditProduct({ productId, onBack }) {
               <h1 className="text-4xl font-bold text-gray-900 flex items-center gap-3">
                 <Edit className="text-purple-600" size={40} />
                 Edit Product
+                {userRole === 'moderator' && (
+                  <span className="text-sm bg-orange-100 text-orange-800 px-3 py-1 rounded-full font-medium">
+                    Moderator
+                  </span>
+                )}
               </h1>
               <p className="text-gray-600">
                 Update product information and settings
+                {userRole === 'moderator' && userBranch && (
+                  <span> • Managing <strong className="capitalize">{userBranch}</strong> branch</span>
+                )}
               </p>
             </div>
           </div>
@@ -1060,7 +1219,10 @@ export default function EditProduct({ productId, onBack }) {
                 type="checkbox"
                 id="autosave"
                 checked={autoSaveEnabled}
-                onChange={(e) => setAutoSaveEnabled(e.target.checked)}
+                onChange={(e) => {
+                  setAutoSaveEnabled(e.target.checked)
+                  console.log('🔄 Auto-save toggled:', e.target.checked)
+                }}
                 className="rounded text-purple-600"
               />
               <label htmlFor="autosave" className="text-sm text-gray-700">
@@ -1109,6 +1271,7 @@ export default function EditProduct({ productId, onBack }) {
                   <p className="text-yellow-200 text-sm mt-1 flex items-center gap-1">
                     <AlertCircle size={16} />
                     You have unsaved changes
+                    {autoSaveEnabled && <span> • Auto-save enabled</span>}
                   </p>
                 )}
               </div>
@@ -1134,7 +1297,7 @@ export default function EditProduct({ productId, onBack }) {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit(handleSave)} className="p-8">
+          <form onSubmit={handleSubmit((data) => handleSave(data, false))} className="p-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Left Column */}
               <div className="space-y-6">
@@ -1166,7 +1329,7 @@ export default function EditProduct({ productId, onBack }) {
                     )}
                   </div>
 
-                  {/* 👇 UPDATED: Brand - Now Full Width (SKU removed) */}
+                  {/* Brand */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Brand
@@ -1199,31 +1362,41 @@ export default function EditProduct({ productId, onBack }) {
                   </div>
                 </div>
 
-                {/* Categories */}
+                {/* 🔥 FIXED: Categories (Moderators can EDIT but not ADD) */}
                 <div className="space-y-4">
-                  <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                    <Tag size={20} className="text-purple-600" />
-                    Categories
-                  </h3>
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                      <Tag size={20} className="text-purple-600" />
+                      Categories
+                    </h3>
+                    {userRole === 'moderator' && (
+                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium">
+                        Editable
+                      </span>
+                    )}
+                  </div>
 
-                  {/* Category */}
+                  {/* Category - Only show Add Custom for Admin */}
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <label className="block text-sm font-medium text-gray-700">
                         Category *
                       </label>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setIsAddingCustomCategory(!isAddingCustomCategory)
-                        }
-                        className="text-purple-600 hover:text-purple-700 text-sm flex items-center gap-1"
-                      >
-                        <Plus size={14} /> Add Custom
-                      </button>
+                      {/* 🔥 FIXED: Only show Add Custom button for Admin */}
+                      {userRole === 'admin' && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setIsAddingCustomCategory(!isAddingCustomCategory)
+                          }
+                          className="text-purple-600 hover:text-purple-700 text-sm flex items-center gap-1"
+                        >
+                          <Plus size={14} /> Add Custom
+                        </button>
+                      )}
                     </div>
 
-                    {isAddingCustomCategory ? (
+                    {isAddingCustomCategory && userRole === 'admin' ? (
                       <div className="flex gap-2">
                         <input
                           type="text"
@@ -1258,6 +1431,7 @@ export default function EditProduct({ productId, onBack }) {
                           required: 'Category is required',
                         })}
                         className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                        // 🔥 FIXED: Remove disabled prop - both admin and moderator can edit
                       >
                         <option value="">Select Category</option>
                         {Object.keys(categories).map((cat) => (
@@ -1275,13 +1449,14 @@ export default function EditProduct({ productId, onBack }) {
                     )}
                   </div>
 
-                  {/* Subcategory */}
+                  {/* Subcategory - Only show Add Custom for Admin */}
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <label className="block text-sm font-medium text-gray-700">
                         Subcategory *
                       </label>
-                      {category && (
+                      {/* 🔥 FIXED: Only show Add Custom button for Admin */}
+                      {userRole === 'admin' && category && (
                         <button
                           type="button"
                           onClick={() =>
@@ -1296,7 +1471,7 @@ export default function EditProduct({ productId, onBack }) {
                       )}
                     </div>
 
-                    {isAddingCustomSubcategory ? (
+                    {isAddingCustomSubcategory && userRole === 'admin' ? (
                       <div className="flex gap-2">
                         <input
                           type="text"
@@ -1331,6 +1506,7 @@ export default function EditProduct({ productId, onBack }) {
                           required: 'Subcategory is required',
                         })}
                         className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                        // 🔥 FIXED: Remove disabled prop - both admin and moderator can edit
                       >
                         <option value="">Select Subcategory</option>
                         {subCategoryOptions.map((option) => (
@@ -1347,6 +1523,19 @@ export default function EditProduct({ productId, onBack }) {
                       </p>
                     )}
                   </div>
+
+                  {/* 🔥 FIXED: Updated info box for moderator category access */}
+                  {userRole === 'moderator' && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
+                      <div className="flex items-center gap-2">
+                        <Tag size={14} />
+                        <span className="font-medium">Category Access:</span>
+                      </div>
+                      <p className="mt-1">
+                        You can change product categories and subcategories, but cannot add new ones.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Pricing */}
@@ -1490,27 +1679,39 @@ export default function EditProduct({ productId, onBack }) {
                   </div>
                 </div>
 
-                {/* 👇 UPDATED: Stock Management with Dynamic Branches */}
+                {/* 🔥 FIXED: Stock Management with Filtered Branches for Moderators */}
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                       <Store size={20} className="text-purple-600" />
-                      Stock Management ({branches.length} branches)
+                      Stock Management ({visibleBranches.length} {visibleBranches.length === 1 ? 'branch' : 'branches'})
                     </h3>
-                    <button
-                      type="button"
-                      onClick={() => setShowBranchModal(true)}
-                      className="text-purple-600 hover:text-purple-700 text-sm flex items-center gap-1"
-                    >
-                      <Edit size={14} /> Manage Branches
-                    </button>
+                    {userRole !== 'moderator' ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowBranchModal(true)}
+                        className="text-purple-600 hover:text-purple-700 text-sm flex items-center gap-1"
+                      >
+                        <Edit size={14} /> Manage Branches
+                      </button>
+                    ) : (
+                      <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full font-medium">
+                        Your Branch Only
+                      </span>
+                    )}
                   </div>
 
+                  {/* 🔥 FIXED: Only show moderator's assigned branch or all branches for admin */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {branches.map((branch) => (
+                    {visibleBranches.map((branch) => (
                       <div key={branch}>
-                        <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
+                        <label className="block text-sm font-medium text-gray-700 mb-2 capitalize flex items-center gap-2">
                           {branch} Stock
+                          {userRole === 'moderator' && (
+                            <span className="text-green-600">
+                              <Store size={14} />
+                            </span>
+                          )}
                         </label>
                         <input
                           type="number"
@@ -1519,18 +1720,33 @@ export default function EditProduct({ productId, onBack }) {
                           onChange={(e) =>
                             updateStock(`${branch}_stock`, e.target.value)
                           }
-                          className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                          placeholder="0"
                         />
                       </div>
                     ))}
                   </div>
 
-                  {branches.length === 0 && (
+                  {visibleBranches.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
                       <Store size={48} className="mx-auto mb-2" />
                       <p>
                         No branches configured. Please add branches to manage
                         stock.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* 🔒 Info box about stock access for moderator */}
+                  {userRole === 'moderator' && userBranch && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-sm text-orange-800">
+                      <div className="flex items-center gap-2 mb-1">
+                        <AlertCircle size={16} />
+                        <span className="font-medium">Branch Access</span>
+                      </div>
+                      <p>
+                        You can manage stock for your assigned branch:{' '}
+                        <strong className="capitalize">{userBranch}</strong>
                       </p>
                     </div>
                   )}
@@ -1578,14 +1794,17 @@ export default function EditProduct({ productId, onBack }) {
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 mt-8 pt-6 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={handleDelete}
-                className="px-6 py-4 bg-red-500 text-white rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-red-600 transition-colors"
-              >
-                <Trash2 size={20} />
-                Delete Product
-              </button>
+              {/* 🔒 Delete Button (Admin Only) */}
+              {userRole !== 'moderator' && (
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="px-6 py-4 bg-red-500 text-white rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-red-600 transition-colors"
+                >
+                  <Trash2 size={20} />
+                  Delete Product
+                </button>
+              )}
 
               <div className="flex flex-1 gap-4">
                 <button
@@ -1620,12 +1839,13 @@ export default function EditProduct({ productId, onBack }) {
           </form>
         </div>
 
-        {/* 👇 UPDATED: Branch Management Modal with API integration */}
+        {/* 🔒 Branch Management Modal (Admin Only) */}
         <BranchModal
           isOpen={showBranchModal}
           onClose={() => setShowBranchModal(false)}
           branches={branches}
           onBranchUpdate={handleBranchUpdate}
+          isAdmin={userRole === 'admin'}
         />
 
         {/* Barcode Scanner Modal */}

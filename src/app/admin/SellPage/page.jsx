@@ -765,8 +765,8 @@ const PaymentMethodSelector = ({
   )
 }
 
-// Main SellPage Component
-export default function SellPage() {
+
+export default function SellPageAdmin() {
   // States (same as before)
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState({})
