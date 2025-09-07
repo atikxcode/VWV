@@ -61,7 +61,7 @@ import {
   Shield,
 } from 'lucide-react'
 
-// 💳 Compact Payment Methods Configuration
+
 const PAYMENT_METHODS = [
   {
     id: 'cash',

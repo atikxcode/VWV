@@ -192,6 +192,15 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate, isAdmin }) => 
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // 🔧 FIX: Get auth headers for API calls
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('auth-token')
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }
+
   // Don't show modal for moderators
   if (!isOpen || !isAdmin) return null
 
@@ -212,7 +221,7 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate, isAdmin }) => 
     try {
       const response = await fetch('/api/branches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(), // 🔧 FIX: Add auth headers
         body: JSON.stringify({
           action: 'add',
           branchName: cleanBranchName,
@@ -261,7 +270,7 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate, isAdmin }) => 
       try {
         const response = await fetch('/api/branches', {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(), // 🔧 FIX: Add auth headers
           body: JSON.stringify({ branchName }),
         })
 
@@ -440,6 +449,25 @@ export default function EditProduct({ productId, onBack }) {
 
   const category = watch('category')
 
+  // 🔧 FIX: Get auth headers for API calls
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('auth-token')
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }
+
+  // 🔧 FIX: Check if user is authenticated
+  const checkAuth = () => {
+    const token = localStorage.getItem('auth-token')
+    if (!token) {
+      window.location.href = '/admin/login'
+      return false
+    }
+    return true
+  }
+
   // 🔥 Fetch user details from database to get role and branch
   useEffect(() => {
     const fetchUserDetails = async () => {
@@ -448,10 +476,15 @@ export default function EditProduct({ productId, onBack }) {
         return
       }
 
+      if (!checkAuth()) return
+
       try {
         setUserLoading(true)
         const response = await fetch(
-          `/api/user?email=${encodeURIComponent(user.email)}`
+          `/api/user?email=${encodeURIComponent(user.email)}`,
+          {
+            headers: getAuthHeaders() // 🔧 FIX: Add auth headers
+          }
         )
         if (response.ok) {
           const data = await response.json()
@@ -464,6 +497,9 @@ export default function EditProduct({ productId, onBack }) {
               branch: data.user.branch,
             })
           }
+        } else if (response.status === 401) {
+          window.location.href = '/admin/login'
+          return
         } else {
           console.error('Failed to fetch user details')
           Swal.fire({
@@ -490,31 +526,50 @@ export default function EditProduct({ productId, onBack }) {
   // Load initial data
   useEffect(() => {
     const loadInitialData = async () => {
+      if (!checkAuth()) return
+
       try {
         setIsLoading(true)
 
         // Load categories
         const categoriesResponse = await fetch(
-          '/api/products?getCategoriesOnly=true'
+          '/api/products?getCategoriesOnly=true',
+          {
+            headers: getAuthHeaders() // 🔧 FIX: Add auth headers
+          }
         )
         if (categoriesResponse.ok) {
           const categoriesData = await categoriesResponse.json()
           setCategories(categoriesData.categories || {})
+        } else if (categoriesResponse.status === 401) {
+          window.location.href = '/admin/login'
+          return
         }
 
         // Load branches
-        const branchesResponse = await fetch('/api/branches')
+        const branchesResponse = await fetch('/api/branches', {
+          headers: getAuthHeaders() // 🔧 FIX: Add auth headers
+        })
         if (branchesResponse.ok) {
           const branchesData = await branchesResponse.json()
           setBranches(branchesData.branches || ['mirpur', 'bashundhara'])
+        } else if (branchesResponse.status === 401) {
+          window.location.href = '/admin/login'
+          return
         } else {
           setBranches(['mirpur', 'bashundhara'])
         }
 
         // Load product data
         if (productId) {
-          const productResponse = await fetch(`/api/products?id=${productId}`)
+          const productResponse = await fetch(`/api/products?id=${productId}`, {
+            headers: getAuthHeaders() // 🔧 FIX: Add auth headers
+          })
           if (!productResponse.ok) {
+            if (productResponse.status === 401) {
+              window.location.href = '/admin/login'
+              return
+            }
             throw new Error('Product not found')
           }
 
@@ -597,6 +652,8 @@ export default function EditProduct({ productId, onBack }) {
       console.log('⚠️ Save already in progress, skipping')
       return
     }
+
+    if (!checkAuth()) return
     
     setIsSaving(true)
     try {
@@ -622,11 +679,15 @@ export default function EditProduct({ productId, onBack }) {
 
       const response = await fetch('/api/products', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(), // 🔧 FIX: Add auth headers
         body: JSON.stringify(productData),
       })
 
       if (!response.ok) {
+        if (response.status === 401) {
+          window.location.href = '/admin/login'
+          return
+        }
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to update product')
       }
@@ -644,6 +705,9 @@ export default function EditProduct({ productId, onBack }) {
 
         const imageResponse = await fetch('/api/products', {
           method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth-token')}` // 🔧 FIX: Add auth header for FormData
+          },
           body: formData,
         })
 
@@ -776,10 +840,15 @@ export default function EditProduct({ productId, onBack }) {
             `/api/products?productId=${productId}&imagePublicId=${publicId}`,
             {
               method: 'DELETE',
+              headers: getAuthHeaders() // 🔧 FIX: Add auth headers
             }
           )
 
           if (!response.ok) {
+            if (response.status === 401) {
+              window.location.href = '/admin/login'
+              return
+            }
             throw new Error('Failed to delete image')
           }
         }
@@ -869,7 +938,7 @@ export default function EditProduct({ productId, onBack }) {
       try {
         const response = await fetch('/api/products', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(), // 🔧 FIX: Add auth headers
           body: JSON.stringify({
             action: 'add_category',
             categoryName: customCategoryInput.toUpperCase(),
@@ -896,6 +965,10 @@ export default function EditProduct({ productId, onBack }) {
             position: 'top-end',
           })
         } else {
+          if (response.status === 401) {
+            window.location.href = '/admin/login'
+            return
+          }
           throw new Error('Failed to add category')
         }
       } catch (error) {
@@ -931,7 +1004,7 @@ export default function EditProduct({ productId, onBack }) {
       try {
         const response = await fetch('/api/products', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(), // 🔧 FIX: Add auth headers
           body: JSON.stringify({
             action: 'add_subcategory',
             categoryName: category,
@@ -959,6 +1032,10 @@ export default function EditProduct({ productId, onBack }) {
             position: 'top-end',
           })
         } else {
+          if (response.status === 401) {
+            window.location.href = '/admin/login'
+            return
+          }
           throw new Error('Failed to add subcategory')
         }
       } catch (error) {
@@ -982,7 +1059,9 @@ export default function EditProduct({ productId, onBack }) {
       if (data) {
         console.log('Scanned barcode:', data)
 
-        const response = await fetch(`/api/products?barcode=${data}`)
+        const response = await fetch(`/api/products?barcode=${data}`, {
+          headers: getAuthHeaders() // 🔧 FIX: Add auth headers
+        })
         if (response.ok) {
           const productData = await response.json()
 
@@ -1005,6 +1084,9 @@ export default function EditProduct({ productId, onBack }) {
           }
 
           setValue('barcode', data)
+        } else if (response.status === 401) {
+          window.location.href = '/admin/login'
+          return
         } else {
           setValue('barcode', data)
           Swal.fire({
@@ -1038,6 +1120,8 @@ export default function EditProduct({ productId, onBack }) {
       return
     }
 
+    if (!checkAuth()) return
+
     const result = await Swal.fire({
       title: 'Delete Product?',
       text: 'This will permanently delete the product and all its images. This action cannot be undone!',
@@ -1053,9 +1137,14 @@ export default function EditProduct({ productId, onBack }) {
       try {
         const response = await fetch(`/api/products?productId=${productId}`, {
           method: 'DELETE',
+          headers: getAuthHeaders() // 🔧 FIX: Add auth headers
         })
 
         if (!response.ok) {
+          if (response.status === 401) {
+            window.location.href = '/admin/login'
+            return
+          }
           throw new Error('Failed to delete product')
         }
 

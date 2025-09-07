@@ -77,6 +77,7 @@ const CategoryManagementModal = ({
   onClose,
   categories,
   onCategoryUpdate,
+  refreshCategories, // 🔧 NEW: Add refresh function
 }) => {
   const [loading, setLoading] = useState(false)
 
@@ -95,9 +96,13 @@ const CategoryManagementModal = ({
     if (result.isConfirmed) {
       setLoading(true)
       try {
+        const token = localStorage.getItem('auth-token')
         const response = await fetch('/api/products', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({
             action: 'delete_category',
             categoryName: categoryName,
@@ -107,10 +112,8 @@ const CategoryManagementModal = ({
         const data = await response.json()
 
         if (response.ok) {
-          // Update categories by removing the deleted category
-          const updatedCategories = { ...categories }
-          delete updatedCategories[categoryName]
-          onCategoryUpdate(updatedCategories)
+          // 🔧 FIX: Refresh categories from database instead of manual update
+          await refreshCategories()
 
           MySwal.fire({
             icon: 'success',
@@ -156,9 +159,13 @@ const CategoryManagementModal = ({
     if (result.isConfirmed) {
       setLoading(true)
       try {
+        const token = localStorage.getItem('auth-token')
         const response = await fetch('/api/products', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({
             action: 'delete_subcategory',
             categoryName: categoryName,
@@ -169,14 +176,8 @@ const CategoryManagementModal = ({
         const data = await response.json()
 
         if (response.ok) {
-          // Update categories by removing the deleted subcategory
-          const updatedCategories = { ...categories }
-          if (updatedCategories[categoryName]) {
-            updatedCategories[categoryName] = updatedCategories[
-              categoryName
-            ].filter((sub) => sub !== subcategoryName)
-          }
-          onCategoryUpdate(updatedCategories)
+          // 🔧 FIX: Refresh categories from database instead of manual update
+          await refreshCategories()
 
           MySwal.fire({
             icon: 'success',
@@ -294,7 +295,7 @@ const CategoryManagementModal = ({
   )
 }
 
-// Branch Modal Component (same as before)
+// Branch Modal Component
 const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
   const [newBranchName, setNewBranchName] = useState('')
   const [error, setError] = useState('')
@@ -315,9 +316,13 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
 
     setLoading(true)
     try {
+      const token = localStorage.getItem('auth-token')
       const response = await fetch('/api/branches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           action: 'add',
           branchName: cleanBranchName,
@@ -364,9 +369,13 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
     if (result.isConfirmed) {
       setLoading(true)
       try {
+        const token = localStorage.getItem('auth-token')
         const response = await fetch('/api/branches', {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({ branchName }),
         })
 
@@ -521,7 +530,8 @@ export default function AddProduct() {
   } = useForm()
 
   const [subCategoryOptions, setSubCategoryOptions] = useState([])
-  const [branches, setBranches] = useState([])
+  // 🔧 UPDATED: Changed default branches to bashundhara and mirpur
+  const [branches, setBranches] = useState(['bashundhara', 'mirpur'])
   const [stock, setStock] = useState({})
   const [images, setImages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
@@ -543,42 +553,55 @@ export default function AddProduct() {
 
   const category = watch('category')
 
-  // 🔥 NEW: Load dynamic categories from API on component mount
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const response = await fetch('/api/products?getCategoriesOnly=true')
-        if (response.ok) {
-          const data = await response.json()
-          setDynamicCategories(data.categories || VAPE_CATEGORIES)
-          console.log('Loaded categories:', data.categories)
-        } else {
-          console.error('Failed to load categories, using defaults')
-          setDynamicCategories(VAPE_CATEGORIES)
-        }
-      } catch (error) {
-        console.error('Error loading categories:', error)
-        setDynamicCategories(VAPE_CATEGORIES)
+  // 🔧 NEW: Add refresh function for categories
+  const refreshCategories = async () => {
+  try {
+    const response = await fetch('/api/products?getCategoriesOnly=true', {
+      headers: {
+        'Cache-Control': 'no-cache',
       }
+    })
+    if (response.ok) {
+      const data = await response.json()
+      console.log('🔄 Raw API response:', data)
+      
+      setDynamicCategories({...data.categories}) // Force new object reference
+      console.log('🔄 Categories refreshed:', data.categories)
+    } else {
+      console.error('❌ Failed to load categories, using defaults')
+      setDynamicCategories({...VAPE_CATEGORIES})
     }
+  } catch (error) {
+    console.error('❌ Error loading categories:', error)
+    setDynamicCategories({...VAPE_CATEGORIES})
+  }
+}
 
-    loadCategories()
+  // 🔥 NEW: Load dynamic categories from API on component mount with authentication
+  useEffect(() => {
+    refreshCategories()
   }, [])
 
-  // Load branches on component mount
+  // Load branches on component mount with authentication
   useEffect(() => {
     const loadBranches = async () => {
       try {
-        const response = await fetch('/api/branches')
+        const token = localStorage.getItem('auth-token')
+        const response = await fetch('/api/products?getBranchesOnly=true', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
         if (response.ok) {
           const data = await response.json()
-          setBranches(data.branches || ['ghatpar', 'mirpur', 'gazipur'])
+          // 🔧 UPDATED: Use updated default branches
+          setBranches(data.branches || ['bashundhara', 'mirpur'])
         } else {
-          setBranches(['ghatpar', 'mirpur', 'gazipur'])
+          setBranches(['bashundhara', 'mirpur'])
         }
       } catch (error) {
         console.error('Error loading branches:', error)
-        setBranches(['ghatpar', 'mirpur', 'gazipur'])
+        setBranches(['bashundhara', 'mirpur'])
       }
     }
 
@@ -619,38 +642,57 @@ export default function AddProduct() {
     setDynamicCategories(updatedCategories)
   }
 
-  // Real barcode scanning handler
+  // Real barcode scanning handler with authentication
   const handleBarcodeScan = async (data) => {
     try {
       if (data) {
         console.log('Scanned barcode:', data)
 
-        const response = await fetch(`/api/products?barcode=${data}`)
+        const token = localStorage.getItem('auth-token')
+        const response = await fetch(`/api/products?barcode=${data}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
         if (response.ok) {
           const productData = await response.json()
 
-          setValue('name', productData.name || '')
-          setValue('brand', productData.brand || '')
-          setValue('barcode', data)
-          setValue('price', productData.price || '')
-          setValue('category', productData.category || '')
-          setValue('subcategory', productData.subcategory || '')
-          setValue('description', productData.description || '')
-          setValue('nicotineStrength', productData.nicotineStrength || '')
-          setValue('vgPgRatio', productData.vgPgRatio || '')
-          setValue('flavor', productData.flavor || '')
-          setValue('resistance', productData.resistance || '')
-          setValue('wattageRange', productData.wattageRange || '')
+          if (productData.products && productData.products.length > 0) {
+            const product = productData.products[0]
+            setValue('name', product.name || '')
+            setValue('brand', product.brand || '')
+            setValue('barcode', data)
+            setValue('price', product.price || '')
+            setValue('category', product.category || '')
+            setValue('subcategory', product.subcategory || '')
+            setValue('description', product.description || '')
+            setValue('nicotineStrength', product.nicotineStrength || '')
+            setValue('vgPgRatio', product.vgPgRatio || '')
+            setValue('flavor', product.flavor || '')
+            setValue('resistance', product.resistance || '')
+            setValue('wattageRange', product.wattageRange || '')
 
-          MySwal.fire({
-            icon: 'success',
-            title: 'Product Found!',
-            text: 'Product data has been loaded from barcode',
-            timer: 2000,
-            showConfirmButton: false,
-            toast: true,
-            position: 'top-end',
-          })
+            MySwal.fire({
+              icon: 'success',
+              title: 'Product Found!',
+              text: 'Product data has been loaded from barcode',
+              timer: 2000,
+              showConfirmButton: false,
+              toast: true,
+              position: 'top-end',
+            })
+          } else {
+            setValue('barcode', data)
+            MySwal.fire({
+              icon: 'info',
+              title: 'Product Not Found',
+              text: 'Barcode filled - please enter other details manually.',
+              timer: 3000,
+              showConfirmButton: false,
+              toast: true,
+              position: 'top-end',
+            })
+          }
         } else {
           setValue('barcode', data)
           MySwal.fire({
@@ -711,13 +753,17 @@ export default function AddProduct() {
     setStock((prev) => ({ ...prev, [branchKey]: parseInt(value) || 0 }))
   }
 
-  // Add custom category
+  // 🔧 FIX: Add custom category with refresh
   const handleAddCustomCategory = async () => {
     if (customCategoryInput.trim()) {
       try {
+        const token = localStorage.getItem('auth-token')
         const response = await fetch('/api/products', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({
             action: 'add_category',
             categoryName: customCategoryInput.toUpperCase(),
@@ -726,10 +772,9 @@ export default function AddProduct() {
         })
 
         if (response.ok) {
-          setDynamicCategories((prev) => ({
-            ...prev,
-            [customCategoryInput.toUpperCase()]: [],
-          }))
+          // 🔧 FIX: Refresh categories from database after successful add
+          await refreshCategories()
+          
           setValue('category', customCategoryInput.toUpperCase())
           setCustomCategoryInput('')
           setIsAddingCustomCategory(false)
@@ -744,10 +789,11 @@ export default function AddProduct() {
             position: 'top-end',
           })
         } else {
+          const errorData = await response.json()
           MySwal.fire({
             icon: 'error',
             title: 'Error',
-            text: 'Failed to add custom category',
+            text: errorData.error || 'Failed to add custom category',
             timer: 2000,
             showConfirmButton: false,
             toast: true,
@@ -769,13 +815,17 @@ export default function AddProduct() {
     }
   }
 
-  // Add custom subcategory
+  // 🔧 FIX: Add custom subcategory with refresh
   const handleAddCustomSubcategory = async () => {
     if (customSubcategoryInput.trim() && category) {
       try {
+        const token = localStorage.getItem('auth-token')
         const response = await fetch('/api/products', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({
             action: 'add_subcategory',
             categoryName: category,
@@ -784,11 +834,9 @@ export default function AddProduct() {
         })
 
         if (response.ok) {
-          setDynamicCategories((prev) => ({
-            ...prev,
-            [category]: [...(prev[category] || []), customSubcategoryInput],
-          }))
-          setSubCategoryOptions((prev) => [...prev, customSubcategoryInput])
+          // 🔧 FIX: Refresh categories from database after successful add
+          await refreshCategories()
+          
           setValue('subcategory', customSubcategoryInput)
           setCustomSubcategoryInput('')
           setIsAddingCustomSubcategory(false)
@@ -803,10 +851,11 @@ export default function AddProduct() {
             position: 'top-end',
           })
         } else {
+          const errorData = await response.json()
           MySwal.fire({
             icon: 'error',
             title: 'Error',
-            text: 'Failed to add custom subcategory',
+            text: errorData.error || 'Failed to add custom subcategory',
             timer: 2000,
             showConfirmButton: false,
             toast: true,
@@ -828,7 +877,7 @@ export default function AddProduct() {
     }
   }
 
-  // Form submission with enhanced error handling
+  // Form submission with enhanced error handling and authentication
   const onSubmit = async (data) => {
     setIsLoading(true)
     try {
@@ -846,9 +895,13 @@ export default function AddProduct() {
 
       console.log('Sending product data:', productData)
 
+      const token = localStorage.getItem('auth-token')
       const response = await fetch('/api/products', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(productData),
       })
 
@@ -884,6 +937,9 @@ export default function AddProduct() {
 
         const imageResponse = await fetch('/api/products', {
           method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
           body: formData,
         })
 
@@ -1151,7 +1207,9 @@ export default function AddProduct() {
                         </button>
                       </div>
                     ) : (
+                      // 🔧 FIX: Add key to force re-render when categories change
                       <select
+                        key={`category-${Object.keys(dynamicCategories).length}`}
                         {...register('category', {
                           required: 'Category is required',
                         })}
@@ -1230,7 +1288,9 @@ export default function AddProduct() {
                         </button>
                       </div>
                     ) : (
+                      // 🔧 FIX: Add key to force re-render when subcategories change
                       <select
+                        key={`subcategory-${category}-${subCategoryOptions.length}`}
                         {...register('subcategory', {
                           required: 'Subcategory is required',
                         })}
@@ -1597,6 +1657,7 @@ export default function AddProduct() {
           onClose={() => setShowCategoryModal(false)}
           categories={dynamicCategories}
           onCategoryUpdate={handleCategoryUpdate}
+          refreshCategories={refreshCategories} // 🔧 NEW: Pass refresh function
         />
 
         {/* Barcode Scanner Modal */}

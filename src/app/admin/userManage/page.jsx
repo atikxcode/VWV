@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Swal from 'sweetalert2'
+import { useRouter } from 'next/navigation'
+import { AuthContext } from '../../../../Provider/AuthProvider'
 import {
   Users,
   Settings,
@@ -20,7 +22,7 @@ import {
   Trash2,
 } from 'lucide-react'
 
-// 👇 UPDATED: Branch Management Modal Component with API integration
+// Branch Management Modal Component with API integration
 const BranchManagementModal = ({
   isOpen,
   onClose,
@@ -46,10 +48,14 @@ const BranchManagementModal = ({
 
     setLoading(true)
     try {
-      // 👇 API call to add branch
+      const token = localStorage.getItem('auth-token')
+      
       const response = await fetch('/api/branches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           action: 'add',
           branchName: cleanBranchName,
@@ -93,10 +99,14 @@ const BranchManagementModal = ({
     if (result.isConfirmed) {
       setLoading(true)
       try {
-        // 👇 API call to delete branch
+        const token = localStorage.getItem('auth-token')
+        
         const response = await fetch('/api/branches', {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({ branchName }),
         })
 
@@ -232,8 +242,10 @@ const BranchManagementModal = ({
 }
 
 export default function AdminUserManagement() {
+  const { user } = useContext(AuthContext)
+  const router = useRouter()
   const [users, setUsers] = useState([])
-  const [branches, setBranches] = useState([]) // 👈 UPDATED: Start with empty array
+  const [branches, setBranches] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterRole, setFilterRole] = useState('')
@@ -241,44 +253,107 @@ export default function AdminUserManagement() {
   const [tempRole, setTempRole] = useState('')
   const [tempBranch, setTempBranch] = useState('')
   const [showBranchModal, setShowBranchModal] = useState(false)
+  const [error, setError] = useState('')
 
-  // 👇 UPDATED: Fetch users and branches from API
+  // Fetch users and branches from API with authentication
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true)
+        setError('')
 
-        // Fetch users
-        const usersRes = await fetch('/api/user?getAllUsers=true')
-        if (usersRes.ok) {
-          const usersData = await usersRes.json()
-          setUsers(usersData.users || [])
+        // Get the authentication token
+        let token = localStorage.getItem('auth-token')
+        
+        // If no stored token, try getting fresh one from Firebase user
+        if (!token && user) {
+          token = await user.getIdToken()
+          localStorage.setItem('auth-token', token)
         }
 
-        // 👇 UPDATED: Fetch branches from dedicated API
-        const branchesRes = await fetch('/api/branches')
+        if (!token) {
+          throw new Error('No authentication token available')
+        }
+
+        console.log('🔍 Making request with token:', token ? 'Yes' : 'No')
+
+        // Fetch users with authentication header
+        const usersRes = await fetch('/api/user?getAllUsers=true', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        console.log('🔍 Users response status:', usersRes.status)
+
+        if (usersRes.status === 401) {
+          // Token might be expired, redirect to login
+          localStorage.removeItem('auth-token')
+          localStorage.removeItem('user-info')
+          router.push('/RegistrationPage')
+          return
+        }
+
+        if (!usersRes.ok) {
+          throw new Error(`Failed to fetch users: ${usersRes.status} ${usersRes.statusText}`)
+        }
+
+        const usersData = await usersRes.json()
+        console.log('🔍 Users data:', usersData)
+        
+        // Handle different response structures
+        if (usersData.users && Array.isArray(usersData.users)) {
+          setUsers(usersData.users)
+        } else if (Array.isArray(usersData)) {
+          setUsers(usersData)
+        } else {
+          console.error('Unexpected users response structure:', usersData)
+          setUsers([])
+        }
+
+        // Fetch branches with authentication header
+        const branchesRes = await fetch('/api/branches', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
         if (branchesRes.ok) {
           const branchesData = await branchesRes.json()
-          setBranches(branchesData.branches || ['ghatpar', 'mirpur', 'gazipur'])
+          setBranches(branchesData.branches || ['main', 'mirpur', 'bashundhara'])
         } else {
           // Fallback to default branches if API fails
-          setBranches(['ghatpar', 'mirpur', 'gazipur'])
+          setBranches(['main', 'mirpur', 'bashundhara'])
         }
+
       } catch (error) {
-        console.error('Error loading data:', error)
-        setBranches(['ghatpar', 'mirpur', 'gazipur']) // Fallback
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Failed to load user data',
-        })
+        console.error('❌ Error loading data:', error)
+        setError(error.message)
+        setBranches(['main', 'mirpur', 'bashundhara']) // Fallback
+        
+        if (error.message.includes('No authentication token') || 
+            error.message.includes('401') ||
+            error.message.includes('Unauthorized')) {
+          // Redirect to login if authentication fails
+          router.push('/RegistrationPage')
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to load user data',
+          })
+        }
       } finally {
         setLoading(false)
       }
     }
 
     loadData()
-  }, [])
+  }, [user, router])
 
   // Start editing a user
   const startEditing = (user) => {
@@ -297,10 +372,13 @@ export default function AdminUserManagement() {
   // Save user changes
   const saveUserChanges = async (user) => {
     try {
+      const token = localStorage.getItem('auth-token')
+      
       const response = await fetch('/api/user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           action: 'update',
@@ -348,7 +426,7 @@ export default function AdminUserManagement() {
     }
   }
 
-  // 👇 UPDATED: Handle branch updates from modal
+  // Handle branch updates from modal
   const handleBranchUpdate = (newBranches) => {
     setBranches(newBranches)
   }
@@ -397,6 +475,27 @@ export default function AdminUserManagement() {
     )
   }
 
+  // Show error state
+  if (error && !loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <X size={64} className="mx-auto text-red-400 mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            Error Loading Data
+          </h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 p-4">
       <div className="max-w-7xl mx-auto">
@@ -409,11 +508,11 @@ export default function AdminUserManagement() {
                 User Management
               </h1>
               <p className="text-gray-600">
-                Manage user roles and branch assignments
+                Manage user roles and branch assignments ({users.length} total users)
               </p>
             </div>
 
-            {/* 👇 Branch Management Button */}
+            {/* Branch Management Button */}
             <button
               onClick={() => setShowBranchModal(true)}
               className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 flex items-center gap-2 transition-colors"
@@ -633,7 +732,7 @@ export default function AdminUserManagement() {
         </div>
 
         {/* No Users */}
-        {filteredUsers.length === 0 && (
+        {filteredUsers.length === 0 && !loading && (
           <div className="text-center py-12">
             <Users size={64} className="mx-auto text-gray-400 mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -647,7 +746,7 @@ export default function AdminUserManagement() {
           </div>
         )}
 
-        {/* 👇 UPDATED: Branch Management Modal with API integration */}
+        {/* Branch Management Modal */}
         <BranchManagementModal
           isOpen={showBranchModal}
           onClose={() => setShowBranchModal(false)}

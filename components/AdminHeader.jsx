@@ -1,4 +1,4 @@
-// src/components/AdminHeader.jsx
+
 export default function AdminHeader() {
   return (
     <header className="w-full bg-white shadow p-4 flex justify-between items-center">
@@ -8,7 +8,7 @@ export default function AdminHeader() {
           Add User
         </button>
         <div className="w-8 h-8 rounded-full bg-gray-300"></div>{' '}
-        {/* user avatar */}
+        
       </div>
     </header>
   )

@@ -18,21 +18,18 @@ export default function AdminRoute({ children }) {
   const [shouldRedirectToLogin, setShouldRedirectToLogin] = useState(false)
   const [shouldShowAccessDenied, setShouldShowAccessDenied] = useState(false)
 
-  // 🔥 FIX 1: Handle login redirect in useEffect
   useEffect(() => {
     if (!loading && !user) {
       setShouldRedirectToLogin(true)
     }
   }, [user, loading])
 
-  // 🔥 FIX 2: Redirect to login in useEffect
   useEffect(() => {
     if (shouldRedirectToLogin) {
       router.push(`/RegistrationPage?redirect=${pathname}`)
     }
   }, [shouldRedirectToLogin, router, pathname])
 
-  // Fetch user role
   useEffect(() => {
     if (!user) {
       setFetching(false)
@@ -40,30 +37,73 @@ export default function AdminRoute({ children }) {
     }
 
     const fetchCurrentUser = async () => {
-      setFetching(true)
-      try {
-        const res = await fetch(
-          `/api/user?email=${encodeURIComponent(user.email)}`
-        )
-        if (!res.ok) throw new Error('Failed to fetch user data')
-        const data = await res.json()
-        setIsAdmin(data.user?.role === 'admin')
+        setFetching(true)
+        try {
+          console.log('🔍 Debug: Starting user fetch...')
+          console.log('🔍 User object:', user)
+          
+          // Get the Firebase token for authentication
+          const token = await user.getIdToken()
+          console.log('🔍 Token obtained:', token ? 'Yes (length: ' + token.length + ')' : 'No token')
+          
+          if (!token) {
+            throw new Error('No authentication token available')
+          }
 
-        // 🔥 FIX 3: Set state instead of direct alert
-        if (data.user?.role !== 'admin') {
-          setShouldShowAccessDenied(true)
+          const url = `/api/user?email=${encodeURIComponent(user.email)}`
+          console.log('🔍 Fetching URL:', url)
+
+          const res = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          })
+
+          console.log('🔍 Response status:', res.status)
+          console.log('🔍 Response ok:', res.ok)
+
+          if (!res.ok) {
+            const errorText = await res.text()
+            console.log('🔍 Error response body:', errorText)
+            throw new Error(`HTTP ${res.status}: ${res.statusText} - ${errorText}`)
+          }
+
+          const data = await res.json()
+          console.log('🔍 User data received:', data)
+          
+          const userRole = data.user?.role
+          console.log('🔍 User role from database:', userRole)
+
+          setIsAdmin(userRole === 'admin')
+
+          if (userRole !== 'admin') {
+            setShouldShowAccessDenied(true)
+          }
+        } catch (err) {
+          console.error('❌ Failed to fetch user data:', err)
+          console.error('❌ Error details:', {
+            message: err.message,
+            name: err.name,
+            stack: err.stack
+          })
+          setError(err)
+          
+          // If it's an authentication error, redirect to login
+          if (err.message.includes('Authentication required') || 
+              err.message.includes('Invalid token') || 
+              err.message.includes('Token expired')) {
+            setShouldRedirectToLogin(true)
+          }
+        } finally {
+          setFetching(false)
         }
-      } catch (err) {
-        setError(err)
-      } finally {
-        setFetching(false)
       }
-    }
 
     fetchCurrentUser()
   }, [user])
 
-  // 🔥 FIX 4: Handle access denied in separate useEffect
   useEffect(() => {
     if (shouldShowAccessDenied) {
       Swal.fire({
@@ -77,24 +117,28 @@ export default function AdminRoute({ children }) {
     }
   }, [shouldShowAccessDenied, router])
 
-  // Show loader
   if (loading || fetching) {
     return <Loading />
   }
 
-  // Show error
   if (error) {
     return (
-      <p className="text-red-600 text-center mt-8">Error: {error.message}</p>
+      <div className="text-center mt-8">
+        <p className="text-red-600">Error: {error.message}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Retry
+        </button>
+      </div>
     )
   }
 
-  // 🔥 FIX 5: Early return without router.push call
   if (!user) {
-    return null // Let useEffect handle redirect
+    return null 
   }
 
-  // Don't render if not admin (let useEffect handle alert)
   if (!isAdmin) {
     return null
   }

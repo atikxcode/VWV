@@ -25,40 +25,145 @@ export default function RegistrationPage() {
   } = useContext(AuthContext)
   const router = useRouter()
 
-  //  Google login function
-  const handleGoogleLoginAndRedirect = async () => {
+  // Function to get Firebase token and store it
+  const storeFirebaseToken = async (firebaseUser) => {
     try {
-      await handleGoogleSignIn()
-      if (user) {
-        console.log('Google Sign-In User:', {
-          uid: user.uid,
-          displayName: user.displayName,
-          email: user.email,
-          photoURL: user.photoURL,
-        })
-      }
-      router.push('/')
+      const token = await firebaseUser.getIdToken()
+      localStorage.setItem('auth-token', token)
+      
+      return token
     } catch (error) {
-      console.error('Google Sign-In Error:', error)
-      alert('Google Sign-In failed. Please try again.')
+      console.error('Error getting Firebase token:', error)
+      throw error
     }
   }
 
-  //  Apple login function
+  // Save or update user in your backend database
+  const saveUserToBackend = async (userInfo, isUpdate = false) => {
+    try {
+      const token = localStorage.getItem('auth-token')
+      
+      const headers = {
+        'Content-Type': 'application/json'
+      }
+      
+      // Only add auth header if we have a token AND it's an update
+      // For creation during login/signup, don't require auth token
+      if (token && isUpdate) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+      
+      const response = await fetch('/api/user', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          ...userInfo,
+          action: isUpdate ? 'update' : 'create'
+        }),
+      })
+
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save user')
+      }
+      
+      // Store complete user info in localStorage
+      localStorage.setItem('user-info', JSON.stringify(data.user))
+      
+      return data.user
+    } catch (error) {
+      console.error('Error saving user to backend:', error)
+      throw error
+    }
+  }
+
+  // Google login function
+  const handleGoogleLoginAndRedirect = async () => {
+    try {
+      const result = await handleGoogleSignIn()
+      if (result.user) {
+        console.log('Google Sign-In User:', {
+          uid: result.user.uid,
+          displayName: result.user.displayName,
+          email: result.user.email,
+          photoURL: result.user.photoURL,
+        })
+
+        // Store Firebase token first
+        await storeFirebaseToken(result.user)
+
+        // Save/update user in your database
+        const dbUser = await saveUserToBackend({
+          email: result.user.email,
+          name: result.user.displayName || result.user.email || 'Google User',
+          profilePicture: result.user.photoURL || '',
+          firebaseUid: result.user.uid
+        })
+
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'success',
+          title: `Welcome ${dbUser.name}!`,
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true,
+        })
+
+        router.push('/')
+      }
+    } catch (error) {
+      console.error('Google Sign-In Error:', error)
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'error',
+        title: 'Google Sign-In failed. Please try again.',
+        showConfirmButton: false,
+        timer: 3000,
+      })
+    }
+  }
+
+  // Apple login function
   const handleAppleLoginAndRedirect = async () => {
     try {
       const result = await handleAppleSignIn()
       const loggedInUser = result.user
-      console.log('Apple Sign-In User:', {
-        uid: loggedInUser.uid,
-        displayName: loggedInUser.displayName,
+
+      // Store Firebase token first
+      await storeFirebaseToken(loggedInUser)
+
+      // Save/update user in your database
+      const dbUser = await saveUserToBackend({
         email: loggedInUser.email,
-        photoURL: loggedInUser.photoURL,
+        name: loggedInUser.displayName || loggedInUser.email || 'Apple User',
+        profilePicture: loggedInUser.photoURL || '',
+        firebaseUid: loggedInUser.uid
       })
+
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: `Welcome ${dbUser.name}!`,
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+      })
+
       router.push('/')
     } catch (error) {
       console.error('Apple Sign-In Error:', error)
-      alert('Apple Sign-In failed. Please try again.')
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'error',
+        title: 'Apple Sign-In failed. Please try again.',
+        showConfirmButton: false,
+        timer: 3000,
+      })
     }
   }
 
@@ -67,6 +172,8 @@ export default function RegistrationPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [phoneNumber, setPhoneNumber] = useState('')
   const [currentEmail, setCurrentEmail] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
   // Hook Form
   const {
     register,
@@ -76,8 +183,8 @@ export default function RegistrationPage() {
     control,
     formState: { errors, isValid },
   } = useForm({ mode: 'onChange' })
-  const watchedEmail = watch('email')
 
+  const watchedEmail = watch('email')
   const isSignup = accountType === 'Signup'
 
   useEffect(() => {
@@ -85,15 +192,15 @@ export default function RegistrationPage() {
   }, [watchedEmail])
 
   // Form Submit For Login/Signup
-
   const onSubmit = async (data) => {
+    setIsLoading(true)
+
     if (!isSignup) {
       // LOGIN FLOW
       try {
         const result = await signIn(data.email, data.password)
 
         if (!result.user.emailVerified) {
-          // User not verified
           await Swal.fire({
             toast: true,
             position: 'top-end',
@@ -101,51 +208,46 @@ export default function RegistrationPage() {
             title: 'Please verify your email before logging in!',
             showConfirmButton: true,
           })
+          setIsLoading(false)
           return
         }
 
-        // Email verified, save to backend if not already saved
-        const userDetails = {
-          email: result.user.email,
-          name: result.user.displayName,
-          phone: phoneNumber,
-          role: 'client',
-        }
+        // Store Firebase token
+        await storeFirebaseToken(result.user)
 
-        const res = await fetch('/api/user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(userDetails),
+        // Get user data from database (which includes the role)
+        const dbUser = await saveUserToBackend({
+          email: result.user.email,
+          name: result.user.displayName || result.user.email || 'User',
+          firebaseUid: result.user.uid
         })
 
-        if (!res.ok) {
-          const err = await res.json()
-          throw new Error(err.error || 'Failed to save user')
-        }
-
-        // Successfully saved → navigate
         Swal.fire({
           toast: true,
           position: 'top-end',
           icon: 'success',
-          title: `Welcome back, ${userDetails.name}!`,
+          title: `Welcome back, ${dbUser.name}!`,
           showConfirmButton: false,
-          timer: 2000,
+          timer: 3000,
           timerProgressBar: true,
         })
 
-        router.push('/') // redirect to home
+        router.push('/')
       } catch (error) {
         console.error(error)
 
-        // Friendly message for wrong credentials
         let message = 'Login failed'
         if (
           error.code === 'auth/invalid-credential' ||
           error.code === 'auth/wrong-password' ||
-          error.code === 'auth/user-not-found'
+          error.code === 'auth/user-not-found' ||
+          error.code === 'auth/invalid-email'
         ) {
           message = 'Wrong email or password'
+        } else if (error.code === 'auth/too-many-requests') {
+          message = 'Too many failed attempts. Please try again later.'
+        } else if (error.message && error.message.includes('User not found in database')) {
+          message = 'Account not found. Please sign up first.'
         }
 
         Swal.fire({
@@ -154,61 +256,76 @@ export default function RegistrationPage() {
           icon: 'error',
           title: message,
           showConfirmButton: false,
-          timer: 2000,
+          timer: 3000,
           timerProgressBar: true,
         })
       }
+    } else {
+      // SIGNUP FLOW
+      const userDetails = {
+        email: data.email,
+        name: data.fullName,
+        phone: phoneNumber,
+        role: 'user', // Default role for new signups
+      }
 
-      return
+      try {
+        // Create Firebase user
+        const result = await createUser(userDetails.email, data.password)
+        await updateUser(result.user, userDetails.name)
+        
+        // Create user in database (without token since email isn't verified yet)
+        await saveUserToBackend({
+          ...userDetails,
+          firebaseUid: result.user.uid
+        })
+
+        // Send verification email
+        await verifyEmail()
+
+        await Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'info',
+          title: 'Check your email to verify your account before logging in!',
+          showConfirmButton: true,
+        })
+
+        // Reset form and switch to login
+        reset()
+        setPhoneNumber('')
+        setAccountType('Login')
+        await logOut()
+      } catch (error) {
+        console.error(error)
+        
+        let message = 'Registration failed'
+        if (error.code === 'auth/email-already-in-use') {
+          message = 'An account with this email already exists'
+        } else if (error.code === 'auth/weak-password') {
+          message = 'Password is too weak'
+        } else if (error.code === 'auth/invalid-email') {
+          message = 'Invalid email address'
+        } else if (error.message && error.message.includes('User already exists')) {
+          message = 'An account with this email already exists'
+        }
+        
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'error',
+          title: message,
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true,
+        })
+      }
     }
 
-    // SIGNUP FLOW
-    const userDetails = {
-      email: data.email,
-      name: data.fullName,
-      role: 'client',
-    }
-
-    try {
-      // Create auth user
-      const result = await createUser(userDetails.email, data.password)
-
-      // Update profile
-      await updateUser(result.user, userDetails.name)
-
-      // Send verification email
-      await verifyEmail()
-
-      // Inform user to check email
-      await Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'info',
-        title: 'Check your email to verify your account before logging in!',
-        showConfirmButton: true,
-      })
-
-      // Reset form
-      reset()
-
-      // Log out user after registration
-      await logOut()
-    } catch (error) {
-      console.error(error)
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'error',
-        title: error.message || 'Registration failed',
-        showConfirmButton: false,
-        timer: 2000,
-        timerProgressBar: true,
-      })
-    }
+    setIsLoading(false)
   }
 
-  // Password Reset Section
-
+  // Password Reset
   const handlePasswordReset = () => {
     if (!currentEmail) {
       Swal.fire({
@@ -229,10 +346,17 @@ export default function RegistrationPage() {
       })
       .catch((error) => {
         console.error(error)
+        let message = 'Something went wrong.'
+        if (error.code === 'auth/user-not-found') {
+          message = 'No account found with this email address.'
+        } else if (error.code === 'auth/invalid-email') {
+          message = 'Invalid email address.'
+        }
+        
         Swal.fire({
           icon: 'error',
           title: 'Error!',
-          text: error.message || 'Something went wrong.',
+          text: message,
         })
       })
   }
@@ -266,11 +390,12 @@ export default function RegistrationPage() {
                 <button
                   key={type}
                   onClick={() => setAccountType(type)}
+                  disabled={isLoading}
                   className={`w-1/2 py-2 text-sm font-medium transition rounded-2xl ${
                     accountType === type
                       ? 'bg-purple-400 text-white'
                       : 'bg-white text-black hover:bg-gray-100'
-                  }`}
+                  } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {type}
                 </button>
@@ -290,49 +415,75 @@ export default function RegistrationPage() {
               {isSignup ? (
                 <>
                   {/* Full Name */}
-                  <input
-                    type="text"
-                    placeholder="Full Name"
-                    {...register('fullName', {
-                      required: 'Full Name is required',
-                    })}
-                    className="w-full border border-gray-300 rounded-md px-4 py-2"
-                  />
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Full Name"
+                      {...register('fullName', {
+                        required: 'Full Name is required',
+                        minLength: {
+                          value: 2,
+                          message: 'Name must be at least 2 characters'
+                        }
+                      })}
+                      className="w-full border border-gray-300 rounded-md px-4 py-2"
+                    />
+                    {errors.fullName && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.fullName.message}
+                      </p>
+                    )}
+                  </div>
 
                   {/* Email */}
-                  <input
-                    type="email"
-                    placeholder="Email"
-                    {...register('email', { required: 'Email is required' })}
-                    className="w-full border border-gray-300 rounded-md px-4 py-2"
-                  />
+                  <div>
+                    <input
+                      type="email"
+                      placeholder="Email"
+                      {...register('email', { 
+                        required: 'Email is required',
+                        pattern: {
+                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                          message: 'Invalid email address'
+                        }
+                      })}
+                      className="w-full border border-gray-300 rounded-md px-4 py-2"
+                    />
+                    {errors.email && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.email.message}
+                      </p>
+                    )}
+                  </div>
 
                   {/* Phone Number Field */}
-                  <Controller
-                    name="phone"
-                    control={control}
-                    rules={{ required: 'Phone number is required' }}
-                    render={({ field }) => (
-                      <PhoneInput
-                        {...field}
-                        country={'auto'}
-                        enableSearch={true}
-                        placeholder="Enter phone number"
-                        inputClass="!w-full !border !border-gray-300 !rounded-md !pl-12 !py-2 !bg-white"
-                        buttonClass="!border !border-gray-300 !rounded-l-md !bg-gray-100"
-                        dropdownClass="!bg-white !border !border-gray-300"
-                        onChange={(value) => {
-                          field.onChange(value)
-                          setPhoneNumber(value)
-                        }}
-                      />
+                  <div>
+                    <Controller
+                      name="phone"
+                      control={control}
+                      rules={{ required: 'Phone number is required' }}
+                      render={({ field }) => (
+                        <PhoneInput
+                          {...field}
+                          country={'bd'}
+                          enableSearch={true}
+                          placeholder="Enter phone number"
+                          inputClass="!w-full !border !border-gray-300 !rounded-md !pl-12 !py-2 !bg-white"
+                          buttonClass="!border !border-gray-300 !rounded-l-md !bg-gray-100"
+                          dropdownClass="!bg-white !border !border-gray-300"
+                          onChange={(value) => {
+                            field.onChange(value)
+                            setPhoneNumber(value)
+                          }}
+                        />
+                      )}
+                    />
+                    {errors.phone && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.phone.message}
+                      </p>
                     )}
-                  />
-                  {errors.phone && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.phone.message}
-                    </p>
-                  )}
+                  </div>
 
                   {/* Password Field */}
                   <div className="relative mt-3">
@@ -341,6 +492,10 @@ export default function RegistrationPage() {
                       placeholder="Password"
                       {...register('password', {
                         required: 'Password is required',
+                        minLength: {
+                          value: 6,
+                          message: 'Password must be at least 6 characters'
+                        },
                         pattern: {
                           value: /^(?=.*[a-z])(?=.*[A-Z]).{6,}$/,
                           message:
@@ -359,12 +514,12 @@ export default function RegistrationPage() {
                         <HiEye size={20} />
                       )}
                     </span>
+                    {errors.password && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.password.message}
+                      </p>
+                    )}
                   </div>
-                  {errors.password && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.password.message}
-                    </p>
-                  )}
 
                   {/* Confirm Password Field */}
                   <div className="relative mt-3">
@@ -391,21 +546,34 @@ export default function RegistrationPage() {
                         <HiEye size={20} />
                       )}
                     </span>
+                    {errors.confirmPassword && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.confirmPassword.message}
+                      </p>
+                    )}
                   </div>
-                  {errors.confirmPassword && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.confirmPassword.message}
-                    </p>
-                  )}
                 </>
               ) : (
                 <>
-                  <input
-                    type="email"
-                    placeholder="Email"
-                    {...register('email', { required: 'Email is required' })}
-                    className="w-full border border-gray-300 rounded-md px-4 py-2"
-                  />
+                  <div>
+                    <input
+                      type="email"
+                      placeholder="Email"
+                      {...register('email', { 
+                        required: 'Email is required',
+                        pattern: {
+                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                          message: 'Invalid email address'
+                        }
+                      })}
+                      className="w-full border border-gray-300 rounded-md px-4 py-2"
+                    />
+                    {errors.email && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.email.message}
+                      </p>
+                    )}
+                  </div>
 
                   <div className="relative">
                     <input
@@ -426,6 +594,11 @@ export default function RegistrationPage() {
                         <HiEye size={20} />
                       )}
                     </span>
+                    {errors.password && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.password.message}
+                      </p>
+                    )}
                   </div>
 
                   {/* Forgot Password Area */}
@@ -433,7 +606,8 @@ export default function RegistrationPage() {
                     <button
                       type="button"
                       onClick={handlePasswordReset}
-                      className="text-sm text-blue-600 hover:underline"
+                      disabled={isLoading}
+                      className="text-sm text-blue-600 hover:underline disabled:opacity-50"
                     >
                       Forgot Password?
                     </button>
@@ -459,14 +633,21 @@ export default function RegistrationPage() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={!isValid}
-                className={`w-full py-2 rounded-full font-semibold transition ${
-                  isValid
+                disabled={!isValid || isLoading}
+                className={`w-full py-2 rounded-full font-semibold transition flex items-center justify-center ${
+                  isValid && !isLoading
                     ? 'bg-black text-white hover:bg-gray-900'
                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 }`}
               >
-                {isSignup ? 'Create account' : 'Login'}
+                {isLoading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    {isSignup ? 'Creating...' : 'Logging in...'}
+                  </div>
+                ) : (
+                  (isSignup ? 'Create account' : 'Login')
+                )}
               </button>
             </form>
 
@@ -478,7 +659,8 @@ export default function RegistrationPage() {
                   <button
                     type="button"
                     onClick={() => setAccountType('Login')}
-                    className="text-blue-600 underline"
+                    disabled={isLoading}
+                    className="text-blue-600 underline disabled:opacity-50"
                   >
                     Login
                   </button>
@@ -489,7 +671,8 @@ export default function RegistrationPage() {
                   <button
                     type="button"
                     onClick={() => setAccountType('Signup')}
-                    className="text-blue-600 underline"
+                    disabled={isLoading}
+                    className="text-blue-600 underline disabled:opacity-50"
                   >
                     Signup
                   </button>
@@ -507,7 +690,8 @@ export default function RegistrationPage() {
                   {/* Google */}
                   <button
                     onClick={handleGoogleLoginAndRedirect}
-                    className="w-12 h-12 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100"
+                    disabled={isLoading}
+                    className="w-12 h-12 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Image
                       src="/SocialMediaLogo/Google.png"
@@ -520,7 +704,8 @@ export default function RegistrationPage() {
                   {/* Apple */}
                   <button
                     onClick={handleAppleLoginAndRedirect}
-                    className="w-12 h-12 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100"
+                    disabled={isLoading}
+                    className="w-12 h-12 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Image
                       src="/SocialMediaLogo/Apple.png"
@@ -535,6 +720,7 @@ export default function RegistrationPage() {
           </div>
         </div>
       </div>
+      <Toaster />
     </div>
   )
 }

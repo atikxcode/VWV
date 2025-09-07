@@ -4,8 +4,9 @@ import { useState, useEffect, useContext } from 'react'
 import Image from 'next/image'
 import PhoneInput from 'react-phone-input-2'
 import 'react-phone-input-2/lib/style.css'
-import { AuthContext } from '../../../../Provider/AuthProvider' // Adjust path if needed
+import { AuthContext } from '../../../../Provider/AuthProvider'
 import { useRouter } from 'next/navigation'
+
 export default function UpdateProfile() {
   const { user: authUser, logOut } = useContext(AuthContext)
 
@@ -44,6 +45,28 @@ export default function UpdateProfile() {
     }
   }, [authUser])
 
+  // 🔧 HELPER FUNCTION: Get authentication token
+  const getAuthToken = async () => {
+    let token = localStorage.getItem('auth-token')
+    
+    // If no stored token, try getting fresh one from Firebase user
+    if (!token && authUser) {
+      try {
+        token = await authUser.getIdToken()
+        localStorage.setItem('auth-token', token)
+      } catch (error) {
+        console.error('Error getting token:', error)
+        throw new Error('Failed to get authentication token')
+      }
+    }
+
+    if (!token) {
+      throw new Error('No authentication token available')
+    }
+
+    return token
+  }
+
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setUser((prev) => ({
@@ -63,7 +86,6 @@ export default function UpdateProfile() {
       ...prev,
       phone: phone,
     }))
-    // Clear phone error when user starts typing
     if (errors.phone) {
       setErrors((prev) => ({
         ...prev,
@@ -72,7 +94,6 @@ export default function UpdateProfile() {
     }
   }
 
-  // Handle SignOut
   const handleSignOut = () => {
     logOut().then().catch()
   }
@@ -101,47 +122,88 @@ export default function UpdateProfile() {
     }
   }
 
+  // 🔧 FIXED: Upload with authentication token
   const uploadProfilePicture = async (file) => {
     try {
       setUploading(true)
       setMessage('')
+
+      // Get authentication token
+      const token = await getAuthToken()
+
       const formData = new FormData()
       formData.append('email', user.email)
       formData.append('file', file)
+      
       const response = await fetch('/api/user', {
         method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`, // 🔧 FIX: Add auth token
+        },
         body: formData,
       })
+
       const data = await response.json()
+      
+      if (response.status === 401) {
+        // Token expired, redirect to login
+        localStorage.removeItem('auth-token')
+        localStorage.removeItem('user-info')
+        router.push('/RegistrationPage')
+        return
+      }
+
       if (response.ok) {
         setUser((prev) => ({
           ...prev,
           profilePicture: data.imageUrl,
         }))
         setMessage('Profile picture updated successfully!')
-        // Optionally, update AuthContext
-        // updateUser({ ...authUser, profilePicture: data.imageUrl })
       } else {
         setMessage(data.error || 'Failed to upload image')
         setImagePreview(user.profilePicture || '') // Reset preview
       }
     } catch (error) {
-      setMessage('Error uploading image')
-      setImagePreview(user.profilePicture || '')
       console.error('Upload error:', error)
+      if (error.message.includes('authentication')) {
+        setMessage('Authentication failed. Please login again.')
+        router.push('/RegistrationPage')
+      } else {
+        setMessage('Error uploading image')
+        setImagePreview(user.profilePicture || '')
+      }
     } finally {
       setUploading(false)
     }
   }
 
+  // 🔧 FIXED: Delete with authentication token
   const deleteProfilePicture = async () => {
     try {
       setUploading(true)
       setMessage('')
-      const response = await fetch(`/api/user?email=${user.email}`, {
+
+      // Get authentication token
+      const token = await getAuthToken()
+
+      const response = await fetch(`/api/user?email=${encodeURIComponent(user.email)}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`, // 🔧 FIX: Add auth token
+          'Content-Type': 'application/json',
+        },
       })
+
       const data = await response.json()
+
+      if (response.status === 401) {
+        // Token expired, redirect to login
+        localStorage.removeItem('auth-token')
+        localStorage.removeItem('user-info')
+        router.push('/RegistrationPage')
+        return
+      }
+
       if (response.ok) {
         setUser((prev) => ({
           ...prev,
@@ -149,14 +211,17 @@ export default function UpdateProfile() {
         }))
         setImagePreview('')
         setMessage('Profile picture deleted successfully!')
-        // Optionally, update AuthContext
-        // updateUser({ ...authUser, profilePicture: '' })
       } else {
         setMessage(data.error || 'Failed to delete image')
       }
     } catch (error) {
-      setMessage('Error deleting image')
       console.error('Delete error:', error)
+      if (error.message.includes('authentication')) {
+        setMessage('Authentication failed. Please login again.')
+        router.push('/RegistrationPage')
+      } else {
+        setMessage('Error deleting image')
+      }
     } finally {
       setUploading(false)
     }
@@ -185,6 +250,7 @@ export default function UpdateProfile() {
     return Object.keys(newErrors).length === 0
   }
 
+  // 🔧 FIXED: Submit with authentication token
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!validateForm()) return
@@ -192,6 +258,9 @@ export default function UpdateProfile() {
     try {
       setLoading(true)
       setMessage('')
+
+      // Get authentication token
+      const token = await getAuthToken()
 
       // Clean and process phone number
       let processedPhone = user.phone.replace(/\D/g, '') // Remove all non-digits
@@ -208,7 +277,10 @@ export default function UpdateProfile() {
 
       const response = await fetch('/api/user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`, // 🔧 FIX: Add auth token
+        },
         body: JSON.stringify({
           action: 'update',
           email: user.email,
@@ -218,14 +290,37 @@ export default function UpdateProfile() {
       })
 
       const data = await response.json()
+
+      if (response.status === 401) {
+        // Token expired, redirect to login
+        localStorage.removeItem('auth-token')
+        localStorage.removeItem('user-info')
+        router.push('/RegistrationPage')
+        return
+      }
+
       if (response.ok) {
         setMessage('Profile updated successfully!')
+        
+        // Update local user state with response data if available
+        if (data.user) {
+          setUser((prev) => ({
+            ...prev,
+            name: data.user.name,
+            phone: data.user.phone,
+          }))
+        }
       } else {
         setMessage(data.error || 'Failed to update profile')
       }
     } catch (error) {
-      setMessage('Error updating profile')
       console.error('Update error:', error)
+      if (error.message.includes('authentication')) {
+        setMessage('Authentication failed. Please login again.')
+        router.push('/RegistrationPage')
+      } else {
+        setMessage('Error updating profile')
+      }
     } finally {
       setLoading(false)
     }

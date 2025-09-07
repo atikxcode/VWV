@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
+  RefreshCw,
 } from 'lucide-react'
 import EditProduct from '../../../../components/EditProduct'
 import Swal from 'sweetalert2'
@@ -35,7 +36,7 @@ export default function ManageProductAdmin() {
   const [selectedCategory, setSelectedCategory] = useState('')
   const [selectedSubcategory, setSelectedSubcategory] = useState('')
   const [selectedBranch, setSelectedBranch] = useState('')
-  const [selectedStatus, setSelectedStatus] = useState('')
+  const [selectedStatus, setSelectedStatus] = useState('active') // 🔧 FIX: Default to active
 
   // 🔥 ENHANCED Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -43,45 +44,89 @@ export default function ManageProductAdmin() {
   const [totalProducts, setTotalProducts] = useState(0)
   const itemsPerPage = 12
 
-  // 👇 UPDATED: Load initial data with correct branch endpoint
+  // 🔥 FIX: Add refresh state for manual refresh
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // 🔧 FIX: Get auth headers for API calls with cache-busting
+  const getAuthHeaders = (bustCache = false) => {
+    const token = localStorage.getItem('auth-token')
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+    
+    // 🔥 FIX: Add cache-busting headers when needed
+    if (bustCache) {
+      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+      headers['Pragma'] = 'no-cache'
+      headers['Expires'] = '0'
+    }
+    
+    return headers
+  }
+
+  // 🔧 FIX: Check if user is authenticated
+  const checkAuth = () => {
+    const token = localStorage.getItem('auth-token')
+    if (!token) {
+      window.location.href = '/admin/login'
+      return false
+    }
+    return true
+  }
+
+  // 👇 UPDATED: Load initial data with authentication headers
   useEffect(() => {
+    if (!checkAuth()) return
+
     const loadData = async () => {
       try {
         setLoading(true)
 
-        // Fetch categories
-        const categoriesRes = await fetch(
-          '/api/products?getCategoriesOnly=true'
-        )
+        // 🔧 FIX: Fetch categories with auth headers
+        const categoriesRes = await fetch('/api/products?getCategoriesOnly=true', {
+          headers: getAuthHeaders()
+        })
         if (categoriesRes.ok) {
           const categoriesData = await categoriesRes.json()
-          setCategories(categoriesData.categories)
+          setCategories(categoriesData.categories || {})
+        } else if (categoriesRes.status === 401) {
+          window.location.href = '/admin/login'
+          return
         }
 
-        // 👇 FIXED: Fetch branches from dedicated API instead of products endpoint
-        const branchesRes = await fetch('/api/branches')
+        // 🔧 FIX: Fetch branches with auth headers
+        const branchesRes = await fetch('/api/branches', {
+          headers: getAuthHeaders()
+        })
         if (branchesRes.ok) {
           const branchesData = await branchesRes.json()
-          setBranches(branchesData.branches || [])
+          setBranches(branchesData.branches || ['mirpur', 'bashundhara'])
+        } else if (branchesRes.status === 401) {
+          window.location.href = '/admin/login'
+          return
         } else {
           // Fallback to default branches if API fails
-          setBranches(['mirpur', 'bashundhara']) // 👈 Updated to match your current branches
+          setBranches(['mirpur', 'bashundhara'])
         }
 
         // Fetch products
-        fetchProducts()
+        await fetchProducts()
       } catch (error) {
         console.error('Error loading data:', error)
         // Fallback branches in case of error
         setBranches(['mirpur', 'bashundhara'])
+        setLoading(false)
       }
     }
 
     loadData()
   }, [])
 
-  // Fetch products with filters
-  const fetchProducts = async () => {
+  // 🔧 FIX: Fetch products with cache-busting and proper refresh
+  const fetchProducts = async (bustCache = false) => {
+    if (!checkAuth()) return
+
     try {
       const params = new URLSearchParams({
         limit: itemsPerPage.toString(),
@@ -93,18 +138,47 @@ export default function ManageProductAdmin() {
       if (selectedSubcategory) params.append('subcategory', selectedSubcategory)
       if (selectedBranch) params.append('branch', selectedBranch)
       if (selectedStatus) params.append('status', selectedStatus)
+      
+      // 🔥 FIX: Add cache-busting timestamp
+      if (bustCache) {
+        params.append('_t', Date.now().toString())
+      }
 
-      const response = await fetch(`/api/products?${params}`)
+      const response = await fetch(`/api/products?${params}`, {
+        headers: getAuthHeaders(bustCache) // 🔥 FIX: Pass cache-busting flag
+      })
+
       if (response.ok) {
         const data = await response.json()
         setProducts(data.products || [])
         setTotalPages(data.pagination?.totalPages || 1)
-        setTotalProducts(data.pagination?.total || 0)
+        setTotalProducts(data.pagination?.totalProducts || 0) // 🔧 FIX: Use correct field name
+        
+        console.log('Products fetched:', data.products?.length, 'Total:', data.pagination?.totalProducts, 'Cache busted:', bustCache)
+      } else if (response.status === 401) {
+        // Redirect to login if unauthorized
+        window.location.href = '/admin/login'
+        return
+      } else {
+        console.error('Failed to fetch products:', response.status, response.statusText)
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to load products. Please try again.',
+          confirmButtonColor: '#8B5CF6',
+        })
       }
     } catch (error) {
       console.error('Error fetching products:', error)
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to load products. Please check your connection.',
+        confirmButtonColor: '#8B5CF6',
+      })
     } finally {
       setLoading(false)
+      setIsRefreshing(false)
     }
   }
 
@@ -123,6 +197,22 @@ export default function ManageProductAdmin() {
   useEffect(() => {
     fetchProducts()
   }, [currentPage])
+
+  // 🔥 FIX: Manual refresh function
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true)
+    await fetchProducts(true) // Force cache bust
+    
+    Swal.fire({
+      icon: 'success',
+      title: 'Refreshed!',
+      text: 'Product data has been refreshed',
+      timer: 1500,
+      showConfirmButton: false,
+      toast: true,
+      position: 'top-end',
+    })
+  }
 
   // 🔥 ENHANCED Pagination functions
   const goToFirstPage = () => setCurrentPage(1)
@@ -169,22 +259,24 @@ export default function ManageProductAdmin() {
     setCurrentView('edit')
   }
 
-  // Handle back from edit with proper refresh
+  // 🔥 FIX: Enhanced back from edit with forced refresh
   const handleBackFromEdit = async () => {
     setCurrentView('list')
     setEditingProductId(null)
 
+    console.log('🔄 Returning from edit, forcing data refresh...')
     setLoading(true)
 
-    // Small delay to ensure backend has processed changes
-    setTimeout(async () => {
-      await fetchProducts() // Refresh the list to get updated images
-      setLoading(false)
-    }, 300)
+    // 🔥 FIX: Force immediate refresh with cache busting
+    await fetchProducts(true) // Force cache bust to get latest data
+    
+    console.log('✅ Data refreshed after edit')
   }
 
-  // Delete product
+  // 🔧 FIX: Delete product with authentication
   const handleDeleteProduct = async (productId) => {
+    if (!checkAuth()) return
+
     const result = await Swal.fire({
       title: 'Delete Product?',
       text: 'This will permanently delete the product and all its images. This action cannot be undone!',
@@ -200,9 +292,14 @@ export default function ManageProductAdmin() {
       try {
         const response = await fetch(`/api/products?productId=${productId}`, {
           method: 'DELETE',
+          headers: getAuthHeaders()
         })
 
         if (!response.ok) {
+          if (response.status === 401) {
+            window.location.href = '/admin/login'
+            return
+          }
           throw new Error('Failed to delete product')
         }
 
@@ -214,19 +311,55 @@ export default function ManageProductAdmin() {
           showConfirmButton: false,
           toast: true,
           position: 'top-end',
-        }).then(() => {
-          fetchProducts() // Refresh the list
+        }).then(async () => {
+          // 🔥 FIX: Force refresh after delete
+          await fetchProducts(true) // Force cache bust
         })
       } catch (error) {
         console.error('Error deleting product:', error)
         Swal.fire({
           icon: 'error',
           title: 'Error',
-          text: 'Failed to delete product',
+          text: 'Failed to delete product. Please try again.',
           confirmButtonColor: '#8B5CF6',
         })
       }
     }
+  }
+
+  // 🔧 FIX: Calculate total stock across all branches
+  const getTotalStock = (product) => {
+    if (!product.stock || !branches.length) return 0
+    
+    return branches.reduce((total, branch) => {
+      return total + (product.stock[`${branch}_stock`] || 0)
+    }, 0)
+  }
+
+  // 🔧 FIX: Get stock display for a product
+  const getStockDisplay = (product) => {
+    if (!product.stock || !branches.length) {
+      return <span className="text-xs text-gray-500 px-2 py-1">No stock data</span>
+    }
+
+    return branches.map((branch) => {
+      const stock = product.stock[`${branch}_stock`] || 0
+      return (
+        <div
+          key={branch}
+          className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${
+            stock > 0
+              ? 'bg-green-50 text-green-700'
+              : 'bg-red-50 text-red-700'
+          }`}
+        >
+          <Store size={12} />
+          <span>
+            {branch.charAt(0).toUpperCase() + branch.slice(1)}: {stock}
+          </span>
+        </div>
+      )
+    })
   }
 
   // Show edit view
@@ -241,15 +374,31 @@ export default function ManageProductAdmin() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-            Product Management
-            <span className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-medium">
-              Administrator
-            </span>
-          </h1>
-          <p className="text-gray-600">
-            Manage your vape shop inventory • {totalProducts} total products
-          </p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+                <Package className="text-purple-600" size={40} />
+                Product Management
+                <span className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-medium">
+                  Administrator
+                </span>
+              </h1>
+              <p className="text-gray-600">
+                Manage your vape shop inventory • {totalProducts} total products
+              </p>
+            </div>
+            
+            {/* 🔥 FIX: Add manual refresh button */}
+            <button
+              onClick={handleManualRefresh}
+              disabled={isRefreshing || loading}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-purple-600 rounded-xl shadow-lg hover:bg-purple-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh product data"
+            >
+              <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -328,6 +477,7 @@ export default function ManageProductAdmin() {
                 <option value="">All Status</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
+                <option value="draft">Draft</option>
               </select>
             </div>
 
@@ -337,9 +487,9 @@ export default function ManageProductAdmin() {
                 setSelectedCategory('')
                 setSelectedSubcategory('')
                 setSelectedBranch('')
-                setSelectedStatus('')
+                setSelectedStatus('active') // 🔧 FIX: Reset to default active
               }}
-              className="px-4 py-2 text-purple-600 hover:text-purple-700"
+              className="px-4 py-2 text-purple-600 hover:text-purple-700 font-medium"
             >
               Clear Filters
             </button>
@@ -393,6 +543,8 @@ export default function ManageProductAdmin() {
                       className={`absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-medium ${
                         product.status === 'active'
                           ? 'bg-green-100 text-green-800'
+                          : product.status === 'inactive'
+                          ? 'bg-red-100 text-red-800'
                           : 'bg-gray-100 text-gray-800'
                       }`}
                     >
@@ -405,23 +557,29 @@ export default function ManageProductAdmin() {
                         {product.images.length} photos
                       </div>
                     )}
+
+                    {/* Total Stock Badge */}
+                    <div className="absolute bottom-3 left-3 bg-purple-600 text-white px-2 py-1 rounded text-xs font-medium">
+                      Total: {getTotalStock(product)}
+                    </div>
                   </div>
 
                   {/* Product Info */}
                   <div className="p-4">
                     <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold text-gray-900 line-clamp-2">
+                      <h3 className="font-semibold text-gray-900 line-clamp-2 text-sm">
                         {product.name}
                       </h3>
                     </div>
 
                     <div className="flex items-center gap-2 mb-2">
                       <Tag size={14} className="text-purple-600" />
-                      <span className="text-sm text-gray-600">
+                      <span className="text-xs text-gray-600">
                         {product.category} • {product.subcategory}
                       </span>
                     </div>
 
+                    {/* Price */}
                     <div className="flex items-center justify-between mb-3">
                       <div className="text-lg font-bold text-purple-600">
                         ${product.price}
@@ -433,32 +591,9 @@ export default function ManageProductAdmin() {
                       )}
                     </div>
 
-                    {/* 👇 UPDATED: Stock Info - Only show current branches */}
+                    {/* 🔧 FIX: Stock Info - Show all branch stock for admin */}
                     <div className="flex flex-wrap gap-1 mb-3">
-                      {branches.length > 0 ? (
-                        branches.map((branch) => {
-                          const stock = product.stock?.[`${branch}_stock`] || 0
-                          return (
-                            <div
-                              key={branch}
-                              className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${
-                                stock > 0
-                                  ? 'bg-green-50 text-green-700'
-                                  : 'bg-red-50 text-red-700'
-                              }`}
-                            >
-                              <Store size={12} />
-                              <span>
-                                {branch}: {stock}
-                              </span>
-                            </div>
-                          )
-                        })
-                      ) : (
-                        <div className="text-xs text-gray-500 px-2 py-1">
-                          No branches configured
-                        </div>
-                      )}
+                      {getStockDisplay(product)}
                     </div>
 
                     {/* Actions */}
@@ -470,41 +605,44 @@ export default function ManageProductAdmin() {
                         <Edit size={14} />
                         Edit
                       </button>
+                      
                       <button
                         onClick={() => {
-                          // View product details
+                          // 🔧 FIX: Enhanced product details view
+                          const stockInfo = branches.map(branch => {
+                            const stock = product.stock?.[`${branch}_stock`] || 0
+                            return `<p>&nbsp;&nbsp;• ${branch.charAt(0).toUpperCase() + branch.slice(1)}: ${stock}</p>`
+                          }).join('')
+
                           Swal.fire({
                             title: product.name,
                             html: `
-                              <div class="text-left">
-                                <p><strong>Category:</strong> ${
-                                  product.category
-                                } • ${product.subcategory}</p>
-                                <p><strong>Price:</strong> $${product.price}</p>
-                                <p><strong>Status:</strong> ${
-                                  product.status
-                                }</p>
-                                <p><strong>Stock:</strong></p>
-                                ${branches.map(branch => 
-                                  `<p>&nbsp;&nbsp;• ${branch.charAt(0).toUpperCase() + branch.slice(1)}: ${product.stock?.[`${branch}_stock`] || 0}</p>`
-                                ).join('')}
-                                ${
-                                  product.description
-                                    ? `<p><strong>Description:</strong> ${product.description}</p>`
-                                    : ''
-                                }
-                                ${
-                                  product.tags && product.tags.length > 0
-                                    ? `<p><strong>Tags:</strong> ${product.tags.join(
-                                        ', '
-                                      )}</p>`
-                                    : ''
-                                }
+                              <div class="text-left space-y-2">
+                                <p><strong>Category:</strong> ${product.category} • ${product.subcategory}</p>
+                                <p><strong>Price:</strong> $${product.price}${product.comparePrice ? ` (Compare: $${product.comparePrice})` : ''}</p>
+                                <p><strong>Status:</strong> <span class="inline-block px-2 py-1 rounded text-xs ${
+                                  product.status === 'active' ? 'bg-green-100 text-green-800' : 
+                                  product.status === 'inactive' ? 'bg-red-100 text-red-800' : 
+                                  'bg-gray-100 text-gray-800'
+                                }">${product.status}</span></p>
+                                <p><strong>Stock by Branch:</strong></p>
+                                ${stockInfo}
+                                <p><strong>Total Stock:</strong> ${getTotalStock(product)} units</p>
+                                ${product.barcode ? `<p><strong>Barcode:</strong> ${product.barcode}</p>` : ''}
+                                ${product.brand ? `<p><strong>Brand:</strong> ${product.brand}</p>` : ''}
+                                ${product.description ? `<p><strong>Description:</strong> ${product.description}</p>` : ''}
+                                ${product.nicotineStrength ? `<p><strong>Nicotine:</strong> ${product.nicotineStrength}</p>` : ''}
+                                ${product.vgPgRatio ? `<p><strong>VG/PG:</strong> ${product.vgPgRatio}</p>` : ''}
+                                ${product.flavor ? `<p><strong>Flavor:</strong> ${product.flavor}</p>` : ''}
+                                ${product.tags && product.tags.length > 0 ? `<p><strong>Tags:</strong> ${product.tags.join(', ')}</p>` : ''}
                               </div>
                             `,
                             showCloseButton: true,
                             showConfirmButton: false,
-                            width: 500,
+                            width: 600,
+                            customClass: {
+                              popup: 'text-left'
+                            }
                           })
                         }}
                         className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1"
@@ -512,9 +650,11 @@ export default function ManageProductAdmin() {
                       >
                         <Eye size={14} />
                       </button>
+                      
                       <button
                         onClick={() => handleDeleteProduct(product._id)}
                         className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                        title="Delete Product"
                       >
                         <Trash2 size={14} />
                       </button>
