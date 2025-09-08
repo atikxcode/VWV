@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   DndContext,
@@ -61,7 +61,7 @@ import {
   Shield,
 } from 'lucide-react'
 
-
+// 🔥 FIX: Enhanced Payment Methods with proper structure
 const PAYMENT_METHODS = [
   {
     id: 'cash',
@@ -125,11 +125,80 @@ const PAYMENT_METHODS = [
   },
 ]
 
-// Product Card Component (same as before)
+// 🔥 FIX: Get auth headers with cache-busting (same as manage products page)
+const getAuthHeaders = (bustCache = false) => {
+  const token = getAuthToken()
+  const headers = {
+    'Authorization': token,
+    'Content-Type': 'application/json'
+  }
+  
+  // 🔥 FIX: Add cache-busting headers when needed
+  if (bustCache) {
+    headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    headers['Pragma'] = 'no-cache'
+    headers['Expires'] = '0'
+  }
+  
+  return headers
+}
+
+
+// 🔥 FIX: Helper function to get auth token
+const getAuthToken = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('authToken') || sessionStorage.getItem('authToken') || 'Bearer temp-admin-token-for-development'
+  }
+  return 'Bearer temp-admin-token-for-development'
+}
+
+// 🔥 FIX: Helper function to make authenticated API requests
+const makeAuthenticatedRequest = async (url, options = {}, bustCache = false) => {
+  const token = getAuthToken()
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  }
+  
+  if (token) {
+    headers.Authorization = token
+  }
+
+  // 🔥 FIX: Add cache-busting headers when needed
+  if (bustCache) {
+    headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    headers['Pragma'] = 'no-cache'
+    headers['Expires'] = '0'
+    
+    // Add timestamp to URL for cache busting
+    const separator = url.includes('?') ? '&' : '?'
+    url = `${url}${separator}_t=${Date.now()}`
+  }
+  
+  return fetch(url, {
+    ...options,
+    headers,
+  })
+}
+
+// 🔥 CRITICAL FIX: Enhanced Product Card with proper branch normalization
 const ProductCard = ({ product, onAddToCart, branches }) => {
-  const [selectedBranch, setSelectedBranch] = useState(branches[0] || 'mirpur')
-  const stock = product.stock?.[`${selectedBranch}_stock`] || 0
+  const [selectedBranch, setSelectedBranch] = useState(branches[0] || 'bashundhara')
+  
+  // 🔥 CRITICAL FIX: Always normalize branch to lowercase for stock lookup
+  const normalizedBranch = selectedBranch.toLowerCase()
+  const stock = product.stock?.[`${normalizedBranch}_stock`] ?? 0
   const isOutOfStock = stock <= 0
+
+  console.log(`[ProductCard] ${product.name}:`, {
+    selectedBranch,
+    normalizedBranch,
+    stockKey: `${normalizedBranch}_stock`,
+    stockData: product.stock,
+    calculatedStock: stock,
+    isOutOfStock
+  })
 
   return (
     <motion.div
@@ -144,12 +213,17 @@ const ProductCard = ({ product, onAddToCart, branches }) => {
             src={product.images[0].url}
             alt={product.images[0].alt || product.name}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              e.target.style.display = 'none'
+              e.target.nextSibling.style.display = 'flex'
+            }}
           />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Package2 size={48} className="text-gray-400" />
-          </div>
-        )}
+        ) : null}
+        
+        {/* Fallback icon */}
+        <div className="w-full h-full flex items-center justify-center" style={{ display: product.images?.length > 0 ? 'none' : 'flex' }}>
+          <Package2 size={48} className="text-gray-400" />
+        </div>
 
         {/* Stock Status Badge */}
         <div
@@ -164,24 +238,24 @@ const ProductCard = ({ product, onAddToCart, branches }) => {
 
         {/* Price Badge */}
         <div className="absolute bottom-3 left-3 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-          ${product.price}
+          ${product.price?.toFixed(2) || '0.00'}
         </div>
       </div>
 
       {/* Product Info */}
       <div className="p-4">
         <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2">
-          {product.name}
+          {product.name || 'Unnamed Product'}
         </h3>
 
         <div className="flex items-center gap-2 mb-3">
           <Tag size={14} className="text-purple-600" />
           <span className="text-sm text-gray-600">
-            {product.category} • {product.subcategory}
+            {product.category || 'N/A'} • {product.subcategory || 'N/A'}
           </span>
         </div>
 
-        {/* Branch Selector */}
+        {/* Branch Selector with normalized stock display */}
         <div className="mb-3">
           <label className="block text-xs font-medium text-gray-700 mb-1">
             Branch Stock
@@ -191,12 +265,16 @@ const ProductCard = ({ product, onAddToCart, branches }) => {
             onChange={(e) => setSelectedBranch(e.target.value)}
             className="w-full p-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
-            {branches.map((branch) => (
-              <option key={branch} value={branch}>
-                {branch.charAt(0).toUpperCase() + branch.slice(1)} (
-                {product.stock?.[`${branch}_stock`] || 0})
-              </option>
-            ))}
+            {branches.map((branch) => {
+              // 🔥 CRITICAL FIX: Normalize branch for stock lookup in dropdown
+              const normalizedDisplayBranch = branch.toLowerCase()
+              const branchStock = product.stock?.[`${normalizedDisplayBranch}_stock`] ?? 0
+              return (
+                <option key={branch} value={branch}>
+                  {branch.charAt(0).toUpperCase() + branch.slice(1)} ({branchStock})
+                </option>
+              )
+            })}
           </select>
         </div>
 
@@ -217,7 +295,7 @@ const ProductCard = ({ product, onAddToCart, branches }) => {
   )
 }
 
-// 💫 Sortable Cart Item Component (same as before)
+// 🔥 FIX: Enhanced Sortable Cart Item with better error handling
 const SortableCartItem = ({ item, onUpdateQuantity, onRemove }) => {
   const {
     attributes,
@@ -233,7 +311,7 @@ const SortableCartItem = ({ item, onUpdateQuantity, onRemove }) => {
     transition,
   }
 
-  const totalPrice = item.product.price * item.quantity
+  const totalPrice = (item.product?.price ?? 0) * (item.quantity ?? 1)
 
   return (
     <div
@@ -255,30 +333,33 @@ const SortableCartItem = ({ item, onUpdateQuantity, onRemove }) => {
 
         {/* Product Image */}
         <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-blue-100 rounded-lg flex-shrink-0 overflow-hidden">
-          {item.product.images && item.product.images.length > 0 ? (
+          {item.product?.images && item.product.images.length > 0 ? (
             <img
               src={item.product.images[0].url}
               alt={item.product.name}
               className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.style.display = 'none'
+                e.target.nextSibling.style.display = 'flex'
+              }}
             />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Package2 size={24} className="text-purple-400" />
-            </div>
-          )}
+          ) : null}
+          <div className="w-full h-full flex items-center justify-center" style={{ display: item.product?.images?.length > 0 ? 'none' : 'flex' }}>
+            <Package2 size={24} className="text-purple-400" />
+          </div>
         </div>
 
         {/* Product Details */}
         <div className="flex-1 min-w-0">
           <h4 className="font-semibold text-gray-900 truncate text-sm">
-            {item.product.name}
+            {item.product?.name || 'Unknown Product'}
           </h4>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
-              {item.branch.charAt(0).toUpperCase() + item.branch.slice(1)}
+              {item.branch?.charAt(0).toUpperCase() + item.branch?.slice(1) || 'N/A'}
             </span>
             <span className="text-sm font-medium text-purple-600">
-              ${item.product.price}
+              ${item.product?.price?.toFixed(2) || '0.00'}
             </span>
           </div>
         </div>
@@ -286,16 +367,16 @@ const SortableCartItem = ({ item, onUpdateQuantity, onRemove }) => {
         {/* Quantity Controls */}
         <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-1">
           <button
-            onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+            onClick={() => onUpdateQuantity(item.id, (item.quantity || 1) - 1)}
             className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition-colors"
           >
             <Minus size={14} />
           </button>
           <span className="w-8 text-center font-semibold text-gray-900">
-            {item.quantity}
+            {item.quantity || 1}
           </span>
           <button
-            onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+            onClick={() => onUpdateQuantity(item.id, (item.quantity || 1) + 1)}
             className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700 transition-colors"
           >
             <Plus size={14} />
@@ -319,58 +400,41 @@ const SortableCartItem = ({ item, onUpdateQuantity, onRemove }) => {
   )
 }
 
-// Invoice downloaad
+// 🔥 FIX: Enhanced invoice generation with better error handling
 const generateInvoice = async (saleData) => {
   const invoiceElement = document.createElement('div')
-  // Use RGB colors and more compact design
   invoiceElement.innerHTML = `
     <div style="font-family: 'Arial', sans-serif; max-width: 550px; margin: 0 auto; padding: 20px; background: rgb(255, 255, 255); color: rgb(51, 51, 51); line-height: 1.4;">
       
-      <!-- Compact Header -->
+      <!-- Header -->
       <div style="text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid rgb(139, 92, 246);">
         <h1 style="color: rgb(139, 92, 246); margin: 0 0 8px 0; font-size: 24px; font-weight: bold;">VWV VAPE SHOP</h1>
         <p style="margin: 0; color: rgb(107, 114, 128); font-size: 12px;">📍 123 Vape Street, Dhaka-1000 | 📞 +880-123-456-789 | 📧 sales@vwvvape.com</p>
       </div>
 
-      <!-- Invoice Info & Customer - Side by Side -->
+      <!-- Invoice Info & Customer -->
       <div style="display: flex; justify-content: space-between; margin-bottom: 20px; background: rgb(248, 250, 252); padding: 15px; border-radius: 8px;">
-        <!-- Invoice Details -->
         <div style="flex: 1;">
           <h2 style="margin: 0 0 10px 0; color: rgb(139, 92, 246); font-size: 18px; font-weight: bold;">INVOICE</h2>
           <div style="font-size: 12px; color: rgb(55, 65, 81);">
-            <p style="margin: 3px 0;"><strong>ID:</strong> ${
-              saleData.saleId
-            }</p>
-            <p style="margin: 3px 0;"><strong>Date:</strong> ${new Date(
-              saleData.timestamp
-            ).toLocaleDateString()}</p>
-            <p style="margin: 3px 0;"><strong>Time:</strong> ${new Date(
-              saleData.timestamp
-            ).toLocaleTimeString()}</p>
-            <p style="margin: 3px 0;"><strong>Cashier:</strong> ${
-              saleData.cashier
-            }</p>
+            <p style="margin: 3px 0;"><strong>ID:</strong> ${saleData.saleId || 'N/A'}</p>
+            <p style="margin: 3px 0;"><strong>Date:</strong> ${new Date(saleData.timestamp || Date.now()).toLocaleDateString()}</p>
+            <p style="margin: 3px 0;"><strong>Time:</strong> ${new Date(saleData.timestamp || Date.now()).toLocaleTimeString()}</p>
+            <p style="margin: 3px 0;"><strong>Cashier:</strong> ${saleData.cashier || 'Unknown'}</p>
           </div>
         </div>
         
-        <!-- Customer Details -->
         <div style="flex: 1; text-align: right;">
           <h3 style="margin: 0 0 10px 0; color: rgb(139, 92, 246); font-size: 14px; font-weight: bold;">CUSTOMER</h3>
           <div style="font-size: 12px; color: rgb(55, 65, 81);">
-            <p style="margin: 3px 0;"><strong>Name:</strong> ${
-              saleData.customer.name
-            }</p>
-            ${
-              saleData.customer.phone
-                ? `<p style="margin: 3px 0;"><strong>Phone:</strong> ${saleData.customer.phone}</p>`
-                : ''
-            }
+            <p style="margin: 3px 0;"><strong>Name:</strong> ${saleData.customer?.name || 'Walk-in Customer'}</p>
+            ${saleData.customer?.phone ? `<p style="margin: 3px 0;"><strong>Phone:</strong> ${saleData.customer.phone}</p>` : ''}
             <span style="background: rgb(16, 185, 129); color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600;">PAID</span>
           </div>
         </div>
       </div>
 
-      <!-- Compact Items Table -->
+      <!-- Items Table -->
       <div style="margin-bottom: 20px;">
         <h3 style="margin: 0 0 10px 0; color: rgb(55, 65, 81); font-size: 14px; font-weight: bold;">ITEMS PURCHASED</h3>
         <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
@@ -385,7 +449,7 @@ const generateInvoice = async (saleData) => {
             </tr>
           </thead>
           <tbody>
-            ${saleData.items
+            ${(saleData.items || [])
               .map(
                 (item, index) => `
               <tr style="border-bottom: 1px solid rgb(229, 231, 235); ${
@@ -393,28 +457,20 @@ const generateInvoice = async (saleData) => {
                   ? 'background: rgb(249, 250, 251);'
                   : 'background: white;'
               }">
-                <td style="padding: 6px; font-weight: 600; color: rgb(107, 114, 128);">${
-                  index + 1
-                }</td>
+                <td style="padding: 6px; font-weight: 600; color: rgb(107, 114, 128);">${index + 1}</td>
                 <td style="padding: 6px; font-weight: 500; color: rgb(55, 65, 81);">${
-                  item.productName.length > 30
-                    ? item.productName.substring(0, 30) + '...'
-                    : item.productName
+                  (item.productName || 'Unknown Product').length > 30
+                    ? (item.productName || 'Unknown Product').substring(0, 30) + '...'
+                    : (item.productName || 'Unknown Product')
                 }</td>
                 <td style="padding: 6px; text-align: center;">
                   <span style="background: rgb(139, 92, 246); color: white; padding: 1px 6px; border-radius: 10px; font-size: 9px; font-weight: 600;">
-                    ${item.branch.toUpperCase()}
+                    ${(item.branch || 'N/A').toUpperCase()}
                   </span>
                 </td>
-                <td style="padding: 6px; text-align: center; font-weight: 600; color: rgb(55, 65, 81);">${
-                  item.quantity
-                }</td>
-                <td style="padding: 6px; text-align: right; font-weight: 500; color: rgb(55, 65, 81);">$${item.unitPrice.toFixed(
-                  2
-                )}</td>
-                <td style="padding: 6px; text-align: right; font-weight: 700; color: rgb(5, 150, 105);">$${item.totalPrice.toFixed(
-                  2
-                )}</td>
+                <td style="padding: 6px; text-align: center; font-weight: 600; color: rgb(55, 65, 81);">${item.quantity || 0}</td>
+                <td style="padding: 6px; text-align: right; font-weight: 500; color: rgb(55, 65, 81);">$${(item.unitPrice || 0).toFixed(2)}</td>
+                <td style="padding: 6px; text-align: right; font-weight: 700; color: rgb(5, 150, 105);">$${(item.totalPrice || 0).toFixed(2)}</td>
               </tr>
             `
               )
@@ -423,63 +479,49 @@ const generateInvoice = async (saleData) => {
         </table>
       </div>
 
-      <!-- Payment & Totals Section -->
+      <!-- Payment & Totals -->
       <div style="margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between; gap: 15px;">
-          <!-- Payment Method -->
           <div style="flex: 1; background: rgb(240, 253, 244); padding: 12px; border-radius: 8px; border-left: 3px solid rgb(16, 185, 129);">
             <h4 style="margin: 0 0 8px 0; color: rgb(5, 150, 105); font-size: 12px; font-weight: bold;">PAYMENT METHOD</h4>
-            ${saleData.payment.methods
+            ${(saleData.payment?.methods || [])
               .map(
                 (method) => `
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <span style="font-size: 11px; font-weight: 600; color: rgb(55, 65, 81);">
                   <span style="width: 6px; height: 6px; background: rgb(16, 185, 129); border-radius: 50%; display: inline-block; margin-right: 5px;"></span>
-                  ${method.name}
+                  ${method.name || 'Unknown'}
                 </span>
-                <span style="font-size: 11px; font-weight: 700; color: rgb(5, 150, 105);">$${(
-                  method.amount || saleData.totalAmount
-                ).toFixed(2)}</span>
+                <span style="font-size: 11px; font-weight: 700; color: rgb(5, 150, 105);">$${(method.amount || saleData.totalAmount || 0).toFixed(2)}</span>
               </div>
             `
               )
               .join('')}
           </div>
           
-          <!-- Totals -->
           <div style="flex: 1; background: rgb(254, 254, 254); padding: 12px; border-radius: 8px; border: 1px solid rgb(139, 92, 246);">
             <h4 style="margin: 0 0 8px 0; color: rgb(139, 92, 246); font-size: 12px; font-weight: bold;">TOTAL SUMMARY</h4>
             <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px;">
               <span style="color: rgb(55, 65, 81);">Subtotal:</span>
-              <span style="font-weight: 600;">$${saleData.totalAmount.toFixed(
-                2
-              )}</span>
+              <span style="font-weight: 600;">$${(saleData.totalAmount || 0).toFixed(2)}</span>
             </div>
             <div style="border-top: 1px solid rgb(226, 232, 240); padding-top: 6px;">
               <div style="display: flex; justify-content: space-between; align-items: center; background: rgb(139, 92, 246); color: white; padding: 8px; border-radius: 4px;">
                 <span style="font-size: 12px; font-weight: bold;">TOTAL:</span>
-                <span style="font-size: 14px; font-weight: bold;">$${saleData.payment.totalPaid.toFixed(
-                  2
-                )}</span>
+                <span style="font-size: 14px; font-weight: bold;">$${(saleData.payment?.totalPaid || saleData.totalAmount || 0).toFixed(2)}</span>
               </div>
-              ${
-                saleData.payment.change > 0
-                  ? `
+              ${(saleData.payment?.change || 0) > 0 ? `
                 <div style="display: flex; justify-content: space-between; align-items: center; background: rgb(16, 185, 129); color: white; padding: 6px; border-radius: 4px; margin-top: 4px;">
                   <span style="font-size: 11px; font-weight: 600;">Change:</span>
-                  <span style="font-size: 12px; font-weight: bold;">$${saleData.payment.change.toFixed(
-                    2
-                  )}</span>
+                  <span style="font-size: 12px; font-weight: bold;">$${(saleData.payment.change || 0).toFixed(2)}</span>
                 </div>
-              `
-                  : ''
-              }
+              ` : ''}
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Compact Footer -->
+      <!-- Footer -->
       <div style="text-align: center; padding-top: 15px; border-top: 1px solid rgb(229, 231, 235); background: rgb(248, 250, 252); border-radius: 8px; padding: 15px;">
         <h3 style="margin: 0 0 8px 0; color: rgb(5, 150, 105); font-size: 14px; font-weight: bold;">Thank You for Your Business!</h3>
         <p style="margin: 0 0 10px 0; color: rgb(107, 114, 128); font-size: 11px;">We appreciate your trust in VWV Vape Shop</p>
@@ -539,10 +581,8 @@ const generateInvoice = async (saleData) => {
       heightLeft -= pageHeight
     }
 
-    // Save the PDF
-    pdf.save(`VWV-Invoice-${saleData.saleId}.pdf`)
+    pdf.save(`VWV-Invoice-${saleData.saleId || 'unknown'}.pdf`)
 
-    // Show success message
     Swal.fire({
       icon: 'success',
       title: 'Invoice Generated!',
@@ -564,7 +604,7 @@ const generateInvoice = async (saleData) => {
   }
 }
 
-// 💳 Compact Payment Method Selector
+// 🔥 FIX: Enhanced Payment Method Selector with better validation
 const PaymentMethodSelector = ({
   selectedMethods,
   onMethodChange,
@@ -581,19 +621,20 @@ const PaymentMethodSelector = ({
       delete newAmounts[method.id]
       setAmounts(newAmounts)
     } else {
-      const newMethod = { ...method, amount: totalAmount }
+      const newMethod = { ...method, amount: totalAmount || 0 }
       onMethodChange([newMethod])
-      setAmounts({ [method.id]: totalAmount })
+      setAmounts({ [method.id]: totalAmount || 0 })
     }
   }
 
   const handleAmountChange = (methodId, amount) => {
-    const newAmounts = { ...amounts, [methodId]: parseFloat(amount) || 0 }
+    const parsedAmount = parseFloat(amount) || 0
+    const newAmounts = { ...amounts, [methodId]: parsedAmount }
     setAmounts(newAmounts)
 
     const updatedMethods = selectedMethods.map((method) =>
       method.id === methodId
-        ? { ...method, amount: parseFloat(amount) || 0 }
+        ? { ...method, amount: parsedAmount }
         : method
     )
     onMethodChange(updatedMethods)
@@ -603,7 +644,7 @@ const PaymentMethodSelector = ({
     (sum, method) => sum + (method.amount || 0),
     0
   )
-  const remainingAmount = Math.max(0, totalAmount - totalPaid)
+  const remainingAmount = Math.max(0, (totalAmount || 0) - totalPaid)
 
   return (
     <div className="space-y-6">
@@ -615,7 +656,7 @@ const PaymentMethodSelector = ({
         <p className="text-gray-600">Choose payment option</p>
       </div>
 
-      {/* 🔥 Compact Payment Method Grid */}
+      {/* Payment Method Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {PAYMENT_METHODS.map((method) => {
           const IconComponent = method.icon
@@ -694,7 +735,7 @@ const PaymentMethodSelector = ({
               return (
                 <div
                   key={method.id}
-                  className="bg-white rounded-lg p-3 shadow-sm"
+                  className="bg-white rounded-lg p-3 shadow-sm mb-3"
                 >
                   <div className="flex items-center gap-3 mb-3">
                     <div
@@ -712,12 +753,12 @@ const PaymentMethodSelector = ({
                       type="number"
                       step="0.01"
                       min="0"
-                      max={totalAmount}
+                      max={totalAmount || 999999}
                       value={amounts[method.id] || ''}
                       onChange={(e) =>
                         handleAmountChange(method.id, e.target.value)
                       }
-                      placeholder={`${totalAmount.toFixed(2)}`}
+                      placeholder={`${(totalAmount || 0).toFixed(2)}`}
                       className="w-full p-3 pl-10 pr-4 text-lg font-semibold rounded-lg border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                     <DollarSign
@@ -730,13 +771,13 @@ const PaymentMethodSelector = ({
             })}
           </div>
 
-          {/* Compact Payment Summary */}
+          {/* Payment Summary */}
           <div className="bg-white p-4 rounded-xl border-2 border-purple-200 shadow-lg">
             <h4 className="font-bold text-gray-900 text-lg mb-3">Summary</h4>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Total:</span>
-                <span className="font-semibold">${totalAmount.toFixed(2)}</span>
+                <span className="font-semibold">${(totalAmount || 0).toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Paying:</span>
@@ -745,16 +786,16 @@ const PaymentMethodSelector = ({
               <div className="border-t pt-2">
                 <div className="flex justify-between items-center text-lg font-bold text-purple-600">
                   <span>Balance:</span>
-                  <span>${totalAmount.toFixed(2)}</span>
+                  <span>${(totalAmount || 0).toFixed(2)}</span>
                 </div>
               </div>
               {remainingAmount > 0 ? (
                 <div className="bg-red-50 p-2 rounded text-red-700 font-semibold text-sm">
                   Remaining: ${remainingAmount.toFixed(2)}
                 </div>
-              ) : totalPaid > totalAmount ? (
+              ) : totalPaid > (totalAmount || 0) ? (
                 <div className="bg-green-50 p-2 rounded text-green-700 font-semibold text-sm">
-                  Change: ${(totalPaid - totalAmount).toFixed(2)}
+                  Change: ${(totalPaid - (totalAmount || 0)).toFixed(2)}
                 </div>
               ) : null}
             </div>
@@ -765,9 +806,9 @@ const PaymentMethodSelector = ({
   )
 }
 
-
+// 🔥 MAIN COMPONENT: Enhanced Sales Page with Complete Error Handling
 export default function SellPageAdmin() {
-  // States (same as before)
+  // States
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState({})
   const [branches, setBranches] = useState([])
@@ -803,108 +844,151 @@ export default function SellPageAdmin() {
     })
   )
 
-  // Load initial data
+  // 🔥 CRITICAL FIX: Enhanced data loading with consistent branch handling
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true)
 
-        const categoriesRes = await fetch(
-          '/api/products?getCategoriesOnly=true'
-        )
-        if (categoriesRes.ok) {
-          const categoriesData = await categoriesRes.json()
-          setCategories(categoriesData.categories)
+        // Load categories with authentication
+        try {
+          const categoriesRes = await makeAuthenticatedRequest('/api/products?getCategoriesOnly=true')
+          if (categoriesRes.ok) {
+            const categoriesData = await categoriesRes.json()
+            setCategories(categoriesData.categories || {})
+            console.log('Categories loaded:', categoriesData.categories)
+          } else {
+            console.warn('Failed to load categories:', categoriesRes.status)
+          }
+        } catch (error) {
+          console.error('Error loading categories:', error)
         }
 
-        const branchesRes = await fetch('/api/branches')
-        if (branchesRes.ok) {
-          const branchesData = await branchesRes.json()
-          setBranches(branchesData.branches || ['mirpur', 'bashundhara'])
-        } else {
-          setBranches(['mirpur', 'bashundhara'])
+        // Load branches with authentication
+        try {
+          const branchesRes = await makeAuthenticatedRequest('/api/branches')
+          if (branchesRes.ok) {
+            const branchesData = await branchesRes.json()
+            setBranches(branchesData.branches || ['bashundhara', 'mirpur']) // 🔥 CRITICAL FIX: Updated fallback
+            console.log('Branches loaded:', branchesData.branches)
+          } else {
+            console.warn('Failed to load branches, using defaults')
+            setBranches(['bashundhara', 'mirpur']) // 🔥 CRITICAL FIX: Updated fallback
+          }
+        } catch (error) {
+          console.error('Error loading branches:', error)
+          setBranches(['bashundhara', 'mirpur']) // 🔥 CRITICAL FIX: Updated fallback
         }
 
-        fetchProducts()
+        // Load initial products
+        await fetchProducts()
       } catch (error) {
-        console.error('Error loading data:', error)
+        console.error('Error in initial data loading:', error)
         Swal.fire({
           icon: 'error',
-          title: 'Error',
-          text: 'Failed to load data',
+          title: 'Loading Error',
+          text: 'Failed to load initial data. Please refresh the page.',
         })
+      } finally {
+        setLoading(false)
       }
     }
 
     loadData()
   }, [])
 
-  // Fetch products with filters
-  const fetchProducts = async () => {
-    try {
-      const params = new URLSearchParams({
-        limit: itemsPerPage.toString(),
-        page: currentPage.toString(),
-        status: 'active',
-      })
+  // 🔥 FIX: Enhanced product fetching with proper authentication
+  // 🔥 FIX: Enhanced product fetching with cache-busting and proper refresh
+  const fetchProducts = async (bustCache = false) => {
+  try {
+    const params = new URLSearchParams({
+      limit: itemsPerPage.toString(),
+      page: currentPage.toString(),
+      status: 'active',
+    })
 
-      if (searchTerm) params.append('search', searchTerm)
-      if (selectedCategory) params.append('category', selectedCategory)
-      if (selectedSubcategory) params.append('subcategory', selectedSubcategory)
-      if (barcodeFilter) params.append('barcode', barcodeFilter) // 🔥 This should work now
-      if (inStockOnly) params.append('inStock', 'true')
-
-      console.log('Fetching with params:', params.toString()) // 🔍 Debug log
-
-      const response = await fetch(`/api/products?${params}`)
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Products data:', data) // 🔍 Debug log
-        setProducts(data.products || [])
-        setTotalPages(data.pagination?.totalPages || 1)
-      }
-    } catch (error) {
-      console.error('Error fetching products:', error)
-    } finally {
-      setLoading(false)
+    if (searchTerm.trim()) params.append('search', searchTerm.trim())
+    if (selectedCategory) params.append('category', selectedCategory)
+    if (selectedSubcategory) params.append('subcategory', selectedSubcategory)
+    if (barcodeFilter.trim()) params.append('barcode', barcodeFilter.trim())
+    if (inStockOnly) params.append('inStock', 'true')
+    
+    // 🔥 FIX: Add cache-busting timestamp
+    if (bustCache) {
+      params.append('_t', Date.now().toString())
     }
+
+    console.log('[FETCH] Requesting products with params:', params.toString(), 'Cache busted:', bustCache)
+
+    const response = await makeAuthenticatedRequest(`/api/products?${params}`, {}, bustCache)
+    
+    if (response.ok) {
+      const data = await response.json()
+      console.log('[FETCH] Products received:', {
+        count: data.products?.length || 0,
+        pagination: data.pagination,
+        sampleProduct: data.products?.[0]?.name,
+        sampleStock: data.products?.[0]?.stock,
+        cachebusted: bustCache
+      })
+      
+      setProducts(data.products || [])
+      setTotalPages(data.pagination?.totalPages || 1)
+    } else {
+      console.error('[FETCH] Products API error:', response.status, response.statusText)
+      
+      if (response.status === 401) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Authentication Error',
+          text: 'Please log in to access products. Using demo mode.',
+        })
+      }
+    }
+  } catch (error) {
+    console.error('[FETCH] Error fetching products:', error)
+    Swal.fire({
+      icon: 'error',
+      title: 'Connection Error',
+      text: 'Failed to load products. Please check your connection.',
+    })
   }
+}
+
 
   // Apply filters
   useEffect(() => {
     setCurrentPage(1)
-    fetchProducts()
-  }, [
-    searchTerm,
-    selectedCategory,
-    selectedSubcategory,
-    barcodeFilter,
-    inStockOnly,
-  ])
+  }, [searchTerm, selectedCategory, selectedSubcategory, barcodeFilter, inStockOnly])
 
   useEffect(() => {
-    fetchProducts()
-  }, [currentPage])
+    if (!loading) {
+      fetchProducts()
+    }
+  }, [currentPage, searchTerm, selectedCategory, selectedSubcategory, barcodeFilter, inStockOnly])
 
-  // 🔍 Enhanced Barcode scan handler
+  // 🔥 FIX: Enhanced barcode scanning with better error handling
   const handleBarcodeScan = async (data) => {
     try {
-      if (data) {
-        console.log('Scanned barcode:', data)
-        setBarcodeFilter(data)
+      if (data && data.trim()) {
+        console.log('[BARCODE] Scanned:', data.trim())
+        setBarcodeFilter(data.trim())
         setShowBarcodeScanner(false)
 
-        // 🔥 Direct search for barcode
-        const response = await fetch(
-          `/api/products?barcode=${encodeURIComponent(data)}&limit=1`
+        // Search for product by barcode
+        const response = await makeAuthenticatedRequest(
+          `/api/products?barcode=${encodeURIComponent(data.trim())}&limit=1`
         )
+        
         if (response.ok) {
           const result = await response.json()
-          console.log('Barcode search result:', result) // 🔍 Debug log
+          console.log('[BARCODE] Search result:', result)
 
           if (result.products && result.products.length > 0) {
             const product = result.products[0]
-            const defaultBranch = branches[0] || 'mirpur'
+            const defaultBranch = branches[0] || 'bashundhara' // 🔥 CRITICAL FIX: Updated default
+            
+            // Automatically add to cart
             handleAddToCart(product, defaultBranch)
 
             Swal.fire({
@@ -920,66 +1004,106 @@ export default function SellPageAdmin() {
             Swal.fire({
               icon: 'warning',
               title: 'Product Not Found',
-              text: `No product found with barcode: ${data}`,
+              text: `No product found with barcode: ${data.trim()}`,
               timer: 3000,
               showConfirmButton: false,
               toast: true,
               position: 'top-end',
             })
           }
+        } else {
+          throw new Error(`API Error: ${response.status}`)
         }
       }
     } catch (error) {
-      console.error('Barcode scanning error:', error)
-      setBarcodeFilter(data || '')
+      console.error('[BARCODE] Error:', error)
+      setBarcodeFilter(data?.trim() || '')
       setShowBarcodeScanner(false)
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Barcode Scan Failed',
+        text: 'Could not process barcode. Please try again.',
+        toast: true,
+        position: 'top-end',
+        timer: 3000,
+        showConfirmButton: false,
+      })
     }
   }
 
-  // Cart handlers (same as before)
+  // 🔥 CRITICAL FIX: Enhanced cart management with proper branch normalization
   const handleAddToCart = (product, branch) => {
-    const stock = product.stock?.[`${branch}_stock`] || 0
+    try {
+      if (!product || !product._id) {
+        throw new Error('Invalid product data')
+      }
 
-    if (stock <= 0) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Out of Stock',
-        text: 'This product is out of stock in the selected branch',
+      if (!branch) {
+        throw new Error('Branch is required')
+      }
+
+      // 🔥 CRITICAL FIX: Normalize branch to lowercase for consistent stock handling
+      const normalizedBranch = branch.toLowerCase()
+      const stock = product.stock?.[`${normalizedBranch}_stock`] ?? 0
+
+      console.log('[CART] Adding to cart:', {
+        productName: product.name,
+        originalBranch: branch,
+        normalizedBranch,
+        stockKey: `${normalizedBranch}_stock`,
+        stock,
+        stockData: product.stock
       })
-      return
-    }
 
-    const existingItem = cart.find(
-      (item) => item.product._id === product._id && item.branch === branch
-    )
-
-    if (existingItem) {
-      if (existingItem.quantity >= stock) {
+      if (stock <= 0) {
         Swal.fire({
-          icon: 'warning',
-          title: 'Stock Limit',
-          text: 'Cannot add more items than available stock',
+          icon: 'error',
+          title: 'Out of Stock',
+          text: 'This product is out of stock in the selected branch',
         })
         return
       }
-      handleUpdateQuantity(existingItem.id, existingItem.quantity + 1)
-    } else {
-      const newItem = {
-        id: Date.now() + Math.random(),
-        product,
-        branch,
-        quantity: 1,
-      }
-      setCart((prev) => [...prev, newItem])
 
+      const existingItem = cart.find(
+        (item) => item.product._id === product._id && item.branch === normalizedBranch
+      )
+
+      if (existingItem) {
+        if (existingItem.quantity >= stock) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Stock Limit Reached',
+            text: 'Cannot add more items than available stock',
+          })
+          return
+        }
+        handleUpdateQuantity(existingItem.id, existingItem.quantity + 1)
+      } else {
+        const newItem = {
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          product,
+          branch: normalizedBranch, // 🔥 CRITICAL FIX: Store normalized branch
+          quantity: 1,
+        }
+        setCart((prev) => [...prev, newItem])
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Added to Cart!',
+          text: `${product.name} added to cart`,
+          timer: 1500,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end',
+        })
+      }
+    } catch (error) {
+      console.error('[CART] Error adding to cart:', error)
       Swal.fire({
-        icon: 'success',
-        title: 'Added to Cart!',
-        text: `${product.name} added to cart`,
-        timer: 1500,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end',
+        icon: 'error',
+        title: 'Add to Cart Failed',
+        text: error.message || 'Could not add item to cart',
       })
     }
   }
@@ -993,12 +1117,15 @@ export default function SellPageAdmin() {
     setCart((prev) =>
       prev.map((item) => {
         if (item.id === itemId) {
-          const stock = item.product.stock?.[`${item.branch}_stock`] || 0
+          // 🔥 CRITICAL FIX: Use normalized branch for stock check
+          const normalizedBranch = item.branch.toLowerCase()
+          const stock = item.product?.stock?.[`${normalizedBranch}_stock`] ?? 0
+          
           if (newQuantity > stock) {
             Swal.fire({
               icon: 'warning',
               title: 'Stock Limit',
-              text: 'Cannot add more items than available stock',
+              text: `Only ${stock} items available in stock`,
             })
             return item
           }
@@ -1024,6 +1151,14 @@ export default function SellPageAdmin() {
     }).then((result) => {
       if (result.isConfirmed) {
         setCart([])
+        Swal.fire({
+          icon: 'success',
+          title: 'Cart Cleared',
+          timer: 1500,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end',
+        })
       }
     })
   }
@@ -1044,13 +1179,15 @@ export default function SellPageAdmin() {
 
   // Calculate totals
   const cartTotal = cart.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
+    (sum, item) => sum + ((item.product?.price ?? 0) * (item.quantity ?? 1)),
     0
   )
-  const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0)
+  const cartItemsCount = cart.reduce((sum, item) => sum + (item.quantity ?? 1), 0)
 
-  // Enhanced Process Sale
+  // 🔥 FIX: Complete sales processing with proper error handling and authentication
   const handleProcessSale = async () => {
+  try {
+    // Validation
     if (cart.length === 0) {
       Swal.fire({
         icon: 'warning',
@@ -1076,103 +1213,104 @@ export default function SellPageAdmin() {
       Swal.fire({
         icon: 'error',
         title: 'Insufficient Payment',
-        text: `Please ensure payment covers the full amount of $${cartTotal.toFixed(
-          2
-        )}`,
+        text: `Please ensure payment covers the full amount of $${cartTotal.toFixed(2)}`,
       })
       return
     }
 
-    try {
-      // Show loading
-      Swal.fire({
-        title: 'Processing Sale...',
-        text: 'Please wait while we process your payment',
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        showConfirmButton: false,
-        didOpen: () => {
-          Swal.showLoading()
-        },
-      })
+    // Show loading
+    Swal.fire({
+      title: 'Processing Sale...',
+      text: 'Please wait while we process your payment',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false,
+      didOpen: () => {
+        Swal.showLoading()
+      },
+    })
 
-      if (paymentMethod.type === 'cash') {
-        // 💵 CASH PAYMENT - Direct processing
-        console.log('Processing cash payment...')
-
-        const saleData = {
-          customer: {
-            name: customerName || 'Walk-in Customer',
-            phone: customerPhone || '',
-          },
-          items: cart.map((item) => ({
-            productId: item.product._id,
-            productName: item.product.name,
-            branch: item.branch,
-            quantity: item.quantity,
-            unitPrice: item.product.price,
-            totalPrice: item.product.price * item.quantity,
-          })),
-          payment: {
-            methods: selectedPaymentMethods,
-            totalAmount: cartTotal,
-            totalPaid: totalPaid,
-            change: totalPaid - cartTotal,
-          },
-          totalAmount: cartTotal,
-          timestamp: new Date(),
-          cashier: 'Admin',
-          paymentType: 'cash',
-          status: 'completed',
-        }
-
-        // 🔥 Use your existing sales API - it handles stock updates
-        const response = await fetch('/api/sales', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(saleData),
-        })
-
-        if (response.ok) {
-          const result = await response.json()
-          Swal.close()
-
-          // Use the saleId from the API response
-          const completedSale = {
-            ...saleData,
-            saleId: result.saleId,
-          }
-
-          setCompletedSaleData(completedSale)
-          setSaleCompleted(true)
-
-          // Clear cart and reset form
-          setCart([])
-          setSelectedPaymentMethods([])
-          setCustomerName('')
-          setCustomerPhone('')
-        } else {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to save sale')
-        }
-      } else {
-        // 🌐 ONLINE PAYMENT - SSLCommerz Integration
-        console.log('Processing online payment via SSLCommerz...')
-        // Implement SSLCommerz integration here if needed
-      }
-    } catch (error) {
-      console.error('Error processing sale:', error)
-      Swal.fire({
-        icon: 'error',
-        title: 'Payment Failed',
-        text:
-          error.message ||
-          'There was an error processing the payment. Please try again.',
-      })
+    // 🔥 CRITICAL FIX: Prepare sale data with properly normalized branch names
+    const saleData = {
+      customer: {
+        name: customerName.trim() || 'Walk-in Customer',
+        phone: customerPhone.trim() || '',
+      },
+      items: cart.map((item) => ({
+        productId: item.product._id,
+        productName: item.product.name || 'Unknown Product',
+        branch: item.branch.toLowerCase(), // 🔥 CRITICAL FIX: Ensure lowercase branch
+        quantity: item.quantity || 1,
+        unitPrice: item.product.price || 0,
+        totalPrice: (item.product.price || 0) * (item.quantity || 1),
+      })),
+      payment: {
+        methods: selectedPaymentMethods.map(method => ({
+          id: method.id,
+          name: method.name,
+          type: method.type,
+          amount: method.amount || 0,
+        })),
+        totalAmount: cartTotal,
+        totalPaid: totalPaid,
+        change: Math.max(0, totalPaid - cartTotal),
+      },
+      totalAmount: cartTotal,
+      timestamp: new Date(),
+      cashier: 'Admin',
+      paymentType: paymentMethod.type || 'cash',
+      status: 'completed',
     }
+
+    console.log('[SALE] Processing sale data:', saleData)
+
+    // Process sale through API
+    const response = await makeAuthenticatedRequest('/api/sales', {
+      method: 'POST',
+      body: JSON.stringify(saleData),
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      console.log('[SALE] Sale processed successfully:', result)
+      
+      Swal.close()
+
+      // Complete sale
+      const completedSale = {
+        ...saleData,
+        saleId: result.saleId || `SALE-${Date.now()}`,
+      }
+
+      setCompletedSaleData(completedSale)
+      setSaleCompleted(true)
+
+      // Clear form
+      setCart([])
+      setSelectedPaymentMethods([])
+      setCustomerName('')
+      setCustomerPhone('')
+
+      // 🔥 CRITICAL FIX: Force immediate refresh with cache busting to get updated stock
+      console.log('🔄 Sale completed, forcing immediate stock refresh...')
+      await fetchProducts(true) // Force cache bust to get latest stock data
+      console.log('✅ Stock data refreshed after sale')
+
+    } else {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error || `API Error: ${response.status}`)
+    }
+
+  } catch (error) {
+    console.error('[SALE] Error processing sale:', error)
+    Swal.fire({
+      icon: 'error',
+      title: 'Payment Failed',
+      text: error.message || 'There was an error processing the payment. Please try again.',
+    })
   }
+}
+
 
   const handlePrintInvoice = async () => {
     if (completedSaleData) {
@@ -1320,6 +1458,7 @@ export default function SellPageAdmin() {
                 setSelectedCategory('')
                 setSelectedSubcategory('')
                 setInStockOnly(false)
+                setCurrentPage(1)
               }}
               className="px-4 py-2 text-purple-600 hover:text-purple-700"
             >
@@ -1350,9 +1489,7 @@ export default function SellPageAdmin() {
             {totalPages > 1 && (
               <div className="flex justify-center items-center mt-8 gap-2">
                 <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(prev - 1, 1))
-                  }
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
                   className="px-4 py-2 bg-white border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50 transition-colors"
                 >
@@ -1364,9 +1501,7 @@ export default function SellPageAdmin() {
                 </span>
 
                 <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                  }
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages}
                   className="px-4 py-2 bg-white border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50 transition-colors"
                 >
@@ -1391,7 +1526,7 @@ export default function SellPageAdmin() {
         )}
       </div>
 
-      {/* Barcode Scanner Modal (same as before) */}
+      {/* Barcode Scanner Modal */}
       <AnimatePresence>
         {showBarcodeScanner && (
           <motion.div
@@ -1441,7 +1576,7 @@ export default function SellPageAdmin() {
         )}
       </AnimatePresence>
 
-      {/* Enhanced Cart Modal - Wider */}
+      {/* Enhanced Cart Modal */}
       <AnimatePresence>
         {showCartModal && (
           <motion.div
@@ -1507,7 +1642,7 @@ export default function SellPageAdmin() {
                                 Customer
                               </p>
                               <p className="text-lg font-bold text-gray-900">
-                                {completedSaleData.customer.name}
+                                {completedSaleData.customer?.name || 'Walk-in Customer'}
                               </p>
                             </div>
                             <div>
@@ -1515,7 +1650,7 @@ export default function SellPageAdmin() {
                                 Total Amount
                               </p>
                               <p className="text-lg font-bold text-green-600">
-                                ${completedSaleData.totalAmount.toFixed(2)}
+                                ${(completedSaleData.totalAmount || 0).toFixed(2)}
                               </p>
                             </div>
                             <div>
@@ -1523,7 +1658,7 @@ export default function SellPageAdmin() {
                                 Items
                               </p>
                               <p className="text-lg font-bold text-gray-900">
-                                {completedSaleData.items.length} items
+                                {(completedSaleData.items || []).length} items
                               </p>
                             </div>
                           </div>
@@ -1566,9 +1701,9 @@ export default function SellPageAdmin() {
                     </p>
                   </div>
                 ) : (
-                  /* Cart Content - Wider Layout */
+                  /* Cart Content */
                   <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 p-8">
-                    {/* Cart Items - Takes more space */}
+                    {/* Cart Items */}
                     <div className="lg:col-span-3">
                       <h4 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-between">
                         <span>Items in Cart ({cartItemsCount})</span>
@@ -1603,7 +1738,7 @@ export default function SellPageAdmin() {
                       </DndContext>
                     </div>
 
-                    {/* Order Summary & Payment - More space */}
+                    {/* Order Summary & Payment */}
                     <div className="lg:col-span-2 space-y-8">
                       {/* Customer Info */}
                       <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-6 border border-purple-200">

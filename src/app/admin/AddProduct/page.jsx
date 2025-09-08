@@ -71,6 +71,7 @@ const VAPE_CATEGORIES = {
   ],
 }
 
+
 // Category Management Modal Component with Delete Functionality
 const CategoryManagementModal = ({
   isOpen,
@@ -537,6 +538,8 @@ export default function AddProduct() {
   const [isLoading, setIsLoading] = useState(false)
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
   const [showBranchModal, setShowBranchModal] = useState(false)
+  // 🔥 FIX: Add force update hook to trigger re-renders
+const [, forceUpdate] = useState(0)
 
   // State for category management modal
   const [showCategoryModal, setShowCategoryModal] = useState(false)
@@ -584,29 +587,48 @@ export default function AddProduct() {
 
   // Load branches on component mount with authentication
   useEffect(() => {
-    const loadBranches = async () => {
-      try {
-        const token = localStorage.getItem('auth-token')
-        const response = await fetch('/api/products?getBranchesOnly=true', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
-        if (response.ok) {
-          const data = await response.json()
-          // 🔧 UPDATED: Use updated default branches
-          setBranches(data.branches || ['bashundhara', 'mirpur'])
+  const loadBranches = async () => {
+    try {
+      const token = localStorage.getItem('auth-token')
+      // 🔥 CRITICAL FIX: Use /api/branches instead of /api/products
+      const response = await fetch('/api/branches', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache'
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        console.log('🔄 Branches loaded from API:', data)
+        
+        // 🔥 FIX: Backend returns { branches: [...] }
+        if (data.branches && Array.isArray(data.branches)) {
+          setBranches([...data.branches]) // Create new array reference
+          
+          // Initialize stock for all branches
+          const initialStock = {}
+          data.branches.forEach((branch) => {
+            initialStock[`${branch}_stock`] = 0
+          })
+          setStock(initialStock)
+          
+          console.log('✅ Branches set successfully:', data.branches)
         } else {
+          console.warn('⚠️ Invalid branches data, using defaults')
           setBranches(['bashundhara', 'mirpur'])
         }
-      } catch (error) {
-        console.error('Error loading branches:', error)
+      } else {
+        console.error('❌ Failed to fetch branches, status:', response.status)
         setBranches(['bashundhara', 'mirpur'])
       }
+    } catch (error) {
+      console.error('❌ Error loading branches:', error)
+      setBranches(['bashundhara', 'mirpur'])
     }
+  }
 
-    loadBranches()
-  }, [])
+  loadBranches()
+}, [])
 
   // Initialize stock for branches
   useEffect(() => {
@@ -627,15 +649,33 @@ export default function AddProduct() {
   }, [category, dynamicCategories])
 
   // Handle branch updates from modal
-  const handleBranchUpdate = (updatedBranches) => {
-    setBranches(updatedBranches)
-
+  // 🔥 CRITICAL FIX: Enhanced branch update handler with force re-render
+const handleBranchUpdate = async (updatedBranches) => {
+  try {
+    console.log('🔄 Branch update started:', updatedBranches)
+    
+    // First update local state immediately
+    setBranches([...updatedBranches])
+    
     const newStock = {}
     updatedBranches.forEach((branch) => {
       newStock[`${branch}_stock`] = stock[`${branch}_stock`] || 0
     })
     setStock(newStock)
+    
+    // Force immediate re-render
+    forceUpdate(n => n + 1)
+    
+    
+    
+    console.log('✅ Branch update completed')
+  } catch (error) {
+    console.error('❌ Error in branch update:', error)
+    // Force re-render even if refresh fails
+    forceUpdate(n => n + 1)
   }
+}
+
 
   // Handle category updates from category management modal
   const handleCategoryUpdate = (updatedCategories) => {
