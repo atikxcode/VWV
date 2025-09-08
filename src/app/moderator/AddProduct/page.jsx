@@ -19,7 +19,7 @@ import {
   RotateCcw,
   Zap,
   X,
-  Lock,
+  Shield,
 } from 'lucide-react'
 
 import BarcodeReader from 'react-barcode-reader'
@@ -54,7 +54,7 @@ const VAPE_CATEGORIES = {
     'Boro Accessories And Tools',
   ],
   ACCESSORIES: [
-    'SibOhm Coil',
+    'SubOhm Coil',
     'Charger',
     'Cotton',
     'Premade Coil',
@@ -85,6 +85,7 @@ export default function ModeratorAddProduct() {
   const [userLoading, setUserLoading] = useState(true)
 
   const [subCategoryOptions, setSubCategoryOptions] = useState([])
+  // 🔧 UPDATED: Only store moderator's branch
   const [branches, setBranches] = useState([])
   const [stock, setStock] = useState({})
   const [images, setImages] = useState([])
@@ -96,6 +97,31 @@ export default function ModeratorAddProduct() {
 
   const category = watch('category')
 
+  // 🔧 SECURITY: Get auth headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('auth-token')
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }
+
+  // 🔧 SECURITY: Check authentication
+  const checkAuth = () => {
+    const token = localStorage.getItem('auth-token')
+    if (!token) {
+      MySwal.fire({
+        icon: 'error',
+        title: 'Authentication Required',
+        text: 'Please login to continue.',
+      }).then(() => {
+        window.location.href = '/admin/login'
+      })
+      return false
+    }
+    return true
+  }
+
   useEffect(() => {
     const fetchUserDetails = async () => {
       if (!user?.email) {
@@ -103,11 +129,25 @@ export default function ModeratorAddProduct() {
         return
       }
 
+      if (!checkAuth()) return
+
       try {
         setUserLoading(true)
         const response = await fetch(
-          `/api/user?email=${encodeURIComponent(user.email)}`
+          `/api/user?email=${encodeURIComponent(user.email)}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+            }
+          }
         )
+
+        if (response.status === 401) {
+          localStorage.removeItem('auth-token')
+          window.location.href = '/admin/login'
+          return
+        }
+
         if (response.ok) {
           const data = await response.json()
           if (data.user) {
@@ -144,8 +184,22 @@ export default function ModeratorAddProduct() {
 
   useEffect(() => {
     const loadCategories = async () => {
+      if (!checkAuth()) return
+
       try {
-        const response = await fetch('/api/products?getCategoriesOnly=true')
+        const response = await fetch('/api/products?getCategoriesOnly=true', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`,
+            'Cache-Control': 'no-cache'
+          }
+        })
+
+        if (response.status === 401) {
+          localStorage.removeItem('auth-token')
+          window.location.href = '/admin/login'
+          return
+        }
+
         if (response.ok) {
           const data = await response.json()
           setDynamicCategories(data.categories || VAPE_CATEGORIES)
@@ -163,25 +217,20 @@ export default function ModeratorAddProduct() {
     loadCategories()
   }, [])
 
+  // 🔧 CRITICAL UPDATE: Only load moderator's branch
   useEffect(() => {
-    const loadBranches = async () => {
-      try {
-        const response = await fetch('/api/branches')
-        if (response.ok) {
-          const data = await response.json()
-          setBranches(data.branches || ['ghatpar', 'mirpur', 'gazipur'])
-        } else {
-          setBranches(['ghatpar', 'mirpur', 'gazipur'])
-        }
-      } catch (error) {
-        console.error('Error loading branches:', error)
-        setBranches(['ghatpar', 'mirpur', 'gazipur'])
-      }
+    // Only set branches if moderator branch is available
+    if (moderatorBranch) {
+      setBranches([moderatorBranch])
+      console.log(`Moderator ${user?.email} assigned to branch: ${moderatorBranch}`)
+    } else if (moderatorRole === 'moderator') {
+      // If moderator role is confirmed but no branch, show empty
+      setBranches([])
+      console.log('Moderator role confirmed but no branch assigned')
     }
+  }, [moderatorRole, moderatorBranch, user])
 
-    loadBranches()
-  }, [])
-
+  // 🔧 UPDATED: Initialize stock only for moderator's branch
   useEffect(() => {
     if (branches.length > 0) {
       const initialStock = {}
@@ -189,6 +238,7 @@ export default function ModeratorAddProduct() {
         initialStock[`${branch}_stock`] = 0
       })
       setStock(initialStock)
+      console.log('Initialized stock for moderator branch only:', branches)
     }
   }, [branches])
 
@@ -205,32 +255,59 @@ export default function ModeratorAddProduct() {
       if (data) {
         console.log('Scanned barcode:', data)
 
-        const response = await fetch(`/api/products?barcode=${data}`)
+        if (!checkAuth()) return
+
+        const response = await fetch(`/api/products?barcode=${data}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+          }
+        })
+
+        if (response.status === 401) {
+          localStorage.removeItem('auth-token')
+          window.location.href = '/admin/login'
+          return
+        }
+
         if (response.ok) {
           const productData = await response.json()
 
-          setValue('name', productData.name || '')
-          setValue('brand', productData.brand || '')
-          setValue('barcode', data)
-          setValue('price', productData.price || '')
-          setValue('category', productData.category || '')
-          setValue('subcategory', productData.subcategory || '')
-          setValue('description', productData.description || '')
-          setValue('nicotineStrength', productData.nicotineStrength || '')
-          setValue('vgPgRatio', productData.vgPgRatio || '')
-          setValue('flavor', productData.flavor || '')
-          setValue('resistance', productData.resistance || '')
-          setValue('wattageRange', productData.wattageRange || '')
+          if (productData.products && productData.products.length > 0) {
+            const product = productData.products[0]
+            setValue('name', product.name || '')
+            setValue('brand', product.brand || '')
+            setValue('barcode', data)
+            setValue('price', product.price || '')
+            setValue('category', product.category || '')
+            setValue('subcategory', product.subcategory || '')
+            setValue('description', product.description || '')
+            setValue('nicotineStrength', product.nicotineStrength || '')
+            setValue('vgPgRatio', product.vgPgRatio || '')
+            setValue('flavor', product.flavor || '')
+            setValue('resistance', product.resistance || '')
+            setValue('wattageRange', product.wattageRange || '')
 
-          MySwal.fire({
-            icon: 'success',
-            title: 'Product Found!',
-            text: 'Product data has been loaded from barcode',
-            timer: 2000,
-            showConfirmButton: false,
-            toast: true,
-            position: 'top-end',
-          })
+            MySwal.fire({
+              icon: 'success',
+              title: 'Product Found!',
+              text: 'Product data has been loaded from barcode',
+              timer: 2000,
+              showConfirmButton: false,
+              toast: true,
+              position: 'top-end',
+            })
+          } else {
+            setValue('barcode', data)
+            MySwal.fire({
+              icon: 'info',
+              title: 'Product Not Found',
+              text: 'Barcode filled - please enter other details manually.',
+              timer: 3000,
+              showConfirmButton: false,
+              toast: true,
+              position: 'top-end',
+            })
+          }
         } else {
           setValue('barcode', data)
           MySwal.fire({
@@ -283,39 +360,16 @@ export default function ModeratorAddProduct() {
     }
   }
 
+  // 🔧 SIMPLIFIED: Since we only show moderator's branch, no need for complex validation
   const updateStock = (branchKey, value) => {
-    if (!moderatorBranch) {
-      console.log('Moderator branch not loaded yet')
-      return
-    }
-
-    const expectedBranchKey = `${moderatorBranch}_stock`
-
-    if (branchKey === expectedBranchKey) {
-      console.log(
-        `Updating ${branchKey} for moderator branch ${moderatorBranch}`
-      )
-      setStock((prev) => ({ ...prev, [branchKey]: parseInt(value) || 0 }))
-    } else {
-      console.log(
-        `Blocked update attempt: ${branchKey} by moderator assigned to ${moderatorBranch}`
-      )
-      MySwal.fire({
-        icon: 'warning',
-        title: 'Access Restricted',
-        text: `You can only manage stock for ${moderatorBranch} branch. You cannot update ${branchKey.replace(
-          '_stock',
-          ''
-        )} branch stock.`,
-        timer: 3000,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end',
-      })
-    }
+    const stockValue = Math.max(0, parseInt(value) || 0)
+    setStock((prev) => ({ ...prev, [branchKey]: stockValue }))
+    console.log(`Updated ${branchKey} for moderator branch: ${stockValue}`)
   }
 
   const onSubmit = async (data) => {
+    if (!checkAuth()) return
+
     setIsLoading(true)
     try {
       console.log('Submitting form data:', data)
@@ -334,9 +388,15 @@ export default function ModeratorAddProduct() {
 
       const response = await fetch('/api/products', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(productData),
       })
+
+      if (response.status === 401) {
+        localStorage.removeItem('auth-token')
+        window.location.href = '/admin/login'
+        return
+      }
 
       const contentType = response.headers.get('content-type')
       if (!contentType || !contentType.includes('application/json')) {
@@ -366,10 +426,19 @@ export default function ModeratorAddProduct() {
 
         const imageResponse = await fetch('/api/products', {
           method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+          },
           body: formData,
         })
 
         console.log('Image upload status:', imageResponse.status)
+
+        if (imageResponse.status === 401) {
+          localStorage.removeItem('auth-token')
+          window.location.href = '/admin/login'
+          return
+        }
 
         const imageContentType = imageResponse.headers.get('content-type')
         if (
@@ -461,13 +530,19 @@ export default function ModeratorAddProduct() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <Package size={64} className="mx-auto text-red-500 mb-4" />
+          <Shield size={64} className="mx-auto text-red-500 mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Access Denied
           </h1>
           <p className="text-gray-600">
             You need moderator privileges to access this page.
           </p>
+          <button 
+            onClick={() => window.location.href = '/admin/login'}
+            className="mt-4 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700"
+          >
+            Login as Moderator
+          </button>
         </div>
       </div>
     )
@@ -503,7 +578,7 @@ export default function ModeratorAddProduct() {
           </h1>
           <p className="text-gray-600">
             Managing inventory for{' '}
-            <strong className="capitalize">{moderatorBranch}</strong> branch
+            <strong className="capitalize">{moderatorBranch}</strong> branch only
           </p>
         </motion.div>
 
@@ -524,7 +599,7 @@ export default function ModeratorAddProduct() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setShowBarcodeScanner(true)}
-                className="bg-white bg-opacity-20 text-purple-500 px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-opacity-30 transition-all"
+                className="bg-white bg-opacity-20 text-white px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-opacity-30 transition-all"
               >
                 <Scan size={20} />
                 Scan Barcode
@@ -605,7 +680,7 @@ export default function ModeratorAddProduct() {
                   </div>
                 </motion.div>
 
-                {/* 🔒 RESTRICTED: Categories (No Add Buttons) */}
+                {/* Categories */}
                 <motion.div variants={itemVariants} className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
@@ -617,7 +692,7 @@ export default function ModeratorAddProduct() {
                     </span>
                   </div>
 
-                  {/* Category - No Add Custom Button */}
+                  {/* Category */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Category *
@@ -649,7 +724,7 @@ export default function ModeratorAddProduct() {
                     </AnimatePresence>
                   </div>
 
-                  {/* Subcategory - No Add Custom Button */}
+                  {/* Subcategory */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Subcategory *
@@ -841,63 +916,58 @@ export default function ModeratorAddProduct() {
                   </div>
                 </motion.div>
 
-                {/* Stock Management */}
+                {/* 🔧 UPDATED: Stock Management - Only Moderator's Branch */}
                 <motion.div variants={itemVariants} className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                       <Store size={20} className="text-purple-600" />
                       Stock Management
                     </h3>
-                    <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full font-medium">
-                      Limited Access
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
+                      Your Branch Only
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {branches.map((branch) => (
-                      <div key={branch}>
+                  {/* Only show moderator's assigned branch */}
+                  <div className="space-y-4">
+                    {branches.length > 0 ? branches.map((branch) => (
+                      <div key={branch} className=" rounded-lg p-4">
                         <label className="block text-sm font-medium text-gray-700 mb-2 capitalize flex items-center gap-2">
-                          {branch} Stock
-                          {branch !== moderatorBranch && (
-                            <Lock size={14} className="text-gray-400" />
-                          )}
+                          <Store size={16} className="text-purple-600" />
+                          {branch} Branch Stock
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                            Your Branch
+                          </span>
                         </label>
                         <input
                           type="number"
                           min="0"
+                          max="99999"
                           value={stock[`${branch}_stock`] || 0}
-                          onChange={(e) =>
-                            updateStock(`${branch}_stock`, e.target.value)
-                          }
-                          disabled={branch !== moderatorBranch}
-                          className={`w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                            branch !== moderatorBranch
-                              ? 'bg-gray-100 cursor-not-allowed opacity-60'
-                              : 'bg-white'
-                          }`}
-                          placeholder={
-                            branch !== moderatorBranch ? 'Restricted' : '0'
-                          }
+                          onChange={(e) => updateStock(`${branch}_stock`, e.target.value)}
+                          className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                          placeholder="Enter stock quantity"
                         />
                       </div>
-                    ))}
+                    )) : (
+                      <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
+                        <Store size={48} className="mx-auto mb-2" />
+                        <p>No branch assigned to you.</p>
+                        <p className="text-sm mt-1">Please contact an administrator.</p>
+                      </div>
+                    )}
                   </div>
 
-                  {branches.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <Store size={48} className="mx-auto mb-2" />
-                      <p>No branches configured.</p>
-                    </div>
-                  )}
-
-                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-sm text-orange-800">
+                  {/* Info box about branch access */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
                     <div className="flex items-center gap-2 mb-1">
                       <AlertCircle size={16} />
-                      <span className="font-medium">Access Limitation</span>
+                      <span className="font-medium">Branch Access</span>
                     </div>
                     <p>
-                      You can only manage stock for your assigned branch:{' '}
-                      <strong className="capitalize">{moderatorBranch}</strong>
+                      You can only see and manage stock for your assigned branch:{' '}
+                      <strong className="capitalize">{moderatorBranch}</strong>. 
+                      Other branches are managed by their respective moderators or administrators.
                     </p>
                   </div>
                 </motion.div>

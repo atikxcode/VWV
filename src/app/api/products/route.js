@@ -17,7 +17,7 @@ const RATE_LIMITS = {
   PUBLIC: { requests: 200, windowMs: 60000 },
   ADMIN: { requests: 500, windowMs: 60000 },
   MODERATOR: { requests: 300, windowMs: 60000 },
-  MANAGER: { requests: 400, windowMs: 60000 },
+  
 }
 
 // IP-based upload tracking to prevent abuse
@@ -649,8 +649,8 @@ export async function POST(req) {
     }
 
     // Apply role-based access control
-    if (!['admin', 'manager'].includes(userInfo.role)) {
-      return createAuthError('Only admins and managers can manage products', 403)
+    if (!['admin', 'moderator'].includes(userInfo.role)) {
+      return createAuthError('Only admins and moderator can manage products', 403)
     }
 
     console.log('POST: Reading request body...')
@@ -949,7 +949,7 @@ export async function POST(req) {
       )
     }
 
-    // Handle product update - Admin/Manager only
+    // Handle product update - Admin/moderator only
     if (action === 'update') {
       console.log('POST: Updating product:', body.id)
       const productId = sanitizeInput(body.id)
@@ -1166,7 +1166,7 @@ export async function POST(req) {
       )
     }
 
-    // Handle product creation (default behavior) - Admin/Manager only
+    // Handle product creation (default behavior) - Admin/Moderator only
     console.log('POST: Creating new product:', body.name)
     const {
       name,
@@ -1345,8 +1345,8 @@ export async function PUT(req) {
       return createAuthError('Authentication required for image upload', 401)
     }
 
-    if (!['admin', 'manager'].includes(userInfo.role)) {
-      return createAuthError('Only admins and managers can upload product images', 403)
+    if (!['admin', 'moderator'].includes(userInfo.role)) {
+      return createAuthError('Only admins and moderator can upload product images', 403)
     }
 
     console.log('PUT: Processing image upload...')
