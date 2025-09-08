@@ -41,6 +41,7 @@ const ImageGallery = ({
 }) => {
   const fileInputRef = useRef(null)
 
+  // 🔧 FIXED: Proper drag end handler
   const handleDragEnd = (result) => {
     if (!result.destination) return
 
@@ -48,6 +49,7 @@ const ImageGallery = ({
     const [reorderedItem] = items.splice(result.source.index, 1)
     items.splice(result.destination.index, 0, reorderedItem)
 
+    // 🔧 CRITICAL: Call the parent's onImageReorder immediately
     onImageReorder(items)
   }
 
@@ -192,7 +194,6 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate, isAdmin }) => 
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // 🔧 FIX: Get auth headers for API calls
   const getAuthHeaders = () => {
     const token = localStorage.getItem('auth-token')
     return {
@@ -221,7 +222,7 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate, isAdmin }) => 
     try {
       const response = await fetch('/api/branches', {
         method: 'POST',
-        headers: getAuthHeaders(), // 🔧 FIX: Add auth headers
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           action: 'add',
           branchName: cleanBranchName,
@@ -270,7 +271,7 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate, isAdmin }) => 
       try {
         const response = await fetch('/api/branches', {
           method: 'DELETE',
-          headers: getAuthHeaders(), // 🔧 FIX: Add auth headers
+          headers: getAuthHeaders(),
           body: JSON.stringify({ branchName }),
         })
 
@@ -422,7 +423,7 @@ export default function EditProduct({ productId, onBack }) {
     reset,
   } = useForm()
 
-  // 🔒 User role and branch states
+  // User role and branch states
   const [userLoading, setUserLoading] = useState(true)
   const [userRole, setUserRole] = useState(null)
   const [userBranch, setUserBranch] = useState(null)
@@ -449,7 +450,7 @@ export default function EditProduct({ productId, onBack }) {
 
   const category = watch('category')
 
-  // 🔧 FIX: Get auth headers for API calls
+  // Get auth headers for API calls
   const getAuthHeaders = () => {
     const token = localStorage.getItem('auth-token')
     return {
@@ -458,7 +459,7 @@ export default function EditProduct({ productId, onBack }) {
     }
   }
 
-  // 🔧 FIX: Check if user is authenticated
+  // Check if user is authenticated
   const checkAuth = () => {
     const token = localStorage.getItem('auth-token')
     if (!token) {
@@ -468,7 +469,7 @@ export default function EditProduct({ productId, onBack }) {
     return true
   }
 
-  // 🔥 Fetch user details from database to get role and branch
+  // Fetch user details from database to get role and branch
   useEffect(() => {
     const fetchUserDetails = async () => {
       if (!user?.email) {
@@ -483,7 +484,7 @@ export default function EditProduct({ productId, onBack }) {
         const response = await fetch(
           `/api/user?email=${encodeURIComponent(user.email)}`,
           {
-            headers: getAuthHeaders() // 🔧 FIX: Add auth headers
+            headers: getAuthHeaders()
           }
         )
         if (response.ok) {
@@ -535,7 +536,7 @@ export default function EditProduct({ productId, onBack }) {
         const categoriesResponse = await fetch(
           '/api/products?getCategoriesOnly=true',
           {
-            headers: getAuthHeaders() // 🔧 FIX: Add auth headers
+            headers: getAuthHeaders()
           }
         )
         if (categoriesResponse.ok) {
@@ -548,7 +549,7 @@ export default function EditProduct({ productId, onBack }) {
 
         // Load branches
         const branchesResponse = await fetch('/api/branches', {
-          headers: getAuthHeaders() // 🔧 FIX: Add auth headers
+          headers: getAuthHeaders()
         })
         if (branchesResponse.ok) {
           const branchesData = await branchesResponse.json()
@@ -563,7 +564,7 @@ export default function EditProduct({ productId, onBack }) {
         // Load product data
         if (productId) {
           const productResponse = await fetch(`/api/products?id=${productId}`, {
-            headers: getAuthHeaders() // 🔧 FIX: Add auth headers
+            headers: getAuthHeaders()
           })
           if (!productResponse.ok) {
             if (productResponse.status === 401) {
@@ -643,11 +644,10 @@ export default function EditProduct({ productId, onBack }) {
     }
   }, [category, categories])
 
-  // 🔥 FIXED: Save product function with useCallback to prevent infinite re-renders
+  // 🔧 FIXED: Save product function with useCallback to prevent infinite re-renders
   const handleSave = useCallback(async (data, isSilent = false) => {
     console.log('🔄 handleSave called', { isSaving, isSilent })
     
-    // Prevent multiple simultaneous saves
     if (isSaving) {
       console.log('⚠️ Save already in progress, skipping')
       return
@@ -679,7 +679,7 @@ export default function EditProduct({ productId, onBack }) {
 
       const response = await fetch('/api/products', {
         method: 'POST',
-        headers: getAuthHeaders(), // 🔧 FIX: Add auth headers
+        headers: getAuthHeaders(),
         body: JSON.stringify(productData),
       })
 
@@ -694,9 +694,11 @@ export default function EditProduct({ productId, onBack }) {
 
       const result = await response.json()
 
-      // Upload new images
+      // 🔧 CRITICAL FIX: Upload new images and immediately update state
       const newImages = images.filter((img) => img.isNew && img.file)
       if (newImages.length > 0) {
+        console.log('📤 Uploading', newImages.length, 'new images...')
+        
         const formData = new FormData()
         formData.append('productId', productId)
         newImages.forEach((image) => {
@@ -706,16 +708,18 @@ export default function EditProduct({ productId, onBack }) {
         const imageResponse = await fetch('/api/products', {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth-token')}` // 🔧 FIX: Add auth header for FormData
+            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
           },
           body: formData,
         })
 
         if (imageResponse.ok) {
           const imageResult = await imageResponse.json()
-          // Update images with actual URLs and publicIds
-          setImages((prev) =>
-            prev.map((img) => {
+          console.log('✅ Images uploaded successfully:', imageResult.uploadedImages)
+          
+          // 🔧 CRITICAL FIX: Immediately update images state with uploaded info
+          setImages((prevImages) => {
+            const updatedImages = prevImages.map((img, index) => {
               if (img.isNew) {
                 const uploadedImg = imageResult.uploadedImages.find(
                   (uploaded) => uploaded.alt.includes(img.alt.split(' ').pop())
@@ -731,7 +735,10 @@ export default function EditProduct({ productId, onBack }) {
               }
               return img
             })
-          )
+            
+            console.log('📷 Updated images after upload:', updatedImages.length)
+            return updatedImages
+          })
         }
       }
 
@@ -771,7 +778,7 @@ export default function EditProduct({ productId, onBack }) {
     }
   }, [productId, stock, images, isSaving])
 
-  // 🔥 FIXED: Auto-save functionality with stable dependencies
+  // Auto-save functionality with stable dependencies
   const watchedValues = watch()
   
   useEffect(() => {
@@ -816,9 +823,14 @@ export default function EditProduct({ productId, onBack }) {
     setStock(newStock)
   }
 
-  // Image handlers
+  // 🔧 FIXED: Image handlers with immediate state updates
   const handleImageAdd = (newImage) => {
-    setImages((prev) => [...prev, newImage])
+    console.log('➕ Adding new image:', newImage.alt)
+    setImages((prevImages) => {
+      const updatedImages = [...prevImages, newImage]
+      console.log('📷 Updated images array:', updatedImages.length)
+      return updatedImages
+    })
   }
 
   const handleImageDelete = async (imageId, publicId) => {
@@ -840,7 +852,7 @@ export default function EditProduct({ productId, onBack }) {
             `/api/products?productId=${productId}&imagePublicId=${publicId}`,
             {
               method: 'DELETE',
-              headers: getAuthHeaders() // 🔧 FIX: Add auth headers
+              headers: getAuthHeaders()
             }
           )
 
@@ -882,11 +894,26 @@ export default function EditProduct({ productId, onBack }) {
     }
   }
 
+  // 🔧 FIXED: Image reorder handler with immediate state update and force refresh
   const handleImageReorder = (reorderedImages) => {
+    console.log('🔄 Reordering images:', reorderedImages.length)
+    
+    // Immediately update state
     setImages(reorderedImages)
+    
+    // Force a re-render by updating each image with isMain flag
+    const updatedImages = reorderedImages.map((img, index) => ({
+      ...img,
+      isMain: index === 0 // Explicitly mark the first image as main
+    }))
+    
+    // Update again to ensure the "Main" badge updates immediately
+    setTimeout(() => {
+      setImages(updatedImages)
+    }, 0)
   }
 
-  // 🔒 Stock management with restrictions for moderators
+  // Stock management with restrictions for moderators
   const updateStock = (branchKey, value) => {
     if (userRole === 'moderator') {
       if (!userBranch) {
@@ -901,7 +928,7 @@ export default function EditProduct({ productId, onBack }) {
         console.log(`Updating ${branchKey} for moderator branch ${userBranch}`)
         setStock((prev) => ({ ...prev, [branchKey]: parseInt(value) || 0 }))
       } else {
-        // ❌ RESTRICTED: Show restriction message (this shouldn't happen with filtered UI)
+        // ❌ RESTRICTED: Show restriction message
         console.log(`Blocked update attempt: ${branchKey} by moderator assigned to ${userBranch}`)
         Swal.fire({
           icon: 'warning',
@@ -919,7 +946,7 @@ export default function EditProduct({ productId, onBack }) {
     }
   }
 
-  // 🔒 Category handlers (admin only)
+  // Category handlers (admin only)
   const handleAddCustomCategory = async () => {
     if (userRole === 'moderator') {
       Swal.fire({
@@ -938,7 +965,7 @@ export default function EditProduct({ productId, onBack }) {
       try {
         const response = await fetch('/api/products', {
           method: 'POST',
-          headers: getAuthHeaders(), // 🔧 FIX: Add auth headers
+          headers: getAuthHeaders(),
           body: JSON.stringify({
             action: 'add_category',
             categoryName: customCategoryInput.toUpperCase(),
@@ -1004,7 +1031,7 @@ export default function EditProduct({ productId, onBack }) {
       try {
         const response = await fetch('/api/products', {
           method: 'POST',
-          headers: getAuthHeaders(), // 🔧 FIX: Add auth headers
+          headers: getAuthHeaders(),
           body: JSON.stringify({
             action: 'add_subcategory',
             categoryName: category,
@@ -1060,7 +1087,7 @@ export default function EditProduct({ productId, onBack }) {
         console.log('Scanned barcode:', data)
 
         const response = await fetch(`/api/products?barcode=${data}`, {
-          headers: getAuthHeaders() // 🔧 FIX: Add auth headers
+          headers: getAuthHeaders()
         })
         if (response.ok) {
           const productData = await response.json()
@@ -1137,7 +1164,7 @@ export default function EditProduct({ productId, onBack }) {
       try {
         const response = await fetch(`/api/products?productId=${productId}`, {
           method: 'DELETE',
-          headers: getAuthHeaders() // 🔧 FIX: Add auth headers
+          headers: getAuthHeaders()
         })
 
         if (!response.ok) {
@@ -1221,7 +1248,7 @@ export default function EditProduct({ productId, onBack }) {
     })
   }
 
-  // 🔥 FIXED: Filter branches for stock display based on user role
+  // Filter branches for stock display based on user role
   const getVisibleBranches = () => {
     if (userRole === 'moderator' && userBranch) {
       // Moderator can only see their assigned branch
@@ -1368,7 +1395,7 @@ export default function EditProduct({ productId, onBack }) {
                 <button
                   type="button"
                   onClick={() => setShowBarcodeScanner(true)}
-                  className="bg-white bg-opacity-20 text-purple-500 px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-opacity-30"
+                  className="bg-white bg-opacity-20 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-opacity-30"
                 >
                   <Scan size={16} />
                   Scan Barcode
@@ -1377,7 +1404,7 @@ export default function EditProduct({ productId, onBack }) {
                   type="button"
                   onClick={handleUndo}
                   disabled={!isDirty}
-                  className="bg-white bg-opacity-20 text-purple-500 px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-opacity-30 disabled:opacity-50"
+                  className="bg-white bg-opacity-20 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-opacity-30 disabled:opacity-50"
                 >
                   <RotateCcw size={16} />
                   Undo
@@ -1451,7 +1478,7 @@ export default function EditProduct({ productId, onBack }) {
                   </div>
                 </div>
 
-                {/* 🔥 FIXED: Categories (Moderators can EDIT but not ADD) */}
+                {/* Categories */}
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
@@ -1465,13 +1492,12 @@ export default function EditProduct({ productId, onBack }) {
                     )}
                   </div>
 
-                  {/* Category - Only show Add Custom for Admin */}
+                  {/* Category */}
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <label className="block text-sm font-medium text-gray-700">
                         Category *
                       </label>
-                      {/* 🔥 FIXED: Only show Add Custom button for Admin */}
                       {userRole === 'admin' && (
                         <button
                           type="button"
@@ -1520,7 +1546,6 @@ export default function EditProduct({ productId, onBack }) {
                           required: 'Category is required',
                         })}
                         className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                        // 🔥 FIXED: Remove disabled prop - both admin and moderator can edit
                       >
                         <option value="">Select Category</option>
                         {Object.keys(categories).map((cat) => (
@@ -1538,13 +1563,12 @@ export default function EditProduct({ productId, onBack }) {
                     )}
                   </div>
 
-                  {/* Subcategory - Only show Add Custom for Admin */}
+                  {/* Subcategory */}
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <label className="block text-sm font-medium text-gray-700">
                         Subcategory *
                       </label>
-                      {/* 🔥 FIXED: Only show Add Custom button for Admin */}
                       {userRole === 'admin' && category && (
                         <button
                           type="button"
@@ -1595,7 +1619,6 @@ export default function EditProduct({ productId, onBack }) {
                           required: 'Subcategory is required',
                         })}
                         className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                        // 🔥 FIXED: Remove disabled prop - both admin and moderator can edit
                       >
                         <option value="">Select Subcategory</option>
                         {subCategoryOptions.map((option) => (
@@ -1613,7 +1636,6 @@ export default function EditProduct({ productId, onBack }) {
                     )}
                   </div>
 
-                  {/* 🔥 FIXED: Updated info box for moderator category access */}
                   {userRole === 'moderator' && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
                       <div className="flex items-center gap-2">
@@ -1768,7 +1790,7 @@ export default function EditProduct({ productId, onBack }) {
                   </div>
                 </div>
 
-                {/* 🔥 FIXED: Stock Management with Filtered Branches for Moderators */}
+                {/* Stock Management */}
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
@@ -1790,7 +1812,6 @@ export default function EditProduct({ productId, onBack }) {
                     )}
                   </div>
 
-                  {/* 🔥 FIXED: Only show moderator's assigned branch or all branches for admin */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {visibleBranches.map((branch) => (
                       <div key={branch}>
@@ -1826,7 +1847,6 @@ export default function EditProduct({ productId, onBack }) {
                     </div>
                   )}
 
-                  {/* 🔒 Info box about stock access for moderator */}
                   {userRole === 'moderator' && userBranch && (
                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-sm text-orange-800">
                       <div className="flex items-center gap-2 mb-1">
@@ -1883,7 +1903,6 @@ export default function EditProduct({ productId, onBack }) {
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 mt-8 pt-6 border-t border-gray-200">
-              {/* 🔒 Delete Button (Admin Only) */}
               {userRole !== 'moderator' && (
                 <button
                   type="button"
@@ -1928,7 +1947,7 @@ export default function EditProduct({ productId, onBack }) {
           </form>
         </div>
 
-        {/* 🔒 Branch Management Modal (Admin Only) */}
+        {/* Branch Management Modal (Admin Only) */}
         <BranchModal
           isOpen={showBranchModal}
           onClose={() => setShowBranchModal(false)}
