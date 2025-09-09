@@ -1595,20 +1595,17 @@ export async function PUT(req) {
   }
 }
 
-// DELETE method - Requires admin authentication
+
+// DELETE method - Different permissions for images vs products
 export async function DELETE(req) {
   const ip = getUserIP(req)
   logRequest(req, 'DELETE')
 
   try {
-    // Require admin authentication for DELETE
+    // Require authentication for DELETE
     const userInfo = await getUserInfo(req)
     if (!userInfo.isAuthenticated) {
       return createAuthError('Authentication required for deletion', 401)
-    }
-
-    if (userInfo.role !== 'admin') {
-      return createAuthError('Only admins can delete products or images', 403)
     }
 
     console.log('DELETE: Processing delete request...')
@@ -1656,6 +1653,13 @@ export async function DELETE(req) {
 
     // Delete specific image
     if (imagePublicId) {
+      // 🔥 FIX: Allow both admins and moderators to delete images
+      if (!['admin', 'moderator'].includes(userInfo.role)) {
+        return createAuthError('Only admins and moderators can delete images', 403)
+      }
+
+      console.log('DELETE: Image deletion - permissions granted to:', userInfo.role)
+
       // Validate image public ID format
       if (!/^[a-zA-Z0-9_\/-]{10,100}$/.test(imagePublicId)) {
         return NextResponse.json(
@@ -1711,6 +1715,13 @@ export async function DELETE(req) {
         { headers: { 'Content-Type': 'application/json' } }
       )
     }
+
+    // 🔥 FIX: For deleting entire product - only admins allowed
+    if (userInfo.role !== 'admin') {
+      return createAuthError('Only admins can delete products', 403)
+    }
+
+    console.log('DELETE: Product deletion - admin access confirmed')
 
     // Delete entire product
     console.log('DELETE: Deleting entire product and all images...')

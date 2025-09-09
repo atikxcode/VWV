@@ -1261,8 +1261,12 @@ export default function SellPageModerator() {
           return
         }
 
-        if (response.ok) {
+          if (response.ok) {
           const result = await response.json()
+          
+          //  REFRESH PRODUCTS DATA IMMEDIATELY
+          await fetchProducts()
+          
           Swal.close()
 
           // Use the saleId from the API response
