@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
+  Shield,
 } from 'lucide-react'
 import EditProduct from '../../../../components/EditProduct'
 import Swal from 'sweetalert2'
@@ -49,6 +50,31 @@ export default function ManageProductModerator() {
   const [totalProducts, setTotalProducts] = useState(0)
   const itemsPerPage = 12
 
+  // 🔧 SECURITY: Get auth headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('auth-token')
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Cache-Control': 'no-cache'
+    }
+  }
+
+  // 🔧 SECURITY: Check authentication
+  const checkAuth = () => {
+    const token = localStorage.getItem('auth-token')
+    if (!token) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Authentication Required',
+        text: 'Please login to continue.',
+      }).then(() => {
+        window.location.href = '/admin/login'
+      })
+      return false
+    }
+    return true
+  }
+
   // 🔥 Fetch user details from database to get role and branch
   useEffect(() => {
     const fetchUserDetails = async () => {
@@ -57,11 +83,23 @@ export default function ManageProductModerator() {
         return
       }
 
+      if (!checkAuth()) return
+
       try {
         setUserLoading(true)
         const response = await fetch(
-          `/api/user?email=${encodeURIComponent(user.email)}`
+          `/api/user?email=${encodeURIComponent(user.email)}`,
+          {
+            headers: getAuthHeaders()
+          }
         )
+
+        if (response.status === 401) {
+          localStorage.removeItem('auth-token')
+          window.location.href = '/admin/login'
+          return
+        }
+
         if (response.ok) {
           const data = await response.json()
           if (data.user) {
@@ -101,13 +139,25 @@ export default function ManageProductModerator() {
     if (!moderatorBranch) return // Wait for user details to load
 
     const loadData = async () => {
+      if (!checkAuth()) return
+
       try {
         setLoading(true)
 
-        // Fetch categories
+        // Fetch categories with auth
         const categoriesRes = await fetch(
-          '/api/products?getCategoriesOnly=true'
+          '/api/products?getCategoriesOnly=true',
+          {
+            headers: getAuthHeaders()
+          }
         )
+
+        if (categoriesRes.status === 401) {
+          localStorage.removeItem('auth-token')
+          window.location.href = '/admin/login'
+          return
+        }
+
         if (categoriesRes.ok) {
           const categoriesData = await categoriesRes.json()
           setCategories(categoriesData.categories || {})
@@ -123,9 +173,9 @@ export default function ManageProductModerator() {
     loadData()
   }, [moderatorBranch]) // Depend on moderatorBranch
 
-  // Fetch products with filters (no branch filtering for moderator)
+  // Fetch products with filters and authentication
   const fetchProducts = async () => {
-    if (!moderatorBranch) return
+    if (!moderatorBranch || !checkAuth()) return
 
     try {
       const params = new URLSearchParams({
@@ -138,12 +188,21 @@ export default function ManageProductModerator() {
       if (selectedSubcategory) params.append('subcategory', selectedSubcategory)
       if (selectedStatus) params.append('status', selectedStatus)
 
-      const response = await fetch(`/api/products?${params}`)
+      const response = await fetch(`/api/products?${params}`, {
+        headers: getAuthHeaders()
+      })
+
+      if (response.status === 401) {
+        localStorage.removeItem('auth-token')
+        window.location.href = '/admin/login'
+        return
+      }
+
       if (response.ok) {
         const data = await response.json()
         setProducts(data.products || [])
         setTotalPages(data.pagination?.totalPages || 1)
-        setTotalProducts(data.pagination?.total || 0)
+        setTotalProducts(data.pagination?.totalProducts || 0)
       }
     } catch (error) {
       console.error('Error fetching products:', error)
@@ -248,13 +307,19 @@ export default function ManageProductModerator() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <Package size={64} className="mx-auto text-red-500 mb-4" />
+          <Shield size={64} className="mx-auto text-red-500 mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Access Denied
           </h1>
           <p className="text-gray-600">
             You need moderator privileges to access this page.
           </p>
+          <button 
+            onClick={() => window.location.href = '/admin/login'}
+            className="mt-4 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700"
+          >
+            Login as Moderator
+          </button>
         </div>
       </div>
     )
@@ -348,7 +413,7 @@ export default function ManageProductModerator() {
           </div>
 
           <div className="flex justify-between items-center">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
               <div className="flex items-center gap-2">
                 <Store size={14} />
                 <span className="font-medium">Branch Access:</span>
@@ -461,21 +526,21 @@ export default function ManageProductModerator() {
                     </div>
 
                     {/* 🔒 RESTRICTED: Only show moderator's branch stock */}
-                    <div className="flex flex-wrap gap-1 mb-3">
+                    <div className="mb-3">
                       {(() => {
                         const moderatorStock =
                           product.stock?.[`${moderatorBranch}_stock`] || 0
                         return (
                           <div
-                            className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${
+                            className={`flex items-center gap-1 text-xs px-3 py-2 rounded-lg ${
                               moderatorStock > 0
-                                ? 'bg-green-50 text-green-700'
-                                : 'bg-red-50 text-red-700'
+                                ? 'bg-green-50 text-green-700 border border-green-200'
+                                : 'bg-red-50 text-red-700 border border-red-200'
                             }`}
                           >
                             <Store size={12} />
-                            <span className="capitalize">
-                              {moderatorBranch}: {moderatorStock}
+                            <span className="capitalize font-medium">
+                              {moderatorBranch} Branch: {moderatorStock} units
                             </span>
                           </div>
                         )
@@ -497,7 +562,7 @@ export default function ManageProductModerator() {
                           Swal.fire({
                             title: product.name,
                             html: `
-                              <div class="text-left">
+                              <div class="text-left space-y-2">
                                 <p><strong>Category:</strong> ${
                                   product.category
                                 } • ${product.subcategory}</p>
@@ -510,7 +575,17 @@ export default function ManageProductModerator() {
                                   moderatorBranch.slice(1)
                                 } Stock:</strong> ${
                               product.stock?.[`${moderatorBranch}_stock`] || 0
-                            }</p>
+                            } units</p>
+                                ${
+                                  product.brand
+                                    ? `<p><strong>Brand:</strong> ${product.brand}</p>`
+                                    : ''
+                                }
+                                ${
+                                  product.barcode
+                                    ? `<p><strong>Barcode:</strong> ${product.barcode}</p>`
+                                    : ''
+                                }
                                 ${
                                   product.description
                                     ? `<p><strong>Description:</strong> ${product.description}</p>`
@@ -527,7 +602,7 @@ export default function ManageProductModerator() {
                             `,
                             showCloseButton: true,
                             showConfirmButton: false,
-                            width: 500,
+                            width: 600,
                           })
                         }}
                         className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1"
@@ -619,7 +694,7 @@ export default function ManageProductModerator() {
                     </button>
                   </div>
 
-                  {/* Items per page (optional) */}
+                  {/* Items per page */}
                   <div className="text-sm text-gray-600">
                     {itemsPerPage} per page
                   </div>

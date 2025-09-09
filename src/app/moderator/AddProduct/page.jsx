@@ -599,7 +599,7 @@ export default function ModeratorAddProduct() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setShowBarcodeScanner(true)}
-                className="bg-white bg-opacity-20 text-white px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-opacity-30 transition-all"
+                className="bg-white bg-opacity-20 text-purple-500 px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-opacity-30 transition-all"
               >
                 <Scan size={20} />
                 Scan Barcode

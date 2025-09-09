@@ -801,6 +801,31 @@ export default function SellPageModerator() {
     })
   )
 
+  // 🔧 SECURITY: Get auth headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('auth-token')
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Cache-Control': 'no-cache'
+    }
+  }
+
+  // 🔧 SECURITY: Check authentication
+  const checkAuth = () => {
+    const token = localStorage.getItem('auth-token')
+    if (!token) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Authentication Required',
+        text: 'Please login to continue.',
+      }).then(() => {
+        window.location.href = '/admin/login'
+      })
+      return false
+    }
+    return true
+  }
+
   // 🔥 Fetch user details from database to get role and branch
   useEffect(() => {
     const fetchUserDetails = async () => {
@@ -809,11 +834,23 @@ export default function SellPageModerator() {
         return
       }
 
+      if (!checkAuth()) return
+
       try {
         setUserLoading(true)
         const response = await fetch(
-          `/api/user?email=${encodeURIComponent(user.email)}`
+          `/api/user?email=${encodeURIComponent(user.email)}`,
+          {
+            headers: getAuthHeaders()
+          }
         )
+
+        if (response.status === 401) {
+          localStorage.removeItem('auth-token')
+          window.location.href = '/admin/login'
+          return
+        }
+
         if (response.ok) {
           const data = await response.json()
           if (data.user) {
@@ -853,12 +890,24 @@ export default function SellPageModerator() {
     if (!moderatorBranch) return // Wait for user details to load
 
     const loadData = async () => {
+      if (!checkAuth()) return
+
       try {
         setLoading(true)
 
         const categoriesRes = await fetch(
-          '/api/products?getCategoriesOnly=true'
+          '/api/products?getCategoriesOnly=true',
+          {
+            headers: getAuthHeaders()
+          }
         )
+
+        if (categoriesRes.status === 401) {
+          localStorage.removeItem('auth-token')
+          window.location.href = '/admin/login'
+          return
+        }
+
         if (categoriesRes.ok) {
           const categoriesData = await categoriesRes.json()
           setCategories(categoriesData.categories)
@@ -880,7 +929,7 @@ export default function SellPageModerator() {
 
   // 🔒 FIXED: Fetch products filtered by moderator's branch stock
   const fetchProducts = async () => {
-    if (!moderatorBranch) return
+    if (!moderatorBranch || !checkAuth()) return
 
     try {
       const params = new URLSearchParams({
@@ -900,7 +949,16 @@ export default function SellPageModerator() {
 
       console.log('Fetching with params:', params.toString())
 
-      const response = await fetch(`/api/products?${params}`)
+      const response = await fetch(`/api/products?${params}`, {
+        headers: getAuthHeaders()
+      })
+
+      if (response.status === 401) {
+        localStorage.removeItem('auth-token')
+        window.location.href = '/admin/login'
+        return
+      }
+
       if (response.ok) {
         const data = await response.json()
         console.log('Products data:', data)
@@ -943,10 +1001,22 @@ export default function SellPageModerator() {
         setBarcodeFilter(data)
         setShowBarcodeScanner(false)
 
+        if (!checkAuth()) return
+
         // 🔥 Direct search for barcode
         const response = await fetch(
-          `/api/products?barcode=${encodeURIComponent(data)}&limit=1`
+          `/api/products?barcode=${encodeURIComponent(data)}&limit=1`,
+          {
+            headers: getAuthHeaders()
+          }
         )
+
+        if (response.status === 401) {
+          localStorage.removeItem('auth-token')
+          window.location.href = '/admin/login'
+          return
+        }
+
         if (response.ok) {
           const result = await response.json()
           console.log('Barcode search result:', result)
@@ -1119,6 +1189,8 @@ export default function SellPageModerator() {
       return
     }
 
+    if (!checkAuth()) return
+
     const paymentMethod = selectedPaymentMethods[0]
     const totalPaid = paymentMethod.amount || 0
 
@@ -1171,7 +1243,7 @@ export default function SellPageModerator() {
           },
           totalAmount: cartTotal,
           timestamp: new Date(),
-          cashier: 'Moderator', // 🔒 Fixed as Moderator
+          cashier: user?.displayName || 'Moderator', // 🔒 Use actual moderator name
           paymentType: 'cash',
           status: 'completed',
         }
@@ -1179,11 +1251,15 @@ export default function SellPageModerator() {
         // 🔥 Use your existing sales API - it handles stock updates
         const response = await fetch('/api/sales', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: getAuthHeaders(),
           body: JSON.stringify(saleData),
         })
+
+        if (response.status === 401) {
+          localStorage.removeItem('auth-token')
+          window.location.href = '/admin/login'
+          return
+        }
 
         if (response.ok) {
           const result = await response.json()
@@ -1258,13 +1334,19 @@ export default function SellPageModerator() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <Package size={64} className="mx-auto text-red-500 mb-4" />
+          <Shield size={64} className="mx-auto text-red-500 mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Access Denied
           </h1>
           <p className="text-gray-600">
             You need moderator privileges to access this page.
           </p>
+          <button 
+            onClick={() => window.location.href = '/admin/login'}
+            className="mt-4 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700"
+          >
+            Login as Moderator
+          </button>
         </div>
       </div>
     )
