@@ -78,7 +78,7 @@ function getUserIP(req) {
          'unknown'
 }
 
-// 🔧 CRITICAL FIX: Helper function to get user info with fallback (same as products API)
+// 🔥 ENHANCED: JWT-based authentication with role verification
 async function getUserInfo(req) {
   try {
     const authHeader = req.headers.get('authorization')
@@ -86,23 +86,28 @@ async function getUserInfo(req) {
       return { role: 'public', branch: null, userId: null, isAuthenticated: false }
     }
     
+    // Extract token from Bearer header
+    const token = authHeader.substring('Bearer '.length).trim()
+    
     // Check for temp token (development mode)
-    if (authHeader === 'Bearer temp-admin-token-for-development') {
+    if (token === 'temp-admin-token-for-development') {
       console.log('🔧 Using temporary admin token for development')
       return { role: 'admin', branch: null, userId: 'temp-admin', isAuthenticated: true }
     }
     
+    // 🔥 CRITICAL: Verify JWT token and extract user info
     const user = await verifyApiToken(req)
+    console.log('✅ JWT verification successful:', { role: user.role, branch: user.branch, userId: user.userId })
+    
     return { 
-      role: user.role || 'admin', // Default to admin for development
+      role: user.role || 'user', 
       branch: user.branch || null, 
-      userId: user.userId || user.id || 'temp-admin',
+      userId: user.userId || user.id,
       isAuthenticated: true 
     }
   } catch (authError) {
-    console.log('🔧 Authentication failed, treating as admin for development:', authError.message)
-    // 🔥 CRITICAL FIX: For development, default to admin instead of public
-    return { role: 'admin', branch: null, userId: 'temp-admin', isAuthenticated: true }
+    console.log('❌ JWT verification failed:', authError.message)
+    return { role: 'public', branch: null, userId: null, isAuthenticated: false }
   }
 }
 
@@ -159,7 +164,7 @@ function validateSaleItem(item) {
   )
 }
 
-// 🔥 CRITICAL FIX: POST method with enhanced authentication handling
+// 🔥 ENHANCED: POST method with JWT authentication and role-based access
 export async function POST(req) {
   const ip = getUserIP(req)
   logRequest(req, 'POST')
@@ -167,9 +172,24 @@ export async function POST(req) {
   try {
     console.log('POST: Starting sale creation process...')
 
-    // 🔥 CRITICAL FIX: Use enhanced getUserInfo function instead of strict authentication
+    // 🔥 CRITICAL: Require JWT authentication
     const userInfo = await getUserInfo(req)
     console.log('POST: User info obtained:', userInfo)
+
+    if (!userInfo.isAuthenticated) {
+      return NextResponse.json(
+        { error: 'Authentication required. Please provide a valid JWT token.' },
+        { status: 401 }
+      )
+    }
+
+    // 🔥 ROLE-BASED ACCESS: Only admin and moderator can create sales
+    if (!['admin', 'moderator'].includes(userInfo.role)) {
+      return NextResponse.json(
+        { error: 'Access denied. Only admins and moderators can create sales.' },
+        { status: 403 }
+      )
+    }
 
     // Apply rate limiting based on user role
     const rateLimit = RATE_LIMITS[userInfo.role?.toUpperCase()] || RATE_LIMITS.PUBLIC
@@ -213,6 +233,19 @@ export async function POST(req) {
         { error: `Maximum ${MAX_ITEMS_PER_SALE} items allowed per sale` },
         { status: 400 }
       )
+    }
+
+    // 🔥 MODERATOR BRANCH VALIDATION: Ensure moderator can only create sales for their branch
+    if (userInfo.role === 'moderator' && userInfo.branch) {
+      for (let i = 0; i < body.items.length; i++) {
+        const item = body.items[i]
+        if (item.branch && item.branch.toLowerCase() !== userInfo.branch.toLowerCase()) {
+          return NextResponse.json(
+            { error: `Access denied. Moderators can only create sales for their assigned branch (${userInfo.branch})` },
+            { status: 403 }
+          )
+        }
+      }
     }
 
     // 🔐 SECURITY: Validate all items
@@ -359,10 +392,11 @@ export async function POST(req) {
           totalAmount: totalAmount,
           paymentType: paymentType,
           status: status,
-          cashier: sanitizeInput(body.cashier || 'Admin'),
+          cashier: sanitizeInput(body.cashier || userInfo.role === 'admin' ? 'Admin' : 'Moderator'),
           createdAt: new Date(),
           updatedAt: new Date(),
           createdBy: userInfo.userId,
+          createdByRole: userInfo.role,
           timestamp: new Date(),
         }
 
@@ -441,15 +475,30 @@ export async function POST(req) {
   }
 }
 
-// 🔥 CRITICAL FIX: GET method with enhanced authentication handling
+// 🔥 ENHANCED: GET method with JWT authentication and role-based data filtering
 export async function GET(req) {
   const ip = getUserIP(req)
   logRequest(req, 'GET')
 
   try {
-    // 🔥 CRITICAL FIX: Use enhanced getUserInfo function
+    // 🔥 CRITICAL: Require JWT authentication for sales data access
     const userInfo = await getUserInfo(req)
     console.log('GET: User info obtained:', userInfo)
+
+    if (!userInfo.isAuthenticated) {
+      return NextResponse.json(
+        { error: 'Authentication required. Please provide a valid JWT token.' },
+        { status: 401 }
+      )
+    }
+
+    // 🔥 ROLE-BASED ACCESS: Only admin and moderator can view sales data
+    if (!['admin', 'moderator'].includes(userInfo.role)) {
+      return NextResponse.json(
+        { error: 'Access denied. Only admins and moderators can view sales data.' },
+        { status: 403 }
+      )
+    }
 
     // Apply rate limiting based on user role
     const rateLimit = RATE_LIMITS[userInfo.role?.toUpperCase()] || RATE_LIMITS.PUBLIC
@@ -477,8 +526,12 @@ export async function GET(req) {
     const cashier = sanitizeInput(searchParams.get('cashier'))
     const customerName = sanitizeInput(searchParams.get('customerName'))
     const saleId = sanitizeInput(searchParams.get('saleId'))
+    const branchParam = sanitizeInput(searchParams.get('branch')) // 🔥 ADDED: Branch filter
 
-    console.log('GET: Query parameters:', { limit, page, startDate, endDate, paymentType, status, cashier })
+    console.log('GET: Query parameters:', { 
+      limit, page, startDate, endDate, paymentType, status, cashier, branchParam,
+      userRole: userInfo.role, userBranch: userInfo.branch 
+    })
 
     const client = await clientPromise
     const db = client.db('VWV')
@@ -534,9 +587,31 @@ export async function GET(req) {
       filter.saleId = { $regex: saleId, $options: 'i' }
     }
 
-    // 🔧 ROLE-BASED FILTERING: Moderators only see sales from their branch
-    if (userInfo.role === 'moderator' && userInfo.branch) {
-      filter['items.branch'] = userInfo.branch
+    // 🔥 ENHANCED: Role-based branch filtering with admin override capability
+    if (branchParam && branchParam.length <= 20) {
+      if (userInfo.role === 'admin') {
+        // Admin can filter by any branch they request
+        filter['items.branch'] = branchParam
+        console.log('GET: Admin filtering by requested branch:', branchParam)
+      } else if (userInfo.role === 'moderator') {
+        // Moderator can only filter by their own branch or requested branch if it matches
+        if (userInfo.branch && branchParam.toLowerCase() === userInfo.branch.toLowerCase()) {
+          filter['items.branch'] = userInfo.branch
+          console.log('GET: Moderator filtering by their branch:', userInfo.branch)
+        } else {
+          return NextResponse.json(
+            { error: `Access denied. Moderators can only view sales from their assigned branch (${userInfo.branch})` },
+            { status: 403 }
+          )
+        }
+      }
+    } else {
+      // No branch param provided - apply default role-based filtering
+      if (userInfo.role === 'moderator' && userInfo.branch) {
+        filter['items.branch'] = userInfo.branch
+        console.log('GET: Moderator default filtering by branch:', userInfo.branch)
+      }
+      // Admin with no branch param sees all data (no additional filter)
     }
 
     console.log('GET: Built query filter:', JSON.stringify(filter, null, 2))
@@ -547,20 +622,27 @@ export async function GET(req) {
 
     console.log('GET: Total sales found:', totalCount)
 
-    // Fetch sales with projection (exclude sensitive data for moderators)
+    // 🔥 ROLE-BASED PROJECTION: Moderators see limited data
     let projection = {}
     if (userInfo.role === 'moderator') {
-      // Moderators see limited data
       projection = {
         saleId: 1,
         'customer.name': 1,
+        'customer.phone': 1,
         items: 1,
         totalAmount: 1,
         paymentType: 1,
+        'payment.totalAmount': 1,
+        'payment.totalPaid': 1,
+        'payment.change': 1,
         status: 1,
         createdAt: 1,
-        cashier: 1
+        cashier: 1,
+        timestamp: 1
       }
+      console.log('GET: Using moderator projection (limited fields)')
+    } else {
+      console.log('GET: Using admin projection (all fields)')
     }
 
     const sales = await db
@@ -571,12 +653,14 @@ export async function GET(req) {
       .limit(limit)
       .toArray()
 
-    // 🔧 FILTER BRANCH DATA: For moderators, filter items to their branch only
+    // 🔥 ENHANCED: Filter branch data for moderators to ensure they only see their branch items
     const filteredSales = userInfo.role === 'moderator' && userInfo.branch 
       ? sales.map(sale => ({
           ...sale,
-          items: sale.items?.filter(item => item.branch === userInfo.branch) || []
-        }))
+          items: sale.items?.filter(item => 
+            item.branch && item.branch.toLowerCase() === userInfo.branch.toLowerCase()
+          ) || []
+        })).filter(sale => sale.items.length > 0) // Remove sales with no items after filtering
       : sales
 
     console.log('GET: Sales fetched successfully, count:', filteredSales.length)
@@ -593,6 +677,15 @@ export async function GET(req) {
           hasPrevPage: page > 1,
           limit,
         },
+        metadata: {
+          userRole: userInfo.role,
+          userBranch: userInfo.branch,
+          appliedFilters: {
+            branch: branchParam || userInfo.branch || 'all',
+            dateRange: startDate && endDate ? `${startDate} to ${endDate}` : 'all',
+            status: status || 'all'
+          }
+        }
       },
       {
         headers: { 
@@ -607,19 +700,27 @@ export async function GET(req) {
   }
 }
 
-// 🔥 CRITICAL FIX: PUT method with enhanced authentication handling
+// 🔥 ENHANCED: PUT method with strict admin-only access for updates
 export async function PUT(req) {
   const ip = getUserIP(req)
   logRequest(req, 'PUT')
 
   try {
-    // 🔥 CRITICAL FIX: Use enhanced getUserInfo function
+    // 🔥 CRITICAL: Require JWT authentication and admin role for updates
     const userInfo = await getUserInfo(req)
+    console.log('PUT: User info obtained:', userInfo)
     
-    // Only admins can update sales
+    if (!userInfo.isAuthenticated) {
+      return NextResponse.json(
+        { error: 'Authentication required. Please provide a valid JWT token.' },
+        { status: 401 }
+      )
+    }
+
+    // 🔥 ADMIN-ONLY: Only admins can update sales
     if (userInfo.role !== 'admin') {
       return NextResponse.json(
-        { error: 'Only admins can update sales' },
+        { error: 'Access denied. Only admins can update sales.' },
         { status: 403 }
       )
     }
@@ -664,6 +765,7 @@ export async function PUT(req) {
           status: sanitizeInput(status),
           updatedAt: new Date(),
           updatedBy: userInfo.userId,
+          updatedByRole: userInfo.role,
         },
       }
     )
@@ -680,6 +782,8 @@ export async function PUT(req) {
       {
         success: true,
         message: 'Sale status updated successfully',
+        updatedBy: userInfo.userId,
+        updatedAt: new Date().toISOString()
       },
       {
         headers: { 'Content-Type': 'application/json' },
@@ -688,5 +792,82 @@ export async function PUT(req) {
 
   } catch (error) {
     return handleApiError(error, 'PUT /api/sales')
+  }
+}
+
+// 🔥 NEW: DELETE method with strict admin-only access for sales deletion
+export async function DELETE(req) {
+  const ip = getUserIP(req)
+  logRequest(req, 'DELETE')
+
+  try {
+    // 🔥 CRITICAL: Require JWT authentication and admin role for deletion
+    const userInfo = await getUserInfo(req)
+    console.log('DELETE: User info obtained:', userInfo)
+    
+    if (!userInfo.isAuthenticated) {
+      return NextResponse.json(
+        { error: 'Authentication required. Please provide a valid JWT token.' },
+        { status: 401 }
+      )
+    }
+
+    // 🔥 ADMIN-ONLY: Only admins can delete sales
+    if (userInfo.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Access denied. Only admins can delete sales.' },
+        { status: 403 }
+      )
+    }
+
+    const { searchParams } = new URL(req.url)
+    const saleId = sanitizeInput(searchParams.get('saleId'))
+
+    if (!saleId) {
+      return NextResponse.json(
+        { error: 'Sale ID is required' },
+        { status: 400 }
+      )
+    }
+
+    console.log('DELETE: Deleting sale:', saleId)
+    const client = await clientPromise
+    const db = client.db('VWV')
+
+    // Check if sale exists before deletion
+    const existingSale = await db.collection('sales').findOne({ saleId: saleId })
+    if (!existingSale) {
+      return NextResponse.json(
+        { error: 'Sale not found' },
+        { status: 404 }
+      )
+    }
+
+    // Delete the sale
+    const deleteResult = await db.collection('sales').deleteOne({ saleId: saleId })
+
+    if (deleteResult.deletedCount === 0) {
+      return NextResponse.json(
+        { error: 'Failed to delete sale' },
+        { status: 500 }
+      )
+    }
+
+    console.log('DELETE: Sale deleted successfully ✓')
+    return NextResponse.json(
+      {
+        success: true,
+        message: 'Sale deleted successfully',
+        deletedSaleId: saleId,
+        deletedBy: userInfo.userId,
+        deletedAt: new Date().toISOString()
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
+
+  } catch (error) {
+    return handleApiError(error, 'DELETE /api/sales')
   }
 }
