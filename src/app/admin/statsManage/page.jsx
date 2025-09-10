@@ -68,7 +68,7 @@ import {
 } from 'recharts'
 import Swal from 'sweetalert2'
 
-// 🎨 Ultra-Modern Purple Color Palette
+// Modern Purple Color Palette
 const COLORS = {
   primary: '#8B5CF6',
   secondary: '#A78BFA',
@@ -82,7 +82,7 @@ const COLORS = {
   info: '#06B6D4',
 }
 
-// 🎭 Advanced Animation Variants
+// Advanced Animation Variants
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: {
@@ -187,6 +187,76 @@ export default function AdminSalesManagement() {
     return true
   }
 
+  // 🔥 FIXED: Date validation helper functions
+  const validateDate = (dateString, fieldName) => {
+    if (!dateString) return null
+    
+    try {
+      const date = new Date(dateString)
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        console.warn(`Invalid ${fieldName}:`, dateString)
+        return null
+      }
+      
+      // Check if year is reasonable (between 1900 and 2100)
+      const year = date.getFullYear()
+      if (year < 1900 || year > 2100) {
+        console.warn(`Invalid ${fieldName} year:`, year)
+        return null
+      }
+      
+      return dateString // Return original string format for API
+    } catch (error) {
+      console.warn(`Date validation failed for ${fieldName}:`, error.message)
+      return null
+    }
+  }
+
+  // 🔥 FIXED: Date input handlers with validation
+  const handleStartDateChange = (e) => {
+    const date = e.target.value
+    const validDate = validateDate(date, 'start date')
+    
+    if (validDate !== null) {
+      setStartDate(date)
+    } else if (date === '') {
+      setStartDate('') // Allow clearing
+    } else {
+      console.warn('Invalid start date selected:', date)
+      // Optionally show user feedback
+      Swal.fire({
+        icon: 'warning',
+        title: 'Invalid Date',
+        text: 'Please select a valid start date.',
+        confirmButtonColor: COLORS.primary,
+        timer: 2000
+      })
+    }
+  }
+
+  const handleEndDateChange = (e) => {
+    const date = e.target.value
+    const validDate = validateDate(date, 'end date')
+    
+    if (validDate !== null) {
+      setEndDate(date)
+    } else if (date === '') {
+      setEndDate('') // Allow clearing
+    } else {
+      console.warn('Invalid end date selected:', date)
+      // Optionally show user feedback
+      Swal.fire({
+        icon: 'warning',
+        title: 'Invalid Date',
+        text: 'Please select a valid end date.',
+        confirmButtonColor: COLORS.primary,
+        timer: 2000
+      })
+    }
+  }
+
   // 🔥 Fetch user details with enhanced authentication
   useEffect(() => {
     const fetchUserDetails = async () => {
@@ -234,57 +304,74 @@ export default function AdminSalesManagement() {
     fetchUserDetails()
   }, [user])
 
-  // 🔥 Enhanced fetch sales data
+  // 🔥 FIXED: Enhanced fetch sales data with proper date validation
   const fetchSalesData = async (showRefresh = false) => {
-  if (!checkAuth()) return
+    if (!checkAuth()) return
 
-  try {
-    if (showRefresh) {
-      setRefreshing(true)
-    } else {
-      setLoading(true)
-    }
-
-    console.log('📊 Fetching sales data with filters:', {
-      startDate, endDate, selectedBranch, statusFilter, paymentTypeFilter, searchTerm
-    })
-    
-    // 🔥 FIX: Validate dates before sending to API
-    let validStartDate = ''
-    let validEndDate = ''
-
-    if (startDate) {
-      const start = new Date(startDate)
-      if (!isNaN(start.getTime()) && start.getFullYear() > 1900) {
-        validStartDate = startDate
+    try {
+      if (showRefresh) {
+        setRefreshing(true)
       } else {
-        console.warn('Invalid start date:', startDate)
+        setLoading(true)
       }
-    }
 
-    if (endDate) {
-      const end = new Date(endDate)
-      if (!isNaN(end.getTime()) && end.getFullYear() > 1900) {
-        validEndDate = endDate
-      } else {
-        console.warn('Invalid end date:', endDate)
+      console.log('📊 Fetching sales data with filters:', {
+        startDate, endDate, selectedBranch, statusFilter, paymentTypeFilter, searchTerm
+      })
+      
+      // 🔥 FIX: Validate dates before sending to API
+      let validStartDate = ''
+      let validEndDate = ''
+
+      if (startDate) {
+        const validatedStart = validateDate(startDate, 'start date')
+        if (validatedStart) {
+          validStartDate = validatedStart
+        } else {
+          console.warn('Skipping invalid start date:', startDate)
+        }
       }
-    }
 
-    // Build query parameters with validated dates
-    let queryParams = new URLSearchParams()
-    queryParams.append('limit', itemsPerPage.toString())
-    queryParams.append('page', currentPage.toString())
-    
-    if (validStartDate) queryParams.append('startDate', validStartDate)
-    if (validEndDate) queryParams.append('endDate', validEndDate)
-    if (selectedBranch) queryParams.append('branch', selectedBranch)
-    if (statusFilter) queryParams.append('status', statusFilter)
-    if (paymentTypeFilter) queryParams.append('paymentType', paymentTypeFilter)
-    if (searchTerm) queryParams.append('search', searchTerm)
-    
-    const response = await fetch(`/api/sales?${queryParams.toString()}`, {
-      headers: getAuthHeaders()
+      if (endDate) {
+        const validatedEnd = validateDate(endDate, 'end date')
+        if (validatedEnd) {
+          validEndDate = validatedEnd
+        } else {
+          console.warn('Skipping invalid end date:', endDate)
+        }
+      }
+
+      // Additional date range validation
+      if (validStartDate && validEndDate) {
+        const start = new Date(validStartDate)
+        const end = new Date(validEndDate)
+        if (start > end) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Invalid Date Range',
+            text: 'Start date cannot be after end date.',
+            confirmButtonColor: COLORS.primary,
+          })
+          return
+        }
+      }
+
+      // Build query parameters with validated dates
+      let queryParams = new URLSearchParams()
+      queryParams.append('limit', itemsPerPage.toString())
+      queryParams.append('page', currentPage.toString())
+      
+      if (validStartDate) queryParams.append('startDate', validStartDate)
+      if (validEndDate) queryParams.append('endDate', validEndDate)
+      if (selectedBranch) queryParams.append('branch', selectedBranch)
+      if (statusFilter) queryParams.append('status', statusFilter)
+      if (paymentTypeFilter) queryParams.append('paymentType', paymentTypeFilter)
+      if (searchTerm) queryParams.append('search', searchTerm)
+      
+      console.log('📋 API Query String:', queryParams.toString())
+      
+      const response = await fetch(`/api/sales?${queryParams.toString()}`, {
+        headers: getAuthHeaders()
       })
 
       if (response.status === 401) {
@@ -294,7 +381,17 @@ export default function AdminSalesManagement() {
       }
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        const errorText = await response.text()
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.error || errorMessage
+        } catch (e) {
+          // Use default error message if response is not JSON
+        }
+        
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
@@ -306,6 +403,8 @@ export default function AdminSalesManagement() {
         processSalesData(data.sales)
         setSalesData(data.sales)
         setTotalPages(data.pagination?.totalPages || 1)
+      } else {
+        console.warn('⚠️ API response missing expected data:', data)
       }
 
     } catch (error) {
@@ -487,10 +586,15 @@ export default function AdminSalesManagement() {
     window.URL.revokeObjectURL(url)
   }
 
-  // Trigger data fetch when filters change
+  // 🔥 FIXED: Trigger data fetch when filters change (with debouncing)
   useEffect(() => {
     if (userRole === 'admin') {
-      fetchSalesData()
+      // Add a small delay to avoid excessive API calls during rapid filter changes
+      const timeoutId = setTimeout(() => {
+        fetchSalesData()
+      }, 300)
+
+      return () => clearTimeout(timeoutId)
     }
   }, [userRole, currentPage, startDate, endDate, selectedBranch, statusFilter, paymentTypeFilter, searchTerm])
 
@@ -685,7 +789,7 @@ export default function AdminSalesManagement() {
           </div>
         </motion.div>
 
-        {/* Advanced Filter Panel */}
+        {/* 🔥 FIXED: Advanced Filter Panel with proper date validation */}
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -720,7 +824,7 @@ export default function AdminSalesManagement() {
                 <input
                   type="date"
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={handleStartDateChange}
                   className="w-full p-3 rounded-xl border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all bg-white/50 backdrop-blur-sm"
                 />
               </motion.div>
@@ -733,7 +837,7 @@ export default function AdminSalesManagement() {
                 <input
                   type="date"
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  onChange={handleEndDateChange}
                   className="w-full p-3 rounded-xl border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all bg-white/50 backdrop-blur-sm"
                 />
               </motion.div>
@@ -832,6 +936,25 @@ export default function AdminSalesManagement() {
                 {totalTransactions} transactions • ${totalSales.toLocaleString()} total
               </div>
             </div>
+
+            {/* 🔥 ADDED: Filter status display */}
+            {(startDate || endDate || selectedBranch || statusFilter || paymentTypeFilter || searchTerm) && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-4 p-3 bg-purple-50 rounded-lg border border-purple-200"
+              >
+                <p className="text-sm text-purple-700 font-medium">
+                  Active Filters: 
+                  {startDate && <span className="ml-2 px-2 py-1 bg-purple-200 rounded text-xs">From: {startDate}</span>}
+                  {endDate && <span className="ml-2 px-2 py-1 bg-purple-200 rounded text-xs">To: {endDate}</span>}
+                  {selectedBranch && <span className="ml-2 px-2 py-1 bg-purple-200 rounded text-xs capitalize">Branch: {selectedBranch}</span>}
+                  {statusFilter && <span className="ml-2 px-2 py-1 bg-purple-200 rounded text-xs capitalize">Status: {statusFilter}</span>}
+                  {paymentTypeFilter && <span className="ml-2 px-2 py-1 bg-purple-200 rounded text-xs capitalize">Payment: {paymentTypeFilter}</span>}
+                  {searchTerm && <span className="ml-2 px-2 py-1 bg-purple-200 rounded text-xs">Search: {searchTerm}</span>}
+                </p>
+              </motion.div>
+            )}
           </motion.div>
         </motion.div>
 

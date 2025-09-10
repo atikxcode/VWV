@@ -78,6 +78,31 @@ function getUserIP(req) {
          'unknown'
 }
 
+// 🔥 ENHANCED: Date validation helper function
+function validateDate(dateString, fieldName) {
+  if (!dateString) return null
+  
+  try {
+    const date = new Date(dateString)
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      throw new Error(`Invalid ${fieldName}: ${dateString}`)
+    }
+    
+    // Check if year is reasonable (between 1900 and 2100)
+    const year = date.getFullYear()
+    if (year < 1900 || year > 2100) {
+      throw new Error(`Invalid ${fieldName} year: ${year}. Must be between 1900 and 2100.`)
+    }
+    
+    // Return normalized date
+    return date
+  } catch (error) {
+    throw new Error(`Date validation failed for ${fieldName}: ${error.message}`)
+  }
+}
+
 // 🔥 ENHANCED: JWT-based authentication with role verification
 async function getUserInfo(req) {
   try {
@@ -475,7 +500,7 @@ export async function POST(req) {
   }
 }
 
-// 🔥 ENHANCED: GET method with JWT authentication and role-based data filtering
+// 🔥 ENHANCED: GET method with improved date validation and error handling
 export async function GET(req) {
   const ip = getUserIP(req)
   logRequest(req, 'GET')
@@ -519,17 +544,18 @@ export async function GET(req) {
     const skip = (page - 1) * limit
 
     // Optional filters with sanitization
-    const startDate = searchParams.get('startDate')
-    const endDate = searchParams.get('endDate')
+    const startDateParam = searchParams.get('startDate')
+    const endDateParam = searchParams.get('endDate')
     const paymentType = sanitizeInput(searchParams.get('paymentType'))
     const status = sanitizeInput(searchParams.get('status'))
     const cashier = sanitizeInput(searchParams.get('cashier'))
     const customerName = sanitizeInput(searchParams.get('customerName'))
     const saleId = sanitizeInput(searchParams.get('saleId'))
-    const branchParam = sanitizeInput(searchParams.get('branch')) // 🔥 ADDED: Branch filter
+    const branchParam = sanitizeInput(searchParams.get('branch'))
+    const searchParam = sanitizeInput(searchParams.get('search'))
 
     console.log('GET: Query parameters:', { 
-      limit, page, startDate, endDate, paymentType, status, cashier, branchParam,
+      limit, page, startDateParam, endDateParam, paymentType, status, cashier, branchParam, searchParam,
       userRole: userInfo.role, userBranch: userInfo.branch 
     })
 
@@ -539,27 +565,50 @@ export async function GET(req) {
     // Build query filter with security validation
     let filter = {}
 
-    // Date range validation
-    if (startDate || endDate) {
-      const start = startDate ? new Date(startDate) : new Date(0)
-      const end = endDate ? new Date(endDate) : new Date()
+    // 🔥 ENHANCED: Date range validation with better error handling
+    try {
+      if (startDateParam || endDateParam) {
+        let startDate = null
+        let endDate = null
 
-      // Validate dates
-      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        return NextResponse.json(
-          { error: 'Invalid date format' },
-          { status: 400 }
-        )
+        // Validate start date
+        if (startDateParam) {
+          startDate = validateDate(startDateParam, 'start date')
+        }
+
+        // Validate end date
+        if (endDateParam) {
+          endDate = validateDate(endDateParam, 'end date')
+        }
+
+        // Set default dates if only one is provided
+        if (!startDate && endDate) {
+          startDate = new Date('1900-01-01') // Default start date
+        }
+        if (startDate && !endDate) {
+          endDate = new Date() // Default to current date
+        }
+
+        // Validate date range
+        if (startDate && endDate && startDate > endDate) {
+          return NextResponse.json(
+            { error: 'Start date cannot be after end date' },
+            { status: 400 }
+          )
+        }
+
+        // Apply date filter
+        if (startDate && endDate) {
+          filter.createdAt = { $gte: startDate, $lte: endDate }
+          console.log('GET: Applied date filter:', { start: startDate.toISOString(), end: endDate.toISOString() })
+        }
       }
-
-      if (start > end) {
-        return NextResponse.json(
-          { error: 'Start date cannot be after end date' },
-          { status: 400 }
-        )
-      }
-
-      filter.createdAt = { $gte: start, $lte: end }
+    } catch (dateError) {
+      console.error('GET: Date validation error:', dateError.message)
+      return NextResponse.json(
+        { error: dateError.message },
+        { status: 400 }
+      )
     }
 
     // Payment type filter
@@ -585,6 +634,18 @@ export async function GET(req) {
     // Sale ID filter
     if (saleId && saleId.length <= 50) {
       filter.saleId = { $regex: saleId, $options: 'i' }
+    }
+
+    // 🔥 ENHANCED: Global search functionality
+    if (searchParam && searchParam.length <= MAX_SEARCH_LENGTH) {
+      const searchRegex = { $regex: searchParam, $options: 'i' }
+      filter.$or = [
+        { saleId: searchRegex },
+        { 'customer.name': searchRegex },
+        { 'customer.phone': searchRegex },
+        { cashier: searchRegex },
+        { 'items.productName': searchRegex }
+      ]
     }
 
     // 🔥 ENHANCED: Role-based branch filtering with admin override capability
@@ -635,6 +696,7 @@ export async function GET(req) {
         'payment.totalAmount': 1,
         'payment.totalPaid': 1,
         'payment.change': 1,
+        'payment.methods': 1,
         status: 1,
         createdAt: 1,
         cashier: 1,
@@ -682,8 +744,9 @@ export async function GET(req) {
           userBranch: userInfo.branch,
           appliedFilters: {
             branch: branchParam || userInfo.branch || 'all',
-            dateRange: startDate && endDate ? `${startDate} to ${endDate}` : 'all',
-            status: status || 'all'
+            dateRange: startDateParam && endDateParam ? `${startDateParam} to ${endDateParam}` : 'all',
+            status: status || 'all',
+            search: searchParam || 'none'
           }
         }
       },
@@ -696,6 +759,7 @@ export async function GET(req) {
     )
 
   } catch (error) {
+    console.error('GET: Critical error:', error)
     return handleApiError(error, 'GET /api/sales')
   }
 }
@@ -795,7 +859,7 @@ export async function PUT(req) {
   }
 }
 
-// 🔥 NEW: DELETE method with strict admin-only access for sales deletion
+// 🔥 ENHANCED: DELETE method with strict admin-only access for sales deletion
 export async function DELETE(req) {
   const ip = getUserIP(req)
   logRequest(req, 'DELETE')
