@@ -1,12 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef, useContext, useCallback } from 'react'
-import { useForm, Controller } from 'react-hook-form' // 🔧 Added Controller
+import { useForm, Controller } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'
 import Swal from 'sweetalert2'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
-import Select from 'react-select' // 🔧 NEW: Import react-select
-import CreatableSelect from 'react-select/creatable' // 🔧 NEW: Import CreatableSelect for color input
+import Select from 'react-select'
+import CreatableSelect from 'react-select/creatable'
 import {
   Upload,
   AlertCircle,
@@ -29,7 +29,7 @@ import {
   Move,
   ArrowLeft,
   Lock,
-  Palette, // 🔧 NEW: Icon for color field
+  Palette,
 } from 'lucide-react'
 import BarcodeReader from 'react-barcode-reader'
 import { AuthContext } from '../Provider/AuthProvider'
@@ -147,10 +147,11 @@ const ColorMultiValue = ({ data, removeProps, innerProps }) => (
 const selectStyles = {
   control: (provided) => ({
     ...provided,
-    padding: '8px',
+    padding: '6px',
     borderRadius: '12px',
     border: '1px solid #d1d5db',
     boxShadow: 'none',
+    minHeight: '45px',
     '&:hover': {
       border: '1px solid #8b5cf6',
     },
@@ -168,7 +169,7 @@ const selectStyles = {
   multiValueLabel: (provided) => ({
     ...provided,
     color: 'white',
-    fontSize: '14px',
+    fontSize: '12px',
   }),
   multiValueRemove: (provided) => ({
     ...provided,
@@ -599,16 +600,11 @@ export default function EditProduct({ productId, onBack }) {
     handleSubmit,
     watch,
     setValue,
-    control, // 🔧 ADDED: control for Controller
+    control,
     formState: { errors, isDirty },
     reset,
   } = useForm({
-    // 🔧 NEW: Set default values for multi-select fields including colors
-    defaultValues: {
-      nicotineStrength: [],
-      vgPgRatio: [],
-      colors: [], // 🔧 NEW: Default colors array
-    }
+    defaultValues: {},
   })
 
   // User role and branch states
@@ -627,6 +623,9 @@ export default function EditProduct({ productId, onBack }) {
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
   const [showBranchModal, setShowBranchModal] = useState(false)
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false)
+
+  // 🔧 NEW: Branch-specific specifications state
+  const [branchSpecifications, setBranchSpecifications] = useState({})
 
   // Category states
   const [categories, setCategories] = useState({})
@@ -656,6 +655,35 @@ export default function EditProduct({ productId, onBack }) {
     }
     return true
   }
+
+  // 🔧 NEW: Helper function to update branch specifications
+  const updateBranchSpecification = useCallback((branch, field, selectedOptions) => {
+    setBranchSpecifications(prev => {
+      const prevBranchSpec = prev[branch] || { nicotineStrength: [], vgPgRatio: [], colors: [] }
+      return {
+        ...prev,
+        [branch]: {
+          ...prevBranchSpec,
+          [field]: selectedOptions ? selectedOptions.map(opt => opt.value) : []
+        }
+      }
+    })
+  }, [])
+
+  // 🔧 NEW: Helper function to get branch specification value for display
+  const getBranchSpecificationValue = useCallback((branch, field) => {
+    const branchSpec = branchSpecifications[branch]
+    if (!branchSpec || !branchSpec[field]) return []
+
+    if (field === 'colors') {
+      return branchSpec[field].map(colorValue => {
+        const detectedColor = detectColorFromInput(colorValue)
+        return detectedColor || { value: colorValue, label: colorValue, color: '#808080' }
+      })
+    } else {
+      return branchSpec[field].map(val => ({ value: val, label: val }))
+    }
+  }, [branchSpecifications])
 
   // Fetch user details from database to get role and branch
   useEffect(() => {
@@ -766,28 +794,10 @@ export default function EditProduct({ productId, onBack }) {
           setProduct(productData)
           setOriginalProduct(productData)
 
-          // 🔧 NEW: Handle multi-select field values when loading product
-          const processedNicotineStrength = Array.isArray(productData.nicotineStrength) 
-            ? productData.nicotineStrength.map(val => ({ value: val, label: val }))
-            : productData.nicotineStrength 
-              ? [{ value: productData.nicotineStrength, label: productData.nicotineStrength }]
-              : []
-
-          const processedVgPgRatio = Array.isArray(productData.vgPgRatio) 
-            ? productData.vgPgRatio.map(val => ({ value: val, label: val }))
-            : productData.vgPgRatio 
-              ? [{ value: productData.vgPgRatio, label: productData.vgPgRatio }]
-              : []
-
-          // 🔧 NEW: Handle colors for existing products
-          const processedColors = Array.isArray(productData.colors) 
-            ? productData.colors.map(colorValue => {
-                const detectedColor = detectColorFromInput(colorValue)
-                return detectedColor || { value: colorValue, label: colorValue, color: '#808080' }
-              })
-            : productData.colors 
-              ? [detectColorFromInput(productData.colors) || { value: productData.colors, label: productData.colors, color: '#808080' }]
-              : []
+          // 🔧 NEW: Load branch specifications from product data
+          if (productData.branchSpecifications) {
+            setBranchSpecifications(productData.branchSpecifications)
+          }
 
           reset({
             name: productData.name || '',
@@ -798,9 +808,6 @@ export default function EditProduct({ productId, onBack }) {
             category: productData.category || '',
             subcategory: productData.subcategory || '',
             description: productData.description || '',
-            nicotineStrength: processedNicotineStrength, // 🔧 NEW: Set as array for multi-select
-            vgPgRatio: processedVgPgRatio, // 🔧 NEW: Set as array for multi-select
-            colors: processedColors, // 🔧 NEW: Set as array for multi-select colors
             flavor: productData.flavor || '',
             resistance: productData.resistance || '',
             wattageRange: productData.wattageRange || '',
@@ -861,142 +868,178 @@ useEffect(() => {
   }
 }, [category, categories])
 
-  // 🔧 FIXED: Save product function with useCallback to prevent infinite re-renders
+  // 🔧 UPDATED: Save product function with branch specifications
   const handleSave = useCallback(async (data, isSilent = false) => {
-    console.log('🔄 handleSave called', { isSaving, isSilent })
-    
-    if (isSaving) {
-      console.log('⚠️ Save already in progress, skipping')
-      return
-    }
+  console.log('🔄 handleSave called', { isSaving, isSilent })
+  
+  if (isSaving) {
+    console.log('⚠️ Save already in progress, skipping')
+    return
+  }
 
-    if (!checkAuth()) return
+  if (!checkAuth()) return
+  
+  setIsSaving(true)
+  try {
+    console.log('💾 Starting save process...', { isSilent, hasData: !!data })
     
-    setIsSaving(true)
-    try {
-      console.log('💾 Starting save process...', { isSilent, hasData: !!data })
-      
-      // 🔧 NEW: Process multi-select values including colors
-      const processedData = {
-        action: 'update',
-        id: productId,
-        ...data,
-        stock,
-        // Convert react-select values to simple arrays
-        nicotineStrength: data.nicotineStrength?.map(item => item.value) || [],
-        vgPgRatio: data.vgPgRatio?.map(item => item.value) || [],
-        colors: data.colors?.map(item => item.value) || [], // 🔧 NEW: Process colors
-        resistance: data.resistance || null,
-        wattageRange: data.wattageRange || null,
-        tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()) : [],
-        imageOrder: images.map((img, index) => ({
-          publicId: img.publicId,
-          url: img.url,
-          alt: img.alt,
-          order: index,
-        })),
+    // 🔧 NEW: Filter branch data based on user role
+    let filteredBranchSpecs = branchSpecifications
+    let filteredStock = stock
+
+    if (userRole === 'moderator' && userBranch) {
+      // Moderator: only send their branch specifications
+      filteredBranchSpecs = {}
+      if (branchSpecifications[userBranch]) {
+        filteredBranchSpecs[userBranch] = branchSpecifications[userBranch]
       }
 
-      const response = await fetch('/api/products', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(processedData),
+      // Moderator: only send their branch stock
+      filteredStock = {}
+      if (stock[`${userBranch}_stock`] !== undefined) {
+        filteredStock[`${userBranch}_stock`] = stock[`${userBranch}_stock`]
+      }
+
+      console.log('🔧 Moderator data filtered:', {
+        branch: userBranch,
+        branchSpecs: filteredBranchSpecs,
+        stock: filteredStock
+      })
+    } else {
+      console.log('🔧 Admin sending all branch data:', {
+        branchSpecs: Object.keys(branchSpecifications),
+        stock: Object.keys(stock)
+      })
+    }
+    
+    // 🔧 UPDATED: Use filtered data in the payload
+    const processedData = {
+      action: 'update',
+      id: productId,
+      ...data,
+      stock: filteredStock,
+      // 🔧 FIXED: Use filtered branch specifications
+      branchSpecifications: filteredBranchSpecs,
+      resistance: data.resistance || null,
+      wattageRange: data.wattageRange || null,
+      tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()) : [],
+      imageOrder: images.map((img, index) => ({
+        publicId: img.publicId,
+        url: img.url,
+        alt: img.alt,
+        order: index,
+      })),
+    }
+
+    console.log('📤 Sending to API:', {
+      userRole,
+      userBranch,
+      branchSpecKeys: Object.keys(processedData.branchSpecifications),
+      stockKeys: Object.keys(processedData.stock)
+    })
+
+    const response = await fetch('/api/products', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(processedData),
+    })
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        window.location.href = '/admin/login'
+        return
+      }
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to update product')
+    }
+
+    const result = await response.json()
+
+    // 🔧 CRITICAL FIX: Upload new images and immediately update state
+    const newImages = images.filter((img) => img.isNew && img.file)
+    if (newImages.length > 0) {
+      console.log('📤 Uploading', newImages.length, 'new images...')
+      
+      const formData = new FormData()
+      formData.append('productId', productId)
+      newImages.forEach((image) => {
+        formData.append('images', image.file)
       })
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          window.location.href = '/admin/login'
-          return
-        }
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update product')
-      }
+      const imageResponse = await fetch('/api/products', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+        },
+        body: formData,
+      })
 
-      const result = await response.json()
-
-      // 🔧 CRITICAL FIX: Upload new images and immediately update state
-      const newImages = images.filter((img) => img.isNew && img.file)
-      if (newImages.length > 0) {
-        console.log('📤 Uploading', newImages.length, 'new images...')
+      if (imageResponse.ok) {
+        const imageResult = await imageResponse.json()
+        console.log('✅ Images uploaded successfully:', imageResult.uploadedImages)
         
-        const formData = new FormData()
-        formData.append('productId', productId)
-        newImages.forEach((image) => {
-          formData.append('images', image.file)
-        })
-
-        const imageResponse = await fetch('/api/products', {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
-          },
-          body: formData,
-        })
-
-        if (imageResponse.ok) {
-          const imageResult = await imageResponse.json()
-          console.log('✅ Images uploaded successfully:', imageResult.uploadedImages)
-          
-          // 🔧 CRITICAL FIX: Immediately update images state with uploaded info
-          setImages((prevImages) => {
-            const updatedImages = prevImages.map((img, index) => {
-              if (img.isNew) {
-                const uploadedImg = imageResult.uploadedImages.find(
-                  (uploaded) => uploaded.alt.includes(img.alt.split(' ').pop())
-                )
-                if (uploadedImg) {
-                  return {
-                    ...img,
-                    url: uploadedImg.url,
-                    publicId: uploadedImg.publicId,
-                    isNew: false,
-                  }
+        // 🔧 CRITICAL FIX: Immediately update images state with uploaded info
+        setImages((prevImages) => {
+          const updatedImages = prevImages.map((img, index) => {
+            if (img.isNew) {
+              const uploadedImg = imageResult.uploadedImages.find(
+                (uploaded) => uploaded.alt.includes(img.alt.split(' ').pop())
+              )
+              if (uploadedImg) {
+                return {
+                  ...img,
+                  url: uploadedImg.url,
+                  publicId: uploadedImg.publicId,
+                  isNew: false,
                 }
               }
-              return img
-            })
-            
-            console.log('📷 Updated images after upload:', updatedImages.length)
-            return updatedImages
+            }
+            return img
           })
-        }
-      }
-
-      setOriginalProduct(result.product)
-
-      if (!isSilent) {
-        Swal.fire({
-          icon: 'success',
-          title: 'Success!',
-          text: 'Product has been updated successfully!',
-          confirmButtonColor: '#8B5CF6',
+          
+          console.log('📷 Updated images after upload:', updatedImages.length)
+          return updatedImages
         })
       } else {
-        console.log('✅ Auto-save completed successfully')
-        Swal.fire({
-          icon: 'success',
-          title: 'Auto-saved',
-          timer: 1500,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end',
-        })
+        console.warn('⚠️ Image upload failed but product updated successfully')
       }
-    } catch (error) {
-      console.error('❌ Save error:', error)
-      if (!isSilent) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Oops...',
-          text: 'Error updating product: ' + error.message,
-          confirmButtonColor: '#8B5CF6',
-        })
-      }
-    } finally {
-      setIsSaving(false)
-      console.log('🏁 Save process completed')
     }
-  }, [productId, stock, images, isSaving])
+
+    setOriginalProduct(result.product)
+
+    if (!isSilent) {
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: 'Product has been updated successfully!',
+        confirmButtonColor: '#8B5CF6',
+      })
+    } else {
+      console.log('✅ Auto-save completed successfully')
+      Swal.fire({
+        icon: 'success',
+        title: 'Auto-saved',
+        timer: 1500,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end',
+      })
+    }
+  } catch (error) {
+    console.error('❌ Save error:', error)
+    if (!isSilent) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Oops...',
+        text: 'Error updating product: ' + error.message,
+        confirmButtonColor: '#8B5CF6',
+      })
+    }
+  } finally {
+    setIsSaving(false)
+    console.log('🏁 Save process completed')
+  }
+}, [productId, stock, images, isSaving, branchSpecifications, userRole, userBranch])
 
   // Auto-save functionality with stable dependencies
   const watchedValues = watch()
@@ -1427,29 +1470,6 @@ useEffect(() => {
       cancelButtonText: 'Cancel',
     }).then((result) => {
       if (result.isConfirmed) {
-        // 🔧 NEW: Process multi-select field values for undo including colors
-        const processedNicotineStrength = Array.isArray(originalProduct.nicotineStrength) 
-          ? originalProduct.nicotineStrength.map(val => ({ value: val, label: val }))
-          : originalProduct.nicotineStrength 
-            ? [{ value: originalProduct.nicotineStrength, label: originalProduct.nicotineStrength }]
-            : []
-
-        const processedVgPgRatio = Array.isArray(originalProduct.vgPgRatio) 
-          ? originalProduct.vgPgRatio.map(val => ({ value: val, label: val }))
-          : originalProduct.vgPgRatio 
-            ? [{ value: originalProduct.vgPgRatio, label: originalProduct.vgPgRatio }]
-            : []
-
-        // 🔧 NEW: Process colors for undo
-        const processedColors = Array.isArray(originalProduct.colors) 
-          ? originalProduct.colors.map(colorValue => {
-              const detectedColor = detectColorFromInput(colorValue)
-              return detectedColor || { value: colorValue, label: colorValue, color: '#808080' }
-            })
-          : originalProduct.colors 
-            ? [detectColorFromInput(originalProduct.colors) || { value: originalProduct.colors, label: originalProduct.colors, color: '#808080' }]
-            : []
-
         reset({
           name: originalProduct.name || '',
           brand: originalProduct.brand || '',
@@ -1459,15 +1479,15 @@ useEffect(() => {
           category: originalProduct.category || '',
           subcategory: originalProduct.subcategory || '',
           description: originalProduct.description || '',
-          nicotineStrength: processedNicotineStrength, // 🔧 NEW: Reset as array for multi-select
-          vgPgRatio: processedVgPgRatio, // 🔧 NEW: Reset as array for multi-select
-          colors: processedColors, // 🔧 NEW: Reset colors as array for multi-select
           flavor: originalProduct.flavor || '',
           resistance: originalProduct.resistance || '',
           wattageRange: originalProduct.wattageRange || '',
           tags: originalProduct.tags ? originalProduct.tags.join(', ') : '',
           status: originalProduct.status || 'active',
         })
+
+        // 🔧 NEW: Reset branch specifications
+        setBranchSpecifications(originalProduct.branchSpecifications || {})
 
         setStock(originalProduct.stock || {})
         setImages(
@@ -1952,151 +1972,178 @@ useEffect(() => {
 
               {/* Right Column */}
               <div className="space-y-6">
-                {/* 🔧 UPDATED: Vape-Specific Fields with Multi-Select and Colors */}
-                <div className="space-y-4">
-                  <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                    <Zap size={20} className="text-purple-600" />
-                    Vape Specifications
-                  </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* 🔧 NEW: Multi-Select Nicotine Strength */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nicotine Strength (Multiple)
-                      </label>
-                      <Controller
-                        name="nicotineStrength"
-                        control={control}
-                        render={({ field }) => (
-                          <Select
-                            {...field}
-                            options={NICOTINE_OPTIONS}
-                            isMulti
-                            closeMenuOnSelect={false}
-                            placeholder="Select strengths..."
-                            styles={selectStyles}
-                            className="react-select-container"
-                            classNamePrefix="react-select"
-                          />
-                        )}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Select multiple nicotine strengths
-                      </p>
-                    </div>
-
-                    {/* 🔧 NEW: Multi-Select VG/PG Ratio */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        VG/PG Ratio (Multiple)
-                      </label>
-                      <Controller
-                        name="vgPgRatio"
-                        control={control}
-                        render={({ field }) => (
-                          <Select
-                            {...field}
-                            options={VG_PG_OPTIONS}
-                            isMulti
-                            closeMenuOnSelect={false}
-                            placeholder="Select ratios..."
-                            styles={selectStyles}
-                            className="react-select-container"
-                            classNamePrefix="react-select"
-                          />
-                        )}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Select multiple VG/PG ratios
-                      </p>
-                    </div>
+                {/* 🔧 NEW: Branch-Specific Vape Specifications */}
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                      <Zap size={20} className="text-purple-600" />
+                      Branch-Specific Vape Specifications
+                    </h3>
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
+                      {visibleBranches.length} Branches
+                    </span>
                   </div>
 
-                  {/* 🔧 NEW: Colors Field - Full Width */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      <Palette size={16} className="text-purple-600" />
-                      Colors (Multiple - Auto-detect)
-                    </label>
-                    <Controller
-                      name="colors"
-                      control={control}
-                      render={({ field }) => (
-                        <CreatableSelect
-                          {...field}
-                          options={COLOR_OPTIONS}
-                          isMulti
-                          closeMenuOnSelect={false}
-                          placeholder="Type or select colors..."
-                          styles={colorSelectStyles}
-                          className="react-select-container"
-                          classNamePrefix="react-select"
-                          components={{
-                            Option: ColorOption,
-                            MultiValue: ColorMultiValue,
-                          }}
-                          formatCreateLabel={(inputValue) =>
-                            `Add "${inputValue}" color`
-                          }
-                          onCreateOption={(inputValue) => {
-                            const newColor = detectColorFromInput(inputValue)
-                            if (newColor) {
-                              const currentColors = field.value || []
-                              field.onChange([...currentColors, newColor])
-                            }
-                          }}
-                          filterOption={(option, inputValue) => {
-                            if (!inputValue) return true
-                            const searchValue = inputValue.toLowerCase()
-                            return (
-                              option.label.toLowerCase().includes(searchValue) ||
-                              option.value.toLowerCase().includes(searchValue)
-                            )
-                          }}
+                  {/* Branch-Specific Multi-Select Fields */}
+                  {visibleBranches.map((branch) => (
+                    <div key={branch} className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                      <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2 capitalize">
+                        <Store size={18} className="text-purple-600" />
+                        {branch} Branch Specifications
+                      </h4>
+
+                      <div className="space-y-4">
+                        {/* Nicotine Strength per Branch */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Nicotine Strength (Multiple)
+                          </label>
+                          <Controller
+                            name={`nicotineStrength_${branch}`}
+                            control={control}
+                            render={({ field }) => (
+                              <Select
+                                options={NICOTINE_OPTIONS}
+                                isMulti
+                                closeMenuOnSelect={false}
+                                placeholder={`Select strengths for ${branch}...`}
+                                styles={selectStyles}
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                                value={getBranchSpecificationValue(branch, 'nicotineStrength')}
+                                onChange={(selected) => {
+                                  updateBranchSpecification(branch, 'nicotineStrength', selected)
+                                  field.onChange(selected)
+                                }}
+                              />
+                            )}
+                          />
+                        </div>
+
+                        {/* VG/PG Ratio per Branch */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            VG/PG Ratio (Multiple)
+                          </label>
+                          <Controller
+                            name={`vgPgRatio_${branch}`}
+                            control={control}
+                            render={({ field }) => (
+                              <Select
+                                options={VG_PG_OPTIONS}
+                                isMulti
+                                closeMenuOnSelect={false}
+                                placeholder={`Select ratios for ${branch}...`}
+                                styles={selectStyles}
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                                value={getBranchSpecificationValue(branch, 'vgPgRatio')}
+                                onChange={(selected) => {
+                                  updateBranchSpecification(branch, 'vgPgRatio', selected)
+                                  field.onChange(selected)
+                                }}
+                              />
+                            )}
+                          />
+                        </div>
+
+                        {/* Colors per Branch */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                            <Palette size={16} className="text-purple-600" />
+                            Colors (Multiple - Auto-detect)
+                          </label>
+                          <Controller
+                            name={`colors_${branch}`}
+                            control={control}
+                            render={({ field }) => (
+                              <CreatableSelect
+                                options={COLOR_OPTIONS}
+                                isMulti
+                                closeMenuOnSelect={false}
+                                placeholder={`Type or select colors for ${branch}...`}
+                                styles={colorSelectStyles}
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                                components={{
+                                  Option: ColorOption,
+                                  MultiValue: ColorMultiValue,
+                                }}
+                                value={getBranchSpecificationValue(branch, 'colors')}
+                                onChange={(selected) => {
+                                  updateBranchSpecification(branch, 'colors', selected)
+                                  field.onChange(selected)
+                                }}
+                                formatCreateLabel={(inputValue) =>
+                                  `Add "${inputValue}" color`
+                                }
+                                onCreateOption={(inputValue) => {
+                                  const newColor = detectColorFromInput(inputValue)
+                                  if (newColor) {
+                                    const currentColors = getBranchSpecificationValue(branch, 'colors')
+                                    const updatedColors = [...currentColors, newColor]
+                                    updateBranchSpecification(branch, 'colors', updatedColors)
+                                  }
+                                }}
+                                filterOption={(option, inputValue) => {
+                                  if (!inputValue) return true
+                                  const searchValue = inputValue.toLowerCase()
+                                  return (
+                                    option.label.toLowerCase().includes(searchValue) ||
+                                    option.value.toLowerCase().includes(searchValue)
+                                  )
+                                }}
+                              />
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* General Specifications */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                      <Package size={18} className="text-purple-600" />
+                      General Specifications
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Resistance
+                        </label>
+                        <input
+                          type="text"
+                          {...register('resistance')}
+                          placeholder="e.g., 0.5Ω"
+                          className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
                         />
-                      )}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Type color names (e.g., "red", "blue") and they'll be auto-detected with color preview
-                    </p>
-                  </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Wattage Range
+                        </label>
+                        <input
+                          type="text"
+                          {...register('wattageRange')}
+                          placeholder="e.g., 5-80W"
+                          className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                    </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
+                    <div className="mt-4">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Resistance
+                        Flavor
                       </label>
                       <input
                         type="text"
-                        {...register('resistance')}
-                        placeholder="e.g., 0.5Ω"
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        {...register('flavor')}
+                        placeholder="Enter flavor profile"
+                        className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Wattage Range
-                      </label>
-                      <input
-                        type="text"
-                        {...register('wattageRange')}
-                        placeholder="e.g., 5-80W"
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Flavor
-                    </label>
-                    <input
-                      type="text"
-                      {...register('flavor')}
-                      placeholder="Enter flavor profile"
-                      className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
                   </div>
                 </div>
 

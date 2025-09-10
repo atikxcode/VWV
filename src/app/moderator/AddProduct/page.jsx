@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useContext } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'
 import Swal from 'sweetalert2'
+import Select from 'react-select' // 🔧 NEW: Import react-select
+import CreatableSelect from 'react-select/creatable' // 🔧 NEW: Import CreatableSelect
 import {
   Upload,
   AlertCircle,
@@ -20,6 +22,7 @@ import {
   Zap,
   X,
   Shield,
+  Palette, // 🔧 NEW: Import Palette icon for colors
 } from 'lucide-react'
 
 import BarcodeReader from 'react-barcode-reader'
@@ -27,6 +30,184 @@ import BarcodeReader from 'react-barcode-reader'
 import { AuthContext } from '../../../../Provider/AuthProvider'
 
 const MySwal = Swal
+
+// 🔧 NEW: Options for multi-select dropdowns
+const NICOTINE_OPTIONS = [
+  { value: '0mg', label: '0mg' },
+  { value: '3mg', label: '3mg' },
+  { value: '6mg', label: '6mg' },
+  { value: '12mg', label: '12mg' },
+  { value: '18mg', label: '18mg' },
+  { value: '24mg', label: '24mg' },
+  { value: '50mg', label: '50mg' },
+]
+
+const VG_PG_OPTIONS = [
+  { value: '50/50', label: '50/50' },
+  { value: '60/40', label: '60/40' },
+  { value: '70/30', label: '70/30' },
+  { value: '80/20', label: '80/20' },
+  { value: 'Max VG', label: 'Max VG' },
+]
+
+// 🔧 NEW: Predefined color options with hex values for better color detection
+const COLOR_OPTIONS = [
+  { value: 'red', label: 'Red', color: '#FF0000' },
+  { value: 'blue', label: 'Blue', color: '#0000FF' },
+  { value: 'green', label: 'Green', color: '#008000' },
+  { value: 'yellow', label: 'Yellow', color: '#FFFF00' },
+  { value: 'orange', label: 'Orange', color: '#FFA500' },
+  { value: 'purple', label: 'Purple', color: '#800080' },
+  { value: 'pink', label: 'Pink', color: '#FFC0CB' },
+  { value: 'black', label: 'Black', color: '#000000' },
+  { value: 'white', label: 'White', color: '#FFFFFF' },
+  { value: 'brown', label: 'Brown', color: '#A52A2A' },
+  { value: 'gray', label: 'Gray', color: '#808080' },
+  { value: 'grey', label: 'Grey', color: '#808080' },
+  { value: 'silver', label: 'Silver', color: '#C0C0C0' },
+  { value: 'gold', label: 'Gold', color: '#FFD700' },
+  { value: 'navy', label: 'Navy', color: '#000080' },
+  { value: 'teal', label: 'Teal', color: '#008080' },
+  { value: 'lime', label: 'Lime', color: '#00FF00' },
+  { value: 'cyan', label: 'Cyan', color: '#00FFFF' },
+  { value: 'magenta', label: 'Magenta', color: '#FF00FF' },
+  { value: 'maroon', label: 'Maroon', color: '#800000' },
+  { value: 'olive', label: 'Olive', color: '#808000' },
+  { value: 'aqua', label: 'Aqua', color: '#00FFFF' },
+  { value: 'fuchsia', label: 'Fuchsia', color: '#FF00FF' },
+  { value: 'transparent', label: 'Transparent', color: 'transparent' },
+  { value: 'clear', label: 'Clear', color: 'transparent' },
+]
+
+// 🔧 NEW: Function to detect color from user input
+const detectColorFromInput = (input) => {
+  if (!input || typeof input !== 'string') return null
+  
+  const normalizedInput = input.toLowerCase().trim()
+  
+  // Check if input matches any predefined color
+  const matchedColor = COLOR_OPTIONS.find(color => 
+    color.value.toLowerCase() === normalizedInput ||
+    color.label.toLowerCase() === normalizedInput
+  )
+  
+  if (matchedColor) {
+    return matchedColor
+  }
+  
+  // If no match, create a new color option
+  return {
+    value: normalizedInput,
+    label: input.charAt(0).toUpperCase() + input.slice(1).toLowerCase(),
+    color: '#808080', // Default gray color for custom colors
+    isCustom: true
+  }
+}
+
+// 🔧 NEW: Custom color option component with color preview
+const ColorOption = ({ innerRef, innerProps, data }) => (
+  <div
+    ref={innerRef}
+    {...innerProps}
+    className="flex items-center gap-2 p-2 hover:bg-gray-100 cursor-pointer"
+  >
+    <div
+      className="w-4 h-4 rounded-full border border-gray-300"
+      style={{ backgroundColor: data.color === 'transparent' ? 'transparent' : data.color }}
+    />
+    <span>{data.label}</span>
+    {data.isCustom && <span className="text-xs text-gray-500">(Custom)</span>}
+  </div>
+)
+
+// 🔧 NEW: Custom multi-value component with color preview
+const ColorMultiValue = ({ data, removeProps, innerProps }) => (
+  <div
+    {...innerProps}
+    className="flex items-center gap-1 bg-purple-100 text-purple-800 px-2 py-1 rounded-md text-sm mr-1 mb-1"
+  >
+    <div
+      className="w-3 h-3 rounded-full border border-gray-300"
+      style={{ backgroundColor: data.color === 'transparent' ? 'transparent' : data.color }}
+    />
+    <span>{data.label}</span>
+    <button
+      {...removeProps}
+      className="ml-1 text-purple-600 hover:text-purple-800"
+    >
+      ×
+    </button>
+  </div>
+)
+
+// 🔧 NEW: Custom styles for react-select
+const selectStyles = {
+  control: (provided) => ({
+    ...provided,
+    padding: '6px',
+    borderRadius: '12px',
+    border: '1px solid #d1d5db',
+    boxShadow: 'none',
+    minHeight: '45px',
+    '&:hover': {
+      border: '1px solid #8b5cf6',
+    },
+    '&:focus-within': {
+      border: '1px solid #8b5cf6',
+      boxShadow: '0 0 0 2px rgba(139, 92, 246, 0.1)',
+    },
+  }),
+  multiValue: (provided) => ({
+    ...provided,
+    backgroundColor: '#8b5cf6',
+    color: 'white',
+    borderRadius: '8px',
+  }),
+  multiValueLabel: (provided) => ({
+    ...provided,
+    color: 'white',
+    fontSize: '12px',
+  }),
+  multiValueRemove: (provided) => ({
+    ...provided,
+    color: 'white',
+    '&:hover': {
+      backgroundColor: '#7c3aed',
+      color: 'white',
+    },
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    backgroundColor: state.isSelected ? '#8b5cf6' : state.isFocused ? '#f3f4f6' : 'white',
+    color: state.isSelected ? 'white' : '#374151',
+    '&:hover': {
+      backgroundColor: '#f3f4f6',
+      color: '#374151',
+    },
+  }),
+}
+
+// 🔧 NEW: Special styles for color select
+const colorSelectStyles = {
+  ...selectStyles,
+  multiValue: (provided) => ({
+    ...provided,
+    backgroundColor: 'transparent',
+    border: 'none',
+    margin: 0,
+    padding: 0,
+  }),
+  multiValueLabel: (provided) => ({
+    ...provided,
+    padding: 0,
+    margin: 0,
+  }),
+  multiValueRemove: (provided) => ({
+    ...provided,
+    padding: '2px',
+    margin: 0,
+  }),
+}
 
 const VAPE_CATEGORIES = {
   'E-LIQUID': [
@@ -78,7 +259,14 @@ export default function ModeratorAddProduct() {
     setValue,
     formState: { errors },
     reset,
-  } = useForm()
+  } = useForm({
+    // 🔧 NEW: Set default values for multi-select fields
+    defaultValues: {
+      nicotineStrength: [],
+      vgPgRatio: [],
+      colors: [],
+    }
+  })
 
   const [moderatorBranch, setModeratorBranch] = useState(null)
   const [moderatorRole, setModeratorRole] = useState(null)
@@ -91,6 +279,9 @@ export default function ModeratorAddProduct() {
   const [images, setImages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
+
+  // 🔧 NEW: Branch-specific specifications state
+  const [branchSpecifications, setBranchSpecifications] = useState({})
 
   const [dynamicCategories, setDynamicCategories] = useState(VAPE_CATEGORIES)
   const fileInputRef = useRef(null)
@@ -120,6 +311,35 @@ export default function ModeratorAddProduct() {
       return false
     }
     return true
+  }
+
+  // 🔧 NEW: Helper function to update branch specifications
+  const updateBranchSpecification = (branch, field, selectedOptions) => {
+    setBranchSpecifications(prev => {
+      const prevBranchSpec = prev[branch] || { nicotineStrength: [], vgPgRatio: [], colors: [] }
+      return {
+        ...prev,
+        [branch]: {
+          ...prevBranchSpec,
+          [field]: selectedOptions ? selectedOptions.map(opt => opt.value) : []
+        }
+      }
+    })
+  }
+
+  // 🔧 NEW: Helper function to get branch specification value for display
+  const getBranchSpecificationValue = (branch, field) => {
+    const branchSpec = branchSpecifications[branch]
+    if (!branchSpec || !branchSpec[field]) return []
+
+    if (field === 'colors') {
+      return branchSpec[field].map(colorValue => {
+        const detectedColor = detectColorFromInput(colorValue)
+        return detectedColor || { value: colorValue, label: colorValue, color: '#808080' }
+      })
+    } else {
+      return branchSpec[field].map(val => ({ value: val, label: val }))
+    }
   }
 
   useEffect(() => {
@@ -217,15 +437,26 @@ export default function ModeratorAddProduct() {
     loadCategories()
   }, [])
 
-  // 🔧 CRITICAL UPDATE: Only load moderator's branch
+  // 🔧 CRITICAL UPDATE: Only load moderator's branch and initialize branch specifications
   useEffect(() => {
     // Only set branches if moderator branch is available
     if (moderatorBranch) {
       setBranches([moderatorBranch])
+      
+      // 🔧 NEW: Initialize branch specifications for moderator's branch
+      setBranchSpecifications({
+        [moderatorBranch]: {
+          nicotineStrength: [],
+          vgPgRatio: [],
+          colors: []
+        }
+      })
+      
       console.log(`Moderator ${user?.email} assigned to branch: ${moderatorBranch}`)
     } else if (moderatorRole === 'moderator') {
       // If moderator role is confirmed but no branch, show empty
       setBranches([])
+      setBranchSpecifications({})
       console.log('Moderator role confirmed but no branch assigned')
     }
   }, [moderatorRole, moderatorBranch, user])
@@ -281,8 +512,21 @@ export default function ModeratorAddProduct() {
             setValue('category', product.category || '')
             setValue('subcategory', product.subcategory || '')
             setValue('description', product.description || '')
-            setValue('nicotineStrength', product.nicotineStrength || '')
-            setValue('vgPgRatio', product.vgPgRatio || '')
+            
+            // 🔧 NEW: Load branch specifications from scanned product
+            if (product.branchSpecifications && moderatorBranch) {
+              const branchSpec = product.branchSpecifications[moderatorBranch]
+              if (branchSpec) {
+                setBranchSpecifications({
+                  [moderatorBranch]: {
+                    nicotineStrength: branchSpec.nicotineStrength || [],
+                    vgPgRatio: branchSpec.vgPgRatio || [],
+                    colors: branchSpec.colors || []
+                  }
+                })
+              }
+            }
+            
             setValue('flavor', product.flavor || '')
             setValue('resistance', product.resistance || '')
             setValue('wattageRange', product.wattageRange || '')
@@ -374,17 +618,18 @@ export default function ModeratorAddProduct() {
     try {
       console.log('Submitting form data:', data)
 
+      // 🔧 UPDATED: Include branch specifications in product data
       const productData = {
         ...data,
         stock,
-        nicotineStrength: data.nicotineStrength || null,
-        vgPgRatio: data.vgPgRatio || null,
+        // 🔧 NEW: Include branch-specific specifications
+        branchSpecifications,
         resistance: data.resistance || null,
         wattageRange: data.wattageRange || null,
         tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()) : [],
       }
 
-      console.log('Sending product data:', productData)
+      console.log('Sending product data with branch specifications:', productData)
 
       const response = await fetch('/api/products', {
         method: 'POST',
@@ -461,6 +706,16 @@ export default function ModeratorAddProduct() {
       reset()
       setStock({})
       setImages([])
+      // 🔧 NEW: Reset branch specifications
+      if (moderatorBranch) {
+        setBranchSpecifications({
+          [moderatorBranch]: {
+            nicotineStrength: [],
+            vgPgRatio: [],
+            colors: []
+          }
+        })
+      }
 
       MySwal.fire({
         icon: 'success',
@@ -834,85 +1089,180 @@ export default function ModeratorAddProduct() {
 
               {/* Right Column */}
               <div className="space-y-6">
-                {/* Vape-Specific Fields */}
+                {/* 🔧 NEW: Branch-Specific Vape Specifications */}
+                {moderatorBranch && (
+                  <motion.div variants={itemVariants} className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                        <Zap size={20} className="text-purple-600" />
+                        Branch-Specific Vape Specifications
+                      </h3>
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
+                        {moderatorBranch} Branch Only
+                      </span>
+                    </div>
+
+                    {/* Branch-Specific Multi-Select Fields */}
+                    <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                      <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2 capitalize">
+                        <Store size={18} className="text-purple-600" />
+                        {moderatorBranch} Branch Specifications
+                      </h4>
+
+                      <div className="space-y-4">
+                        {/* Nicotine Strength per Branch */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Nicotine Strength (Multiple)
+                          </label>
+                          <Controller
+                            name={`nicotineStrength_${moderatorBranch}`}
+                            control={control}
+                            render={({ field }) => (
+                              <Select
+                                options={NICOTINE_OPTIONS}
+                                isMulti
+                                closeMenuOnSelect={false}
+                                placeholder={`Select strengths for ${moderatorBranch}...`}
+                                styles={selectStyles}
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                                value={getBranchSpecificationValue(moderatorBranch, 'nicotineStrength')}
+                                onChange={(selected) => {
+                                  updateBranchSpecification(moderatorBranch, 'nicotineStrength', selected)
+                                  field.onChange(selected)
+                                }}
+                              />
+                            )}
+                          />
+                        </div>
+
+                        {/* VG/PG Ratio per Branch */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            VG/PG Ratio (Multiple)
+                          </label>
+                          <Controller
+                            name={`vgPgRatio_${moderatorBranch}`}
+                            control={control}
+                            render={({ field }) => (
+                              <Select
+                                options={VG_PG_OPTIONS}
+                                isMulti
+                                closeMenuOnSelect={false}
+                                placeholder={`Select ratios for ${moderatorBranch}...`}
+                                styles={selectStyles}
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                                value={getBranchSpecificationValue(moderatorBranch, 'vgPgRatio')}
+                                onChange={(selected) => {
+                                  updateBranchSpecification(moderatorBranch, 'vgPgRatio', selected)
+                                  field.onChange(selected)
+                                }}
+                              />
+                            )}
+                          />
+                        </div>
+
+                        {/* Colors per Branch */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                            <Palette size={16} className="text-purple-600" />
+                            Colors (Multiple - Auto-detect)
+                          </label>
+                          <Controller
+                            name={`colors_${moderatorBranch}`}
+                            control={control}
+                            render={({ field }) => (
+                              <CreatableSelect
+                                options={COLOR_OPTIONS}
+                                isMulti
+                                closeMenuOnSelect={false}
+                                placeholder={`Type or select colors for ${moderatorBranch}...`}
+                                styles={colorSelectStyles}
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                                components={{
+                                  Option: ColorOption,
+                                  MultiValue: ColorMultiValue,
+                                }}
+                                value={getBranchSpecificationValue(moderatorBranch, 'colors')}
+                                onChange={(selected) => {
+                                  updateBranchSpecification(moderatorBranch, 'colors', selected)
+                                  field.onChange(selected)
+                                }}
+                                formatCreateLabel={(inputValue) =>
+                                  `Add "${inputValue}" color`
+                                }
+                                onCreateOption={(inputValue) => {
+                                  const newColor = detectColorFromInput(inputValue)
+                                  if (newColor) {
+                                    const currentColors = getBranchSpecificationValue(moderatorBranch, 'colors')
+                                    const updatedColors = [...currentColors, newColor]
+                                    updateBranchSpecification(moderatorBranch, 'colors', updatedColors)
+                                  }
+                                }}
+                                filterOption={(option, inputValue) => {
+                                  if (!inputValue) return true
+                                  const searchValue = inputValue.toLowerCase()
+                                  return (
+                                    option.label.toLowerCase().includes(searchValue) ||
+                                    option.value.toLowerCase().includes(searchValue)
+                                  )
+                                }}
+                              />
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* General Specifications */}
                 <motion.div variants={itemVariants} className="space-y-4">
-                  <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                    <Zap size={20} className="text-purple-600" />
-                    Vape Specifications
-                  </h3>
+                  <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                      <Package size={18} className="text-purple-600" />
+                      General Specifications
+                    </h4>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nicotine Strength
-                      </label>
-                      <select
-                        {...register('nicotineStrength')}
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                      >
-                        <option value="">Select Strength</option>
-                        <option value="0mg">0mg</option>
-                        <option value="3mg">3mg</option>
-                        <option value="6mg">6mg</option>
-                        <option value="12mg">12mg</option>
-                        <option value="18mg">18mg</option>
-                        <option value="24mg">24mg</option>
-                        <option value="50mg">50mg</option>
-                      </select>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Resistance
+                        </label>
+                        <input
+                          type="text"
+                          {...register('resistance')}
+                          placeholder="e.g., 0.5Ω"
+                          className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Wattage Range
+                        </label>
+                        <input
+                          type="text"
+                          {...register('wattageRange')}
+                          placeholder="e.g., 5-80W"
+                          className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        VG/PG Ratio
-                      </label>
-                      <select
-                        {...register('vgPgRatio')}
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                      >
-                        <option value="">Select Ratio</option>
-                        <option value="50/50">50/50</option>
-                        <option value="60/40">60/40</option>
-                        <option value="70/30">70/30</option>
-                        <option value="80/20">80/20</option>
-                        <option value="Max VG">Max VG</option>
-                      </select>
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
+                    <div className="mt-4">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Resistance
+                        Flavor
                       </label>
                       <input
                         type="text"
-                        {...register('resistance')}
-                        placeholder="e.g., 0.5Ω"
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        {...register('flavor')}
+                        placeholder="Enter flavor profile"
+                        className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Wattage Range
-                      </label>
-                      <input
-                        type="text"
-                        {...register('wattageRange')}
-                        placeholder="e.g., 5-80W"
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Flavor
-                    </label>
-                    <input
-                      type="text"
-                      {...register('flavor')}
-                      placeholder="Enter flavor profile"
-                      className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
                   </div>
                 </motion.div>
 
@@ -1069,6 +1419,16 @@ export default function ModeratorAddProduct() {
                   reset()
                   setStock({})
                   setImages([])
+                  // Reset branch specifications
+                  if (moderatorBranch) {
+                    setBranchSpecifications({
+                      [moderatorBranch]: {
+                        nicotineStrength: [],
+                        vgPgRatio: [],
+                        colors: []
+                      }
+                    })
+                  }
                 }}
                 className="flex-1 py-4 px-6 bg-gray-100 text-gray-700 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
               >

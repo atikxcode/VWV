@@ -56,7 +56,6 @@ function logRequest(req, method) {
   console.log('URL:', req.url)
 }
 
-
 function sanitizeInput(input) {
   if (typeof input !== 'string') return input
   
@@ -68,7 +67,7 @@ function sanitizeInput(input) {
     .substring(0, 1000) 
 }
 
-//  Product specifi sanitization [allows & and /]
+//  Product specific sanitization [allows & and /]
 function sanitizeProductInput(input) {
   if (typeof input !== 'string') return input
   
@@ -88,7 +87,7 @@ function sanitizeProductInput(input) {
     .substring(0, 1000) 
 }
 
-// Cateogry and Subcategories sanitization (preserves business formatting)
+// Category and Subcategories sanitization (preserves business formatting)
 function sanitizeCategoryInput(input) {
   if (typeof input !== 'string') return input
   
@@ -1026,7 +1025,7 @@ export async function POST(req) {
       )
     }
 
-    // Handle product update - Admin/moderator only
+    // 🔧 FIXED: Handle product update with proper branch data merging
     if (action === 'update') {
       console.log('POST: Updating product:', body.id)
       const productId = sanitizeInput(body.id)
@@ -1051,9 +1050,7 @@ export async function POST(req) {
         status,
         specifications,
         tags,
-        nicotineStrength,
-        vgPgRatio,
-        colors,
+        branchSpecifications, // 🔧 NEW: Handle branch-specific specifications
         flavor,
         resistance,
         wattageRange,
@@ -1070,16 +1067,7 @@ export async function POST(req) {
       const sanitizedFlavor = sanitizeProductInput(flavor)
       const sanitizedStatus = sanitizeInput(status)
 
-      // 🔧 UPDATED: Handle array fields with product-specific sanitization
-      const sanitizedNicotineStrength = sanitizeAndValidateArray(nicotineStrength, 'nicotineStrength', 10, 50, true)
-      const sanitizedVgPgRatio = sanitizeAndValidateArray(vgPgRatio, 'vgPgRatio', 10, 50, true)
-      const sanitizedColors = sanitizeAndValidateArray(colors, 'colors', 15, 30, true)
-
-      console.log('POST: Multi-select values processed:', {
-        nicotineStrength: sanitizedNicotineStrength,
-        vgPgRatio: sanitizedVgPgRatio,
-        colors: sanitizedColors
-      })
+      console.log('POST: Processing branch specifications:', branchSpecifications)
 
       // Validation
       if (!sanitizedName || !price || !sanitizedCategory) {
@@ -1146,10 +1134,11 @@ export async function POST(req) {
 
       const { ObjectId } = require('mongodb')
 
-      // Check if product exists
+      // 🔧 CRITICAL: Get existing product first to preserve other branches' data
       const existingProduct = await db
         .collection('products')
         .findOne({ _id: new ObjectId(productId) })
+      
       if (!existingProduct) {
         console.log('POST: Product not found for update:', productId)
         return NextResponse.json(
@@ -1172,7 +1161,29 @@ export async function POST(req) {
         }
       }
 
-      // Update product data
+      // 🔧 NEW: Merge branch specifications properly
+      const existingBranchSpecs = existingProduct.branchSpecifications || {}
+      const mergedBranchSpecifications = { ...existingBranchSpecs }
+      
+      // Only update the branches provided in the request
+      if (branchSpecifications && typeof branchSpecifications === 'object') {
+        Object.keys(branchSpecifications).forEach(branch => {
+          mergedBranchSpecifications[branch] = branchSpecifications[branch]
+        })
+      }
+
+      // 🔧 NEW: Merge stock properly  
+      const existingStock = existingProduct.stock || {}
+      const mergedStock = { ...existingStock }
+      
+      // Only update the stock values provided in the request
+      if (stock && typeof stock === 'object') {
+        Object.keys(stock).forEach(stockKey => {
+          mergedStock[stockKey] = stock[stockKey]
+        })
+      }
+
+      // Update product data with merged values
       const updateData = {
         name: sanitizedName.trim(),
         description: sanitizedDescription?.trim() || '',
@@ -1187,19 +1198,14 @@ export async function POST(req) {
         tags: Array.isArray(tags) 
           ? tags.map(tag => sanitizeProductInput(tag)).filter(tag => tag.length > 0 && tag.length <= 50).slice(0, 20) 
           : [],
-        nicotineStrength: sanitizedNicotineStrength,
-        vgPgRatio: sanitizedVgPgRatio,
-        colors: sanitizedColors,
+        // 🔧 FIXED: Use merged data instead of overwriting
+        branchSpecifications: mergedBranchSpecifications,
+        stock: mergedStock,
         flavor: sanitizedFlavor?.trim() || '',
         resistance: resistance || null,
         wattageRange: wattageRange || null,
         updatedAt: new Date(),
         updatedBy: userInfo.userId,
-      }
-
-      // Handle stock update
-      if (stock && typeof stock === 'object') {
-        updateData.stock = stock
       }
 
       // Handle image order update
@@ -1272,9 +1278,7 @@ export async function POST(req) {
       specifications,
       tags,
       branches,
-      nicotineStrength,
-      vgPgRatio,
-      colors,
+      branchSpecifications, // 🔧 NEW: Handle branch-specific specifications
       flavor,
       resistance,
       wattageRange,
@@ -1290,16 +1294,7 @@ export async function POST(req) {
     const sanitizedFlavor = sanitizeProductInput(flavor)
     const sanitizedStatus = sanitizeInput(status)
 
-    // 🔧 UPDATED: Handle array fields with product-specific sanitization
-    const sanitizedNicotineStrength = sanitizeAndValidateArray(nicotineStrength, 'nicotineStrength', 10, 50, true)
-    const sanitizedVgPgRatio = sanitizeAndValidateArray(vgPgRatio, 'vgPgRatio', 10, 50, true)
-    const sanitizedColors = sanitizeAndValidateArray(colors, 'colors', 15, 30, true)
-
-    console.log('POST: New product multi-select values processed:', {
-      nicotineStrength: sanitizedNicotineStrength,
-      vgPgRatio: sanitizedVgPgRatio,
-      colors: sanitizedColors
-    })
+    console.log('POST: Processing branch specifications for new product:', branchSpecifications)
 
     // Validation for new product
     if (!sanitizedName || !price || !sanitizedCategory) {
@@ -1383,6 +1378,17 @@ export async function POST(req) {
       })
     }
 
+    // 🔧 IMPROVED: Better handling of initial branch specifications
+    const initialBranchSpecifications = {}
+    if (branchSpecifications && typeof branchSpecifications === 'object') {
+      // Only include branches that actually have data
+      Object.keys(branchSpecifications).forEach(branch => {
+        if (branchSpecifications[branch] && Object.keys(branchSpecifications[branch]).length > 0) {
+          initialBranchSpecifications[branch] = branchSpecifications[branch]
+        }
+      })
+    }
+
     // Create new product
     const newProduct = {
       name: sanitizedName.trim(),
@@ -1399,9 +1405,8 @@ export async function POST(req) {
       tags: Array.isArray(tags) 
         ? tags.map(tag => sanitizeProductInput(tag)).filter(tag => tag.length > 0 && tag.length <= 50).slice(0, 20)
         : [],
-      nicotineStrength: sanitizedNicotineStrength,
-      vgPgRatio: sanitizedVgPgRatio,
-      colors: sanitizedColors,
+      // 🔧 IMPROVED: Store branch specifications properly
+      branchSpecifications: initialBranchSpecifications,
       flavor: sanitizedFlavor?.trim() || '',
       resistance: resistance || null,
       wattageRange: wattageRange || null,

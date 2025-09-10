@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'
 import Swal from 'sweetalert2'
-import Select from 'react-select' // 🔧 NEW: Import react-select
-import CreatableSelect from 'react-select/creatable' // 🔧 NEW: Import CreatableSelect for color input
+import Select from 'react-select'
+import CreatableSelect from 'react-select/creatable'
 import {
   PlusCircle,
   Upload,
@@ -25,7 +25,7 @@ import {
   X,
   Edit,
   Settings,
-  Palette, // 🔧 NEW: Icon for color field
+  Palette,
 } from 'lucide-react'
 
 // For barcode scanning
@@ -53,7 +53,7 @@ const VG_PG_OPTIONS = [
   { value: 'Max VG', label: 'Max VG' },
 ]
 
-// 🔧 NEW: Predefined color options with hex values for better color detection
+// 🔧 NEW: Predefined color options with hex values
 const COLOR_OPTIONS = [
   { value: 'red', label: 'Red', color: '#FF0000' },
   { value: 'blue', label: 'Blue', color: '#0000FF' },
@@ -147,10 +147,11 @@ const ColorMultiValue = ({ data, removeProps, innerProps }) => (
 const selectStyles = {
   control: (provided) => ({
     ...provided,
-    padding: '8px',
+    padding: '6px',
     borderRadius: '12px',
     border: '1px solid #d1d5db',
     boxShadow: 'none',
+    minHeight: '45px',
     '&:hover': {
       border: '1px solid #8b5cf6',
     },
@@ -168,7 +169,7 @@ const selectStyles = {
   multiValueLabel: (provided) => ({
     ...provided,
     color: 'white',
-    fontSize: '14px',
+    fontSize: '12px',
   }),
   multiValueRemove: (provided) => ({
     ...provided,
@@ -251,7 +252,7 @@ const VAPE_CATEGORIES = {
   ],
 }
 
-// Category Management Modal Component with Delete Functionality
+// Category Management Modal Component
 const CategoryManagementModal = ({
   isOpen,
   onClose,
@@ -702,12 +703,8 @@ export default function AddProduct() {
     formState: { errors },
     reset,
   } = useForm({
-    // 🔧 NEW: Set default values for multi-select fields including colors
-    defaultValues: {
-      nicotineStrength: [],
-      vgPgRatio: [],
-      colors: [], // 🔧 NEW: Default colors array
-    }
+    // 🔧 UPDATED: Dynamic default values based on branches
+    defaultValues: {},
   })
 
   const [subCategoryOptions, setSubCategoryOptions] = useState([])
@@ -732,6 +729,17 @@ export default function AddProduct() {
   const fileInputRef = useRef(null)
 
   const category = watch('category')
+
+  // 🔧 NEW: Function to create branch-specific default values
+  const createBranchDefaultValues = (branchList) => {
+    const defaultValues = {}
+    branchList.forEach((branch) => {
+      defaultValues[`nicotineStrength_${branch}`] = []
+      defaultValues[`vgPgRatio_${branch}`] = []
+      defaultValues[`colors_${branch}`] = []
+    })
+    return defaultValues
+  }
 
   const refreshCategories = async () => {
     try {
@@ -783,23 +791,33 @@ export default function AddProduct() {
             })
             setStock(initialStock)
             
+            // 🔧 NEW: Set branch-specific default values in form
+            const branchDefaults = createBranchDefaultValues(data.branches)
+            reset(branchDefaults)
+            
             console.log('✅ Branches set successfully:', data.branches)
           } else {
             console.warn('⚠️ Invalid branches data, using defaults')
             setBranches(['bashundhara', 'mirpur'])
+            const branchDefaults = createBranchDefaultValues(['bashundhara', 'mirpur'])
+            reset(branchDefaults)
           }
         } else {
           console.error('❌ Failed to fetch branches, status:', response.status)
           setBranches(['bashundhara', 'mirpur'])
+          const branchDefaults = createBranchDefaultValues(['bashundhara', 'mirpur'])
+          reset(branchDefaults)
         }
       } catch (error) {
         console.error('❌ Error loading branches:', error)
         setBranches(['bashundhara', 'mirpur'])
+        const branchDefaults = createBranchDefaultValues(['bashundhara', 'mirpur'])
+        reset(branchDefaults)
       }
     }
 
     loadBranches()
-  }, [])
+  }, [reset])
 
   useEffect(() => {
     const initialStock = {}
@@ -828,6 +846,14 @@ export default function AddProduct() {
         newStock[`${branch}_stock`] = stock[`${branch}_stock`] || 0
       })
       setStock(newStock)
+      
+      // 🔧 NEW: Update form default values for new branches
+      const branchDefaults = createBranchDefaultValues(updatedBranches)
+      const currentValues = watch()
+      reset({
+        ...currentValues,
+        ...branchDefaults
+      })
       
       forceUpdate(n => n + 1)
       
@@ -866,31 +892,36 @@ export default function AddProduct() {
             setValue('subcategory', product.subcategory || '')
             setValue('description', product.description || '')
             
-            // 🔧 NEW: Handle multi-select values for scanned products
-            if (product.nicotineStrength) {
-              const nicotineValues = Array.isArray(product.nicotineStrength) 
-                ? product.nicotineStrength.map(val => ({ value: val, label: val }))
-                : [{ value: product.nicotineStrength, label: product.nicotineStrength }]
-              setValue('nicotineStrength', nicotineValues)
-            }
-            
-            if (product.vgPgRatio) {
-              const vgPgValues = Array.isArray(product.vgPgRatio) 
-                ? product.vgPgRatio.map(val => ({ value: val, label: val }))
-                : [{ value: product.vgPgRatio, label: product.vgPgRatio }]
-              setValue('vgPgRatio', vgPgValues)
-            }
+            // 🔧 UPDATED: Handle multi-select values for scanned products per branch
+            branches.forEach((branch) => {
+              if (product.branchSpecifications && product.branchSpecifications[branch]) {
+                const branchSpec = product.branchSpecifications[branch]
+                
+                if (branchSpec.nicotineStrength) {
+                  const nicotineValues = Array.isArray(branchSpec.nicotineStrength) 
+                    ? branchSpec.nicotineStrength.map(val => ({ value: val, label: val }))
+                    : [{ value: branchSpec.nicotineStrength, label: branchSpec.nicotineStrength }]
+                  setValue(`nicotineStrength_${branch}`, nicotineValues)
+                }
+                
+                if (branchSpec.vgPgRatio) {
+                  const vgPgValues = Array.isArray(branchSpec.vgPgRatio) 
+                    ? branchSpec.vgPgRatio.map(val => ({ value: val, label: val }))
+                    : [{ value: branchSpec.vgPgRatio, label: branchSpec.vgPgRatio }]
+                  setValue(`vgPgRatio_${branch}`, vgPgValues)
+                }
 
-            // 🔧 NEW: Handle colors for scanned products
-            if (product.colors) {
-              const colorValues = Array.isArray(product.colors) 
-                ? product.colors.map(colorValue => {
-                    const detectedColor = detectColorFromInput(colorValue)
-                    return detectedColor || { value: colorValue, label: colorValue, color: '#808080' }
-                  })
-                : [detectColorFromInput(product.colors) || { value: product.colors, label: product.colors, color: '#808080' }]
-              setValue('colors', colorValues)
-            }
+                if (branchSpec.colors) {
+                  const colorValues = Array.isArray(branchSpec.colors) 
+                    ? branchSpec.colors.map(colorValue => {
+                        const detectedColor = detectColorFromInput(colorValue)
+                        return detectedColor || { value: colorValue, label: colorValue, color: '#808080' }
+                      })
+                    : [detectColorFromInput(branchSpec.colors) || { value: branchSpec.colors, label: branchSpec.colors, color: '#808080' }]
+                  setValue(`colors_${branch}`, colorValues)
+                }
+              }
+            })
             
             setValue('flavor', product.flavor || '')
             setValue('resistance', product.resistance || '')
@@ -1093,20 +1124,27 @@ export default function AddProduct() {
     }
   }
 
-  // 🔧 UPDATED: Form submission to handle multi-select arrays including colors
+  // 🔧 UPDATED: Form submission to handle branch-specific multi-select arrays
   const onSubmit = async (data) => {
     setIsLoading(true)
     try {
       console.log('Submitting form data:', data)
 
-      // 🔧 NEW: Process multi-select values including colors
+      // 🔧 NEW: Process branch-specific multi-select values
+      const branchSpecificData = {}
+      branches.forEach((branch) => {
+        branchSpecificData[branch] = {
+          nicotineStrength: data[`nicotineStrength_${branch}`]?.map(item => item.value) || [],
+          vgPgRatio: data[`vgPgRatio_${branch}`]?.map(item => item.value) || [],
+          colors: data[`colors_${branch}`]?.map(item => item.value) || [],
+        }
+      })
+
       const processedData = {
         ...data,
         stock,
-        // Convert react-select values to simple arrays
-        nicotineStrength: data.nicotineStrength?.map(item => item.value) || [],
-        vgPgRatio: data.vgPgRatio?.map(item => item.value) || [],
-        colors: data.colors?.map(item => item.value) || [], // 🔧 NEW: Process colors
+        // Store branch-specific specifications
+        branchSpecifications: branchSpecificData,
         resistance: data.resistance || null,
         wattageRange: data.wattageRange || null,
         tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()) : [],
@@ -1182,12 +1220,9 @@ export default function AddProduct() {
         }
       }
 
-      // Reset form and states
-      reset({
-        nicotineStrength: [],
-        vgPgRatio: [],
-        colors: [], // 🔧 NEW: Reset colors
-      })
+      // 🔧 UPDATED: Reset form with branch-specific defaults
+      const branchDefaults = createBranchDefaultValues(branches)
+      reset(branchDefaults)
       setStock({})
       setImages([])
       setIsAddingCustomCategory(false)
@@ -1264,7 +1299,7 @@ export default function AddProduct() {
             Add New Vape Product
           </h1>
           <p className="text-gray-600">
-            Manage your vape shop inventory with style
+            Manage your vape shop inventory with branch-specific specifications
           </p>
         </motion.div>
 
@@ -1604,151 +1639,165 @@ export default function AddProduct() {
 
               {/* Right Column */}
               <div className="space-y-6">
-                {/* 🔧 UPDATED: Vape-Specific Fields with Multi-Select and Colors */}
-                <motion.div variants={itemVariants} className="space-y-4">
-                  <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                    <Zap size={20} className="text-purple-600" />
-                    Vape Specifications
-                  </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* 🔧 NEW: Multi-Select Nicotine Strength */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nicotine Strength (Multiple)
-                      </label>
-                      <Controller
-                        name="nicotineStrength"
-                        control={control}
-                        render={({ field }) => (
-                          <Select
-                            {...field}
-                            options={NICOTINE_OPTIONS}
-                            isMulti
-                            closeMenuOnSelect={false}
-                            placeholder="Select strengths..."
-                            styles={selectStyles}
-                            className="react-select-container"
-                            classNamePrefix="react-select"
-                          />
-                        )}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Select multiple nicotine strengths
-                      </p>
-                    </div>
-
-                    {/* 🔧 NEW: Multi-Select VG/PG Ratio */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        VG/PG Ratio (Multiple)
-                      </label>
-                      <Controller
-                        name="vgPgRatio"
-                        control={control}
-                        render={({ field }) => (
-                          <Select
-                            {...field}
-                            options={VG_PG_OPTIONS}
-                            isMulti
-                            closeMenuOnSelect={false}
-                            placeholder="Select ratios..."
-                            styles={selectStyles}
-                            className="react-select-container"
-                            classNamePrefix="react-select"
-                          />
-                        )}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Select multiple VG/PG ratios
-                      </p>
-                    </div>
+                {/* 🔧 NEW: Branch-Specific Vape Specifications */}
+                <motion.div variants={itemVariants} className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                      <Zap size={20} className="text-purple-600" />
+                      Branch-Specific Vape Specifications
+                    </h3>
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
+                      {branches.length} Branches
+                    </span>
                   </div>
 
-                  {/* 🔧 NEW: Colors Field - Full Width */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      <Palette size={16} className="text-purple-600" />
-                      Colors (Multiple - Auto-detect)
-                    </label>
-                    <Controller
-                      name="colors"
-                      control={control}
-                      render={({ field }) => (
-                        <CreatableSelect
-                          {...field}
-                          options={COLOR_OPTIONS}
-                          isMulti
-                          closeMenuOnSelect={false}
-                          placeholder="Type or select colors..."
-                          styles={colorSelectStyles}
-                          className="react-select-container"
-                          classNamePrefix="react-select"
-                          components={{
-                            Option: ColorOption,
-                            MultiValue: ColorMultiValue,
-                          }}
-                          formatCreateLabel={(inputValue) =>
-                            `Add "${inputValue}" color`
-                          }
-                          onCreateOption={(inputValue) => {
-                            const newColor = detectColorFromInput(inputValue)
-                            if (newColor) {
-                              const currentColors = field.value || []
-                              field.onChange([...currentColors, newColor])
-                            }
-                          }}
-                          filterOption={(option, inputValue) => {
-                            if (!inputValue) return true
-                            const searchValue = inputValue.toLowerCase()
-                            return (
-                              option.label.toLowerCase().includes(searchValue) ||
-                              option.value.toLowerCase().includes(searchValue)
-                            )
-                          }}
+                  {/* Branch-Specific Multi-Select Fields */}
+                  {branches.map((branch) => (
+                    <div key={branch} className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                      <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2 capitalize">
+                        <Store size={18} className="text-purple-600" />
+                        {branch} Branch Specifications
+                      </h4>
+
+                      <div className="space-y-4">
+                        {/* Nicotine Strength per Branch */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Nicotine Strength (Multiple)
+                          </label>
+                          <Controller
+                            name={`nicotineStrength_${branch}`}
+                            control={control}
+                            render={({ field }) => (
+                              <Select
+                                {...field}
+                                options={NICOTINE_OPTIONS}
+                                isMulti
+                                closeMenuOnSelect={false}
+                                placeholder={`Select strengths for ${branch}...`}
+                                styles={selectStyles}
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                              />
+                            )}
+                          />
+                        </div>
+
+                        {/* VG/PG Ratio per Branch */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            VG/PG Ratio (Multiple)
+                          </label>
+                          <Controller
+                            name={`vgPgRatio_${branch}`}
+                            control={control}
+                            render={({ field }) => (
+                              <Select
+                                {...field}
+                                options={VG_PG_OPTIONS}
+                                isMulti
+                                closeMenuOnSelect={false}
+                                placeholder={`Select ratios for ${branch}...`}
+                                styles={selectStyles}
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                              />
+                            )}
+                          />
+                        </div>
+
+                        {/* Colors per Branch */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                            <Palette size={16} className="text-purple-600" />
+                            Colors (Multiple - Auto-detect)
+                          </label>
+                          <Controller
+                            name={`colors_${branch}`}
+                            control={control}
+                            render={({ field }) => (
+                              <CreatableSelect
+                                {...field}
+                                options={COLOR_OPTIONS}
+                                isMulti
+                                closeMenuOnSelect={false}
+                                placeholder={`Type or select colors for ${branch}...`}
+                                styles={colorSelectStyles}
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                                components={{
+                                  Option: ColorOption,
+                                  MultiValue: ColorMultiValue,
+                                }}
+                                formatCreateLabel={(inputValue) =>
+                                  `Add "${inputValue}" color`
+                                }
+                                onCreateOption={(inputValue) => {
+                                  const newColor = detectColorFromInput(inputValue)
+                                  if (newColor) {
+                                    const currentColors = field.value || []
+                                    field.onChange([...currentColors, newColor])
+                                  }
+                                }}
+                                filterOption={(option, inputValue) => {
+                                  if (!inputValue) return true
+                                  const searchValue = inputValue.toLowerCase()
+                                  return (
+                                    option.label.toLowerCase().includes(searchValue) ||
+                                    option.value.toLowerCase().includes(searchValue)
+                                  )
+                                }}
+                              />
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* General Specifications */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                      <Package size={18} className="text-purple-600" />
+                      General Specifications
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Resistance
+                        </label>
+                        <input
+                          type="text"
+                          {...register('resistance')}
+                          placeholder="e.g., 0.5Ω"
+                          className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
                         />
-                      )}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Type color names (e.g., "red", "blue") and they'll be auto-detected with color preview
-                    </p>
-                  </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Wattage Range
+                        </label>
+                        <input
+                          type="text"
+                          {...register('wattageRange')}
+                          placeholder="e.g., 5-80W"
+                          className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                    </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
+                    <div className="mt-4">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Resistance
+                        Flavor
                       </label>
                       <input
                         type="text"
-                        {...register('resistance')}
-                        placeholder="e.g., 0.5Ω"
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        {...register('flavor')}
+                        placeholder="Enter flavor profile"
+                        className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Wattage Range
-                      </label>
-                      <input
-                        type="text"
-                        {...register('wattageRange')}
-                        placeholder="e.g., 5-80W"
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Flavor
-                    </label>
-                    <input
-                      type="text"
-                      {...register('flavor')}
-                      placeholder="Enter flavor profile"
-                      className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
                   </div>
                 </motion.div>
 
@@ -1892,11 +1941,8 @@ export default function AddProduct() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => {
-                  reset({
-                    nicotineStrength: [],
-                    vgPgRatio: [],
-                    colors: [], // 🔧 NEW: Reset colors
-                  })
+                  const branchDefaults = createBranchDefaultValues(branches)
+                  reset(branchDefaults)
                   setStock({})
                   setImages([])
                   setIsAddingCustomCategory(false)
