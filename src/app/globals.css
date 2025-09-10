@@ -2,7 +2,43 @@
 
 :root {
   --font-primary: 'Josefin Sans';
+
+  --neon-pink: #FF00FF;
+  --neon-orange: #FF4500;
+  --neon-red: #FF0000;
+  --neon-purple: #8A2BE2;
+  --neon-green: #00FF00;
+  --neon-purple-dark: #4B0082;
 }
+
+
+
+
+/* Product card */
+
+
+/* Shadow Glow */
+.shadow-glow {
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+}
+
+/* Vapor Animation */
+@keyframes vapor {
+  0% { transform: translateY(0); opacity: 0; }
+  100% { transform: translateY(-50px); opacity: 0.2; }
+}
+.animate-vapor {
+  animation: vapor 2s infinite alternate;
+  background: radial-gradient(circle, rgba(138,43,226,0.2) 0%, transparent 70%);
+}
+
+
+
+
+
+
+
+
 
 body {
   font-family: var(--font-primary), sans-serif;

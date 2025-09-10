@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef, useContext, useCallback } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form' // 🔧 Added Controller
 import { motion, AnimatePresence } from 'framer-motion'
 import Swal from 'sweetalert2'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
+import Select from 'react-select' // 🔧 NEW: Import react-select
+import CreatableSelect from 'react-select/creatable' // 🔧 NEW: Import CreatableSelect for color input
 import {
   Upload,
   AlertCircle,
@@ -27,9 +29,187 @@ import {
   Move,
   ArrowLeft,
   Lock,
+  Palette, // 🔧 NEW: Icon for color field
 } from 'lucide-react'
 import BarcodeReader from 'react-barcode-reader'
 import { AuthContext } from '../Provider/AuthProvider'
+
+// 🔧 NEW: Options for multi-select dropdowns
+const NICOTINE_OPTIONS = [
+  { value: '0mg', label: '0mg' },
+  { value: '3mg', label: '3mg' },
+  { value: '6mg', label: '6mg' },
+  { value: '12mg', label: '12mg' },
+  { value: '18mg', label: '18mg' },
+  { value: '24mg', label: '24mg' },
+  { value: '50mg', label: '50mg' },
+]
+
+const VG_PG_OPTIONS = [
+  { value: '50/50', label: '50/50' },
+  { value: '60/40', label: '60/40' },
+  { value: '70/30', label: '70/30' },
+  { value: '80/20', label: '80/20' },
+  { value: 'Max VG', label: 'Max VG' },
+]
+
+// 🔧 NEW: Predefined color options with hex values for better color detection
+const COLOR_OPTIONS = [
+  { value: 'red', label: 'Red', color: '#FF0000' },
+  { value: 'blue', label: 'Blue', color: '#0000FF' },
+  { value: 'green', label: 'Green', color: '#008000' },
+  { value: 'yellow', label: 'Yellow', color: '#FFFF00' },
+  { value: 'orange', label: 'Orange', color: '#FFA500' },
+  { value: 'purple', label: 'Purple', color: '#800080' },
+  { value: 'pink', label: 'Pink', color: '#FFC0CB' },
+  { value: 'black', label: 'Black', color: '#000000' },
+  { value: 'white', label: 'White', color: '#FFFFFF' },
+  { value: 'brown', label: 'Brown', color: '#A52A2A' },
+  { value: 'gray', label: 'Gray', color: '#808080' },
+  { value: 'grey', label: 'Grey', color: '#808080' },
+  { value: 'silver', label: 'Silver', color: '#C0C0C0' },
+  { value: 'gold', label: 'Gold', color: '#FFD700' },
+  { value: 'navy', label: 'Navy', color: '#000080' },
+  { value: 'teal', label: 'Teal', color: '#008080' },
+  { value: 'lime', label: 'Lime', color: '#00FF00' },
+  { value: 'cyan', label: 'Cyan', color: '#00FFFF' },
+  { value: 'magenta', label: 'Magenta', color: '#FF00FF' },
+  { value: 'maroon', label: 'Maroon', color: '#800000' },
+  { value: 'olive', label: 'Olive', color: '#808000' },
+  { value: 'aqua', label: 'Aqua', color: '#00FFFF' },
+  { value: 'fuchsia', label: 'Fuchsia', color: '#FF00FF' },
+  { value: 'transparent', label: 'Transparent', color: 'transparent' },
+  { value: 'clear', label: 'Clear', color: 'transparent' },
+]
+
+// 🔧 NEW: Function to detect color from user input
+const detectColorFromInput = (input) => {
+  if (!input || typeof input !== 'string') return null
+  
+  const normalizedInput = input.toLowerCase().trim()
+  
+  // Check if input matches any predefined color
+  const matchedColor = COLOR_OPTIONS.find(color => 
+    color.value.toLowerCase() === normalizedInput ||
+    color.label.toLowerCase() === normalizedInput
+  )
+  
+  if (matchedColor) {
+    return matchedColor
+  }
+  
+  // If no match, create a new color option
+  return {
+    value: normalizedInput,
+    label: input.charAt(0).toUpperCase() + input.slice(1).toLowerCase(),
+    color: '#808080', // Default gray color for custom colors
+    isCustom: true
+  }
+}
+
+// 🔧 NEW: Custom color option component with color preview
+const ColorOption = ({ innerRef, innerProps, data }) => (
+  <div
+    ref={innerRef}
+    {...innerProps}
+    className="flex items-center gap-2 p-2 hover:bg-gray-100 cursor-pointer"
+  >
+    <div
+      className="w-4 h-4 rounded-full border border-gray-300"
+      style={{ backgroundColor: data.color === 'transparent' ? 'transparent' : data.color }}
+    />
+    <span>{data.label}</span>
+    {data.isCustom && <span className="text-xs text-gray-500">(Custom)</span>}
+  </div>
+)
+
+// 🔧 NEW: Custom multi-value component with color preview
+const ColorMultiValue = ({ data, removeProps, innerProps }) => (
+  <div
+    {...innerProps}
+    className="flex items-center gap-1 bg-purple-100 text-purple-800 px-2 py-1 rounded-md text-sm mr-1 mb-1"
+  >
+    <div
+      className="w-3 h-3 rounded-full border border-gray-300"
+      style={{ backgroundColor: data.color === 'transparent' ? 'transparent' : data.color }}
+    />
+    <span>{data.label}</span>
+    <button
+      {...removeProps}
+      className="ml-1 text-purple-600 hover:text-purple-800"
+    >
+      ×
+    </button>
+  </div>
+)
+
+// 🔧 NEW: Custom styles for react-select
+const selectStyles = {
+  control: (provided) => ({
+    ...provided,
+    padding: '8px',
+    borderRadius: '12px',
+    border: '1px solid #d1d5db',
+    boxShadow: 'none',
+    '&:hover': {
+      border: '1px solid #8b5cf6',
+    },
+    '&:focus-within': {
+      border: '1px solid #8b5cf6',
+      boxShadow: '0 0 0 2px rgba(139, 92, 246, 0.1)',
+    },
+  }),
+  multiValue: (provided) => ({
+    ...provided,
+    backgroundColor: '#8b5cf6',
+    color: 'white',
+    borderRadius: '8px',
+  }),
+  multiValueLabel: (provided) => ({
+    ...provided,
+    color: 'white',
+    fontSize: '14px',
+  }),
+  multiValueRemove: (provided) => ({
+    ...provided,
+    color: 'white',
+    '&:hover': {
+      backgroundColor: '#7c3aed',
+      color: 'white',
+    },
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    backgroundColor: state.isSelected ? '#8b5cf6' : state.isFocused ? '#f3f4f6' : 'white',
+    color: state.isSelected ? 'white' : '#374151',
+    '&:hover': {
+      backgroundColor: '#f3f4f6',
+      color: '#374151',
+    },
+  }),
+}
+
+// 🔧 NEW: Special styles for color select
+const colorSelectStyles = {
+  ...selectStyles,
+  multiValue: (provided) => ({
+    ...provided,
+    backgroundColor: 'transparent',
+    border: 'none',
+    margin: 0,
+    padding: 0,
+  }),
+  multiValueLabel: (provided) => ({
+    ...provided,
+    padding: 0,
+    margin: 0,
+  }),
+  multiValueRemove: (provided) => ({
+    ...provided,
+    padding: '2px',
+    margin: 0,
+  }),
+}
 
 // Image Gallery Component
 const ImageGallery = ({
@@ -419,9 +599,17 @@ export default function EditProduct({ productId, onBack }) {
     handleSubmit,
     watch,
     setValue,
+    control, // 🔧 ADDED: control for Controller
     formState: { errors, isDirty },
     reset,
-  } = useForm()
+  } = useForm({
+    // 🔧 NEW: Set default values for multi-select fields including colors
+    defaultValues: {
+      nicotineStrength: [],
+      vgPgRatio: [],
+      colors: [], // 🔧 NEW: Default colors array
+    }
+  })
 
   // User role and branch states
   const [userLoading, setUserLoading] = useState(true)
@@ -578,6 +766,29 @@ export default function EditProduct({ productId, onBack }) {
           setProduct(productData)
           setOriginalProduct(productData)
 
+          // 🔧 NEW: Handle multi-select field values when loading product
+          const processedNicotineStrength = Array.isArray(productData.nicotineStrength) 
+            ? productData.nicotineStrength.map(val => ({ value: val, label: val }))
+            : productData.nicotineStrength 
+              ? [{ value: productData.nicotineStrength, label: productData.nicotineStrength }]
+              : []
+
+          const processedVgPgRatio = Array.isArray(productData.vgPgRatio) 
+            ? productData.vgPgRatio.map(val => ({ value: val, label: val }))
+            : productData.vgPgRatio 
+              ? [{ value: productData.vgPgRatio, label: productData.vgPgRatio }]
+              : []
+
+          // 🔧 NEW: Handle colors for existing products
+          const processedColors = Array.isArray(productData.colors) 
+            ? productData.colors.map(colorValue => {
+                const detectedColor = detectColorFromInput(colorValue)
+                return detectedColor || { value: colorValue, label: colorValue, color: '#808080' }
+              })
+            : productData.colors 
+              ? [detectColorFromInput(productData.colors) || { value: productData.colors, label: productData.colors, color: '#808080' }]
+              : []
+
           reset({
             name: productData.name || '',
             brand: productData.brand || '',
@@ -587,8 +798,9 @@ export default function EditProduct({ productId, onBack }) {
             category: productData.category || '',
             subcategory: productData.subcategory || '',
             description: productData.description || '',
-            nicotineStrength: productData.nicotineStrength || '',
-            vgPgRatio: productData.vgPgRatio || '',
+            nicotineStrength: processedNicotineStrength, // 🔧 NEW: Set as array for multi-select
+            vgPgRatio: processedVgPgRatio, // 🔧 NEW: Set as array for multi-select
+            colors: processedColors, // 🔧 NEW: Set as array for multi-select colors
             flavor: productData.flavor || '',
             resistance: productData.resistance || '',
             wattageRange: productData.wattageRange || '',
@@ -636,13 +848,18 @@ export default function EditProduct({ productId, onBack }) {
   }, [branches, product])
 
   // Update subcategories when category changes
-  useEffect(() => {
-    if (category && categories[category]) {
-      setSubCategoryOptions(categories[category])
+useEffect(() => {
+  if (category) {
+    const categoryKey = category.toUpperCase()
+    if (categories[categoryKey]) {
+      setSubCategoryOptions(categories[categoryKey])
     } else {
       setSubCategoryOptions([])
     }
-  }, [category, categories])
+  } else {
+    setSubCategoryOptions([])
+  }
+}, [category, categories])
 
   // 🔧 FIXED: Save product function with useCallback to prevent infinite re-renders
   const handleSave = useCallback(async (data, isSilent = false) => {
@@ -659,13 +876,16 @@ export default function EditProduct({ productId, onBack }) {
     try {
       console.log('💾 Starting save process...', { isSilent, hasData: !!data })
       
-      const productData = {
+      // 🔧 NEW: Process multi-select values including colors
+      const processedData = {
         action: 'update',
         id: productId,
         ...data,
         stock,
-        nicotineStrength: data.nicotineStrength || null,
-        vgPgRatio: data.vgPgRatio || null,
+        // Convert react-select values to simple arrays
+        nicotineStrength: data.nicotineStrength?.map(item => item.value) || [],
+        vgPgRatio: data.vgPgRatio?.map(item => item.value) || [],
+        colors: data.colors?.map(item => item.value) || [], // 🔧 NEW: Process colors
         resistance: data.resistance || null,
         wattageRange: data.wattageRange || null,
         tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()) : [],
@@ -680,7 +900,7 @@ export default function EditProduct({ productId, onBack }) {
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify(productData),
+        body: JSON.stringify(processedData),
       })
 
       if (!response.ok) {
@@ -1207,6 +1427,29 @@ export default function EditProduct({ productId, onBack }) {
       cancelButtonText: 'Cancel',
     }).then((result) => {
       if (result.isConfirmed) {
+        // 🔧 NEW: Process multi-select field values for undo including colors
+        const processedNicotineStrength = Array.isArray(originalProduct.nicotineStrength) 
+          ? originalProduct.nicotineStrength.map(val => ({ value: val, label: val }))
+          : originalProduct.nicotineStrength 
+            ? [{ value: originalProduct.nicotineStrength, label: originalProduct.nicotineStrength }]
+            : []
+
+        const processedVgPgRatio = Array.isArray(originalProduct.vgPgRatio) 
+          ? originalProduct.vgPgRatio.map(val => ({ value: val, label: val }))
+          : originalProduct.vgPgRatio 
+            ? [{ value: originalProduct.vgPgRatio, label: originalProduct.vgPgRatio }]
+            : []
+
+        // 🔧 NEW: Process colors for undo
+        const processedColors = Array.isArray(originalProduct.colors) 
+          ? originalProduct.colors.map(colorValue => {
+              const detectedColor = detectColorFromInput(colorValue)
+              return detectedColor || { value: colorValue, label: colorValue, color: '#808080' }
+            })
+          : originalProduct.colors 
+            ? [detectColorFromInput(originalProduct.colors) || { value: originalProduct.colors, label: originalProduct.colors, color: '#808080' }]
+            : []
+
         reset({
           name: originalProduct.name || '',
           brand: originalProduct.brand || '',
@@ -1216,8 +1459,9 @@ export default function EditProduct({ productId, onBack }) {
           category: originalProduct.category || '',
           subcategory: originalProduct.subcategory || '',
           description: originalProduct.description || '',
-          nicotineStrength: originalProduct.nicotineStrength || '',
-          vgPgRatio: originalProduct.vgPgRatio || '',
+          nicotineStrength: processedNicotineStrength, // 🔧 NEW: Reset as array for multi-select
+          vgPgRatio: processedVgPgRatio, // 🔧 NEW: Reset as array for multi-select
+          colors: processedColors, // 🔧 NEW: Reset colors as array for multi-select
           flavor: originalProduct.flavor || '',
           resistance: originalProduct.resistance || '',
           wattageRange: originalProduct.wattageRange || '',
@@ -1708,7 +1952,7 @@ export default function EditProduct({ productId, onBack }) {
 
               {/* Right Column */}
               <div className="space-y-6">
-                {/* Vape-Specific Fields */}
+                {/* 🔧 UPDATED: Vape-Specific Fields with Multi-Select and Colors */}
                 <div className="space-y-4">
                   <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                     <Zap size={20} className="text-purple-600" />
@@ -1716,40 +1960,106 @@ export default function EditProduct({ productId, onBack }) {
                   </h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* 🔧 NEW: Multi-Select Nicotine Strength */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nicotine Strength
+                        Nicotine Strength (Multiple)
                       </label>
-                      <select
-                        {...register('nicotineStrength')}
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                      >
-                        <option value="">Select Strength</option>
-                        <option value="0mg">0mg</option>
-                        <option value="3mg">3mg</option>
-                        <option value="6mg">6mg</option>
-                        <option value="12mg">12mg</option>
-                        <option value="18mg">18mg</option>
-                        <option value="24mg">24mg</option>
-                        <option value="50mg">50mg</option>
-                      </select>
+                      <Controller
+                        name="nicotineStrength"
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            {...field}
+                            options={NICOTINE_OPTIONS}
+                            isMulti
+                            closeMenuOnSelect={false}
+                            placeholder="Select strengths..."
+                            styles={selectStyles}
+                            className="react-select-container"
+                            classNamePrefix="react-select"
+                          />
+                        )}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Select multiple nicotine strengths
+                      </p>
                     </div>
+
+                    {/* 🔧 NEW: Multi-Select VG/PG Ratio */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        VG/PG Ratio
+                        VG/PG Ratio (Multiple)
                       </label>
-                      <select
-                        {...register('vgPgRatio')}
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                      >
-                        <option value="">Select Ratio</option>
-                        <option value="50/50">50/50</option>
-                        <option value="60/40">60/40</option>
-                        <option value="70/30">70/30</option>
-                        <option value="80/20">80/20</option>
-                        <option value="Max VG">Max VG</option>
-                      </select>
+                      <Controller
+                        name="vgPgRatio"
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            {...field}
+                            options={VG_PG_OPTIONS}
+                            isMulti
+                            closeMenuOnSelect={false}
+                            placeholder="Select ratios..."
+                            styles={selectStyles}
+                            className="react-select-container"
+                            classNamePrefix="react-select"
+                          />
+                        )}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Select multiple VG/PG ratios
+                      </p>
                     </div>
+                  </div>
+
+                  {/* 🔧 NEW: Colors Field - Full Width */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                      <Palette size={16} className="text-purple-600" />
+                      Colors (Multiple - Auto-detect)
+                    </label>
+                    <Controller
+                      name="colors"
+                      control={control}
+                      render={({ field }) => (
+                        <CreatableSelect
+                          {...field}
+                          options={COLOR_OPTIONS}
+                          isMulti
+                          closeMenuOnSelect={false}
+                          placeholder="Type or select colors..."
+                          styles={colorSelectStyles}
+                          className="react-select-container"
+                          classNamePrefix="react-select"
+                          components={{
+                            Option: ColorOption,
+                            MultiValue: ColorMultiValue,
+                          }}
+                          formatCreateLabel={(inputValue) =>
+                            `Add "${inputValue}" color`
+                          }
+                          onCreateOption={(inputValue) => {
+                            const newColor = detectColorFromInput(inputValue)
+                            if (newColor) {
+                              const currentColors = field.value || []
+                              field.onChange([...currentColors, newColor])
+                            }
+                          }}
+                          filterOption={(option, inputValue) => {
+                            if (!inputValue) return true
+                            const searchValue = inputValue.toLowerCase()
+                            return (
+                              option.label.toLowerCase().includes(searchValue) ||
+                              option.value.toLowerCase().includes(searchValue)
+                            )
+                          }}
+                        />
+                      )}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Type color names (e.g., "red", "blue") and they'll be auto-detected with color preview
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

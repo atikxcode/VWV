@@ -17,7 +17,6 @@ const RATE_LIMITS = {
   PUBLIC: { requests: 200, windowMs: 60000 },
   ADMIN: { requests: 500, windowMs: 60000 },
   MODERATOR: { requests: 300, windowMs: 60000 },
-  
 }
 
 // IP-based upload tracking to prevent abuse
@@ -57,16 +56,94 @@ function logRequest(req, method) {
   console.log('URL:', req.url)
 }
 
-// 🔐 SECURITY: Input sanitization
+
 function sanitizeInput(input) {
   if (typeof input !== 'string') return input
   
   return input
-    .replace(/[<>"'%;()&+${}]/g, '') // Remove dangerous chars
+    .replace(/[<>"'%;()&+${}]/g, '') 
+    .replace(/javascript:/gi, '') 
+    .replace(/data:/gi, '') 
+    .trim()
+    .substring(0, 1000) 
+}
+
+//  Product specifi sanitization [allows & and /]
+function sanitizeProductInput(input) {
+  if (typeof input !== 'string') return input
+  
+  return input
+    .replace(/[<>"'%;]/g, '') 
+    .replace(/\$/g, '') 
+    .replace(/\{/g, '') 
+    .replace(/\}/g, '') 
+    .replace(/\+/g, '') 
+    .replace(/\(/g, '') 
+    .replace(/\)/g, '') 
+    .replace(/javascript:/gi, '')
+    .replace(/data:/gi, '') 
+    .replace(/on\w+=/gi, '') 
+    .replace(/expression\(/gi, '') 
+    .trim()
+    .substring(0, 1000) 
+}
+
+// Cateogry and Subcategories sanitization (preserves business formatting)
+function sanitizeCategoryInput(input) {
+  if (typeof input !== 'string') return input
+  
+  return input
+    .replace(/[<>"'%;]/g, '') // Remove XSS chars but preserve & / - ( )
+    .replace(/\$/g, '') // Remove $ for injection prevention
+    .replace(/\{/g, '') // Remove { for template injection
+    .replace(/\}/g, '') // Remove } for template injection
     .replace(/javascript:/gi, '') // Remove JS protocols
     .replace(/data:/gi, '') // Remove data URLs
+    .replace(/on\w+=/gi, '') // Remove event handlers
+    .replace(/expression\(/gi, '') // Remove CSS expressions
     .trim()
-    .substring(0, 1000) // Limit length
+    .substring(0, 100) // Shorter limit for categories
+}
+
+// 🔧 NEW: SEARCH INPUT sanitization (extra strict for search queries)
+function sanitizeSearchInput(input) {
+  if (typeof input !== 'string') return input
+  
+  return input
+    .replace(/[<>"'%;()&+${}]/g, '') // Remove all dangerous chars
+    .replace(/[\/\\]/g, '') // Remove slashes for search safety
+    .replace(/javascript:/gi, '')
+    .replace(/data:/gi, '')
+    .replace(/on\w+=/gi, '')
+    .replace(/expression\(/gi, '')
+    .replace(/\*/g, '') // Remove wildcards
+    .replace(/\?/g, '') // Remove question marks
+    .trim()
+    .substring(0, 100) // Shorter limit for search
+}
+
+// 🔧 NEW: Function to sanitize and validate array fields with product-specific sanitization
+function sanitizeAndValidateArray(input, fieldName, maxItems = 10, maxLength = 50, useProductSanitizer = false) {
+  if (!input) return []
+  
+  const sanitizer = useProductSanitizer ? sanitizeProductInput : sanitizeInput
+  
+  // If it's already an array, process it
+  if (Array.isArray(input)) {
+    return input
+      .map(item => sanitizer(String(item)))
+      .filter(item => item && item.length > 0 && item.length <= maxLength)
+      .slice(0, maxItems) // Limit number of items
+  }
+  
+  // If it's a single value, convert to array
+  if (typeof input === 'string' && input.trim()) {
+    const sanitized = sanitizer(input)
+    return sanitized && sanitized.length <= maxLength ? [sanitized] : []
+  }
+  
+  console.warn(`${fieldName} received invalid format:`, typeof input)
+  return []
 }
 
 // Sanitize filename with better handling
@@ -176,7 +253,7 @@ const VAPE_CATEGORIES = {
     'Boro Accessories And Tools',
   ],
   ACCESSORIES: [
-    'SibOhm Coil',
+    'SubOhm Coil',
     'Charger',
     'Cotton',
     'Premade Coil',
@@ -231,12 +308,12 @@ export async function GET(req) {
     console.log('GET: Starting request processing...')
     const { searchParams } = new URL(req.url)
     
-    // Sanitize all inputs
+    // 🔧 UPDATED: Use appropriate sanitizers for different input types
     const id = sanitizeInput(searchParams.get('id'))
     const barcode = sanitizeInput(searchParams.get('barcode'))
-    const category = sanitizeInput(searchParams.get('category'))
-    const subcategory = sanitizeInput(searchParams.get('subcategory'))
-    const search = sanitizeInput(searchParams.get('search'))
+    const category = sanitizeCategoryInput(searchParams.get('category'))
+    const subcategory = sanitizeCategoryInput(searchParams.get('subcategory'))
+    const search = sanitizeSearchInput(searchParams.get('search'))
     const status = sanitizeInput(searchParams.get('status')) || 'active'
     const branch = sanitizeInput(searchParams.get('branch'))
     const limit = Math.min(parseInt(searchParams.get('limit')) || 50, 100)
@@ -485,7 +562,7 @@ export async function GET(req) {
     }
 
     if (search) {
-      // Sanitize search to prevent injection
+      // Extra sanitization for search to prevent injection
       const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       
       query.$or = [
@@ -681,9 +758,9 @@ export async function POST(req) {
       }
 
       console.log('POST: Adding category:', body.categoryName)
-      const categoryName = sanitizeInput(body.categoryName)
+      const categoryName = sanitizeCategoryInput(body.categoryName)
       const subcategories = Array.isArray(body.subcategories) 
-        ? body.subcategories.map(sub => sanitizeInput(sub)).filter(sub => sub.length > 0)
+        ? body.subcategories.map(sub => sanitizeCategoryInput(sub)).filter(sub => sub.length > 0)
         : []
 
       // Validate category name
@@ -734,7 +811,7 @@ export async function POST(req) {
       }
 
       console.log('POST: Deleting category:', body.categoryName)
-      const categoryName = sanitizeInput(body.categoryName)
+      const categoryName = sanitizeCategoryInput(body.categoryName)
 
       if (!categoryName) {
         return NextResponse.json(
@@ -807,8 +884,8 @@ export async function POST(req) {
         return createAuthError('Only admins can manage subcategories', 403)
       }
 
-      const categoryName = sanitizeInput(body.categoryName)
-      const subcategoryName = sanitizeInput(body.subcategoryName)
+      const categoryName = sanitizeCategoryInput(body.categoryName)
+      const subcategoryName = sanitizeCategoryInput(body.subcategoryName)
 
       if (!categoryName || !subcategoryName) {
         return NextResponse.json(
@@ -873,8 +950,8 @@ export async function POST(req) {
         return createAuthError('Only admins can delete subcategories', 403)
       }
 
-      const categoryName = sanitizeInput(body.categoryName)
-      const subcategoryName = sanitizeInput(body.subcategoryName)
+      const categoryName = sanitizeCategoryInput(body.categoryName)
+      const subcategoryName = sanitizeCategoryInput(body.subcategoryName)
 
       console.log(
         'POST: Deleting subcategory:',
@@ -976,21 +1053,33 @@ export async function POST(req) {
         tags,
         nicotineStrength,
         vgPgRatio,
+        colors,
         flavor,
         resistance,
         wattageRange,
         imageOrder,
       } = body
 
-      // Sanitize and validate all inputs
-      const sanitizedName = sanitizeInput(name)
-      const sanitizedDescription = sanitizeInput(description)
-      const sanitizedBrand = sanitizeInput(brand)
-      const sanitizedBarcode = sanitizeInput(barcode)
-      const sanitizedCategory = sanitizeInput(category)
-      const sanitizedSubcategory = sanitizeInput(subcategory)
-      const sanitizedFlavor = sanitizeInput(flavor)
+      // 🔧 UPDATED: Use product-specific sanitization for product data
+      const sanitizedName = sanitizeProductInput(name)
+      const sanitizedDescription = sanitizeProductInput(description)
+      const sanitizedBrand = sanitizeProductInput(brand)
+      const sanitizedBarcode = sanitizeInput(barcode) // Barcode uses strict sanitization
+      const sanitizedCategory = sanitizeCategoryInput(category)
+      const sanitizedSubcategory = sanitizeCategoryInput(subcategory)
+      const sanitizedFlavor = sanitizeProductInput(flavor)
       const sanitizedStatus = sanitizeInput(status)
+
+      // 🔧 UPDATED: Handle array fields with product-specific sanitization
+      const sanitizedNicotineStrength = sanitizeAndValidateArray(nicotineStrength, 'nicotineStrength', 10, 50, true)
+      const sanitizedVgPgRatio = sanitizeAndValidateArray(vgPgRatio, 'vgPgRatio', 10, 50, true)
+      const sanitizedColors = sanitizeAndValidateArray(colors, 'colors', 15, 30, true)
+
+      console.log('POST: Multi-select values processed:', {
+        nicotineStrength: sanitizedNicotineStrength,
+        vgPgRatio: sanitizedVgPgRatio,
+        colors: sanitizedColors
+      })
 
       // Validation
       if (!sanitizedName || !price || !sanitizedCategory) {
@@ -1096,10 +1185,11 @@ export async function POST(req) {
         status: sanitizedStatus || 'active',
         specifications: specifications || {},
         tags: Array.isArray(tags) 
-          ? tags.map(tag => sanitizeInput(tag)).filter(tag => tag.length > 0 && tag.length <= 50).slice(0, 20) 
+          ? tags.map(tag => sanitizeProductInput(tag)).filter(tag => tag.length > 0 && tag.length <= 50).slice(0, 20) 
           : [],
-        nicotineStrength: nicotineStrength || null,
-        vgPgRatio: vgPgRatio || null,
+        nicotineStrength: sanitizedNicotineStrength,
+        vgPgRatio: sanitizedVgPgRatio,
+        colors: sanitizedColors,
         flavor: sanitizedFlavor?.trim() || '',
         resistance: resistance || null,
         wattageRange: wattageRange || null,
@@ -1127,7 +1217,7 @@ export async function POST(req) {
           .map((img, index) => ({
             url: sanitizeInput(img.url),
             publicId: sanitizeInput(img.publicId),
-            alt: sanitizeInput(img.alt) || `Product image ${index + 1}`,
+            alt: sanitizeProductInput(img.alt) || `Product image ${index + 1}`,
           }))
 
         if (validImages.length > 0) {
@@ -1184,20 +1274,32 @@ export async function POST(req) {
       branches,
       nicotineStrength,
       vgPgRatio,
+      colors,
       flavor,
       resistance,
       wattageRange,
     } = body
 
-    // Sanitize and validate all inputs for new product
-    const sanitizedName = sanitizeInput(name)
-    const sanitizedDescription = sanitizeInput(description)
-    const sanitizedBrand = sanitizeInput(brand)
-    const sanitizedBarcode = sanitizeInput(barcode)
-    const sanitizedCategory = sanitizeInput(category)
-    const sanitizedSubcategory = sanitizeInput(subcategory)
-    const sanitizedFlavor = sanitizeInput(flavor)
+    // 🔧 UPDATED: Use product-specific sanitization for new product
+    const sanitizedName = sanitizeProductInput(name)
+    const sanitizedDescription = sanitizeProductInput(description)
+    const sanitizedBrand = sanitizeProductInput(brand)
+    const sanitizedBarcode = sanitizeInput(barcode) // Barcode uses strict sanitization
+    const sanitizedCategory = sanitizeCategoryInput(category)
+    const sanitizedSubcategory = sanitizeCategoryInput(subcategory)
+    const sanitizedFlavor = sanitizeProductInput(flavor)
     const sanitizedStatus = sanitizeInput(status)
+
+    // 🔧 UPDATED: Handle array fields with product-specific sanitization
+    const sanitizedNicotineStrength = sanitizeAndValidateArray(nicotineStrength, 'nicotineStrength', 10, 50, true)
+    const sanitizedVgPgRatio = sanitizeAndValidateArray(vgPgRatio, 'vgPgRatio', 10, 50, true)
+    const sanitizedColors = sanitizeAndValidateArray(colors, 'colors', 15, 30, true)
+
+    console.log('POST: New product multi-select values processed:', {
+      nicotineStrength: sanitizedNicotineStrength,
+      vgPgRatio: sanitizedVgPgRatio,
+      colors: sanitizedColors
+    })
 
     // Validation for new product
     if (!sanitizedName || !price || !sanitizedCategory) {
@@ -1295,10 +1397,11 @@ export async function POST(req) {
       status: sanitizedStatus || 'active',
       specifications: specifications || {},
       tags: Array.isArray(tags) 
-        ? tags.map(tag => sanitizeInput(tag)).filter(tag => tag.length > 0 && tag.length <= 50).slice(0, 20)
+        ? tags.map(tag => sanitizeProductInput(tag)).filter(tag => tag.length > 0 && tag.length <= 50).slice(0, 20)
         : [],
-      nicotineStrength: nicotineStrength || null,
-      vgPgRatio: vgPgRatio || null,
+      nicotineStrength: sanitizedNicotineStrength,
+      vgPgRatio: sanitizedVgPgRatio,
+      colors: sanitizedColors,
       flavor: sanitizedFlavor?.trim() || '',
       resistance: resistance || null,
       wattageRange: wattageRange || null,
@@ -1594,7 +1697,6 @@ export async function PUT(req) {
     return handleApiError(err, 'PUT /api/products')
   }
 }
-
 
 // DELETE method - Different permissions for images vs products
 export async function DELETE(req) {

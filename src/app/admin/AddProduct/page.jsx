@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'
 import Swal from 'sweetalert2'
+import Select from 'react-select' // 🔧 NEW: Import react-select
+import CreatableSelect from 'react-select/creatable' // 🔧 NEW: Import CreatableSelect for color input
 import {
   PlusCircle,
   Upload,
@@ -23,6 +25,7 @@ import {
   X,
   Edit,
   Settings,
+  Palette, // 🔧 NEW: Icon for color field
 } from 'lucide-react'
 
 // For barcode scanning
@@ -30,6 +33,183 @@ import BarcodeReader from 'react-barcode-reader'
 
 // Use SweetAlert2 directly without React content wrapper
 const MySwal = Swal
+
+// 🔧 NEW: Options for multi-select dropdowns
+const NICOTINE_OPTIONS = [
+  { value: '0mg', label: '0mg' },
+  { value: '3mg', label: '3mg' },
+  { value: '6mg', label: '6mg' },
+  { value: '12mg', label: '12mg' },
+  { value: '18mg', label: '18mg' },
+  { value: '24mg', label: '24mg' },
+  { value: '50mg', label: '50mg' },
+]
+
+const VG_PG_OPTIONS = [
+  { value: '50/50', label: '50/50' },
+  { value: '60/40', label: '60/40' },
+  { value: '70/30', label: '70/30' },
+  { value: '80/20', label: '80/20' },
+  { value: 'Max VG', label: 'Max VG' },
+]
+
+// 🔧 NEW: Predefined color options with hex values for better color detection
+const COLOR_OPTIONS = [
+  { value: 'red', label: 'Red', color: '#FF0000' },
+  { value: 'blue', label: 'Blue', color: '#0000FF' },
+  { value: 'green', label: 'Green', color: '#008000' },
+  { value: 'yellow', label: 'Yellow', color: '#FFFF00' },
+  { value: 'orange', label: 'Orange', color: '#FFA500' },
+  { value: 'purple', label: 'Purple', color: '#800080' },
+  { value: 'pink', label: 'Pink', color: '#FFC0CB' },
+  { value: 'black', label: 'Black', color: '#000000' },
+  { value: 'white', label: 'White', color: '#FFFFFF' },
+  { value: 'brown', label: 'Brown', color: '#A52A2A' },
+  { value: 'gray', label: 'Gray', color: '#808080' },
+  { value: 'grey', label: 'Grey', color: '#808080' },
+  { value: 'silver', label: 'Silver', color: '#C0C0C0' },
+  { value: 'gold', label: 'Gold', color: '#FFD700' },
+  { value: 'navy', label: 'Navy', color: '#000080' },
+  { value: 'teal', label: 'Teal', color: '#008080' },
+  { value: 'lime', label: 'Lime', color: '#00FF00' },
+  { value: 'cyan', label: 'Cyan', color: '#00FFFF' },
+  { value: 'magenta', label: 'Magenta', color: '#FF00FF' },
+  { value: 'maroon', label: 'Maroon', color: '#800000' },
+  { value: 'olive', label: 'Olive', color: '#808000' },
+  { value: 'aqua', label: 'Aqua', color: '#00FFFF' },
+  { value: 'fuchsia', label: 'Fuchsia', color: '#FF00FF' },
+  { value: 'transparent', label: 'Transparent', color: 'transparent' },
+  { value: 'clear', label: 'Clear', color: 'transparent' },
+]
+
+// 🔧 NEW: Function to detect color from user input
+const detectColorFromInput = (input) => {
+  if (!input || typeof input !== 'string') return null
+  
+  const normalizedInput = input.toLowerCase().trim()
+  
+  // Check if input matches any predefined color
+  const matchedColor = COLOR_OPTIONS.find(color => 
+    color.value.toLowerCase() === normalizedInput ||
+    color.label.toLowerCase() === normalizedInput
+  )
+  
+  if (matchedColor) {
+    return matchedColor
+  }
+  
+  // If no match, create a new color option
+  return {
+    value: normalizedInput,
+    label: input.charAt(0).toUpperCase() + input.slice(1).toLowerCase(),
+    color: '#808080', // Default gray color for custom colors
+    isCustom: true
+  }
+}
+
+// 🔧 NEW: Custom color option component with color preview
+const ColorOption = ({ innerRef, innerProps, data }) => (
+  <div
+    ref={innerRef}
+    {...innerProps}
+    className="flex items-center gap-2 p-2 hover:bg-gray-100 cursor-pointer"
+  >
+    <div
+      className="w-4 h-4 rounded-full border border-gray-300"
+      style={{ backgroundColor: data.color === 'transparent' ? 'transparent' : data.color }}
+    />
+    <span>{data.label}</span>
+    {data.isCustom && <span className="text-xs text-gray-500">(Custom)</span>}
+  </div>
+)
+
+// 🔧 NEW: Custom multi-value component with color preview
+const ColorMultiValue = ({ data, removeProps, innerProps }) => (
+  <div
+    {...innerProps}
+    className="flex items-center gap-1 bg-purple-100 text-purple-800 px-2 py-1 rounded-md text-sm mr-1 mb-1"
+  >
+    <div
+      className="w-3 h-3 rounded-full border border-gray-300"
+      style={{ backgroundColor: data.color === 'transparent' ? 'transparent' : data.color }}
+    />
+    <span>{data.label}</span>
+    <button
+      {...removeProps}
+      className="ml-1 text-purple-600 hover:text-purple-800"
+    >
+      ×
+    </button>
+  </div>
+)
+
+// 🔧 NEW: Custom styles for react-select with color support
+const selectStyles = {
+  control: (provided) => ({
+    ...provided,
+    padding: '8px',
+    borderRadius: '12px',
+    border: '1px solid #d1d5db',
+    boxShadow: 'none',
+    '&:hover': {
+      border: '1px solid #8b5cf6',
+    },
+    '&:focus-within': {
+      border: '1px solid #8b5cf6',
+      boxShadow: '0 0 0 2px rgba(139, 92, 246, 0.1)',
+    },
+  }),
+  multiValue: (provided) => ({
+    ...provided,
+    backgroundColor: '#8b5cf6',
+    color: 'white',
+    borderRadius: '8px',
+  }),
+  multiValueLabel: (provided) => ({
+    ...provided,
+    color: 'white',
+    fontSize: '14px',
+  }),
+  multiValueRemove: (provided) => ({
+    ...provided,
+    color: 'white',
+    '&:hover': {
+      backgroundColor: '#7c3aed',
+      color: 'white',
+    },
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    backgroundColor: state.isSelected ? '#8b5cf6' : state.isFocused ? '#f3f4f6' : 'white',
+    color: state.isSelected ? 'white' : '#374151',
+    '&:hover': {
+      backgroundColor: '#f3f4f6',
+      color: '#374151',
+    },
+  }),
+}
+
+// 🔧 NEW: Special styles for color select
+const colorSelectStyles = {
+  ...selectStyles,
+  multiValue: (provided) => ({
+    ...provided,
+    backgroundColor: 'transparent',
+    border: 'none',
+    margin: 0,
+    padding: 0,
+  }),
+  multiValueLabel: (provided) => ({
+    ...provided,
+    padding: 0,
+    margin: 0,
+  }),
+  multiValueRemove: (provided) => ({
+    ...provided,
+    padding: '2px',
+    margin: 0,
+  }),
+}
 
 // Vape shop categories
 const VAPE_CATEGORIES = {
@@ -58,7 +238,7 @@ const VAPE_CATEGORIES = {
     'Boro Accessories And Tools',
   ],
   ACCESSORIES: [
-    'SibOhm Coil',
+    'SubOhm Coil',
     'Charger',
     'Cotton',
     'Premade Coil',
@@ -71,14 +251,13 @@ const VAPE_CATEGORIES = {
   ],
 }
 
-
 // Category Management Modal Component with Delete Functionality
 const CategoryManagementModal = ({
   isOpen,
   onClose,
   categories,
   onCategoryUpdate,
-  refreshCategories, // 🔧 NEW: Add refresh function
+  refreshCategories,
 }) => {
   const [loading, setLoading] = useState(false)
 
@@ -113,7 +292,6 @@ const CategoryManagementModal = ({
         const data = await response.json()
 
         if (response.ok) {
-          // 🔧 FIX: Refresh categories from database instead of manual update
           await refreshCategories()
 
           MySwal.fire({
@@ -177,7 +355,6 @@ const CategoryManagementModal = ({
         const data = await response.json()
 
         if (response.ok) {
-          // 🔧 FIX: Refresh categories from database instead of manual update
           await refreshCategories()
 
           MySwal.fire({
@@ -238,7 +415,6 @@ const CategoryManagementModal = ({
               key={categoryName}
               className="border border-gray-200 rounded-lg p-4"
             >
-              {/* Category Header */}
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                   <Tag size={18} className="text-purple-600" />
@@ -254,7 +430,6 @@ const CategoryManagementModal = ({
                 </button>
               </div>
 
-              {/* Subcategories */}
               <div className="ml-6 space-y-2">
                 {subcategories && subcategories.length > 0 ? (
                   subcategories.map((subcategory) => (
@@ -436,7 +611,6 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
           </button>
         </div>
 
-        {/* Add New Branch Form */}
         <form onSubmit={handleSubmit} className="mb-6">
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -475,7 +649,6 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
           </div>
         </form>
 
-        {/* Current Branches List */}
         <div>
           <h4 className="text-lg font-semibold text-gray-800 mb-3">
             Current Branches ({branches.length})
@@ -528,26 +701,30 @@ export default function AddProduct() {
     setValue,
     formState: { errors },
     reset,
-  } = useForm()
+  } = useForm({
+    // 🔧 NEW: Set default values for multi-select fields including colors
+    defaultValues: {
+      nicotineStrength: [],
+      vgPgRatio: [],
+      colors: [], // 🔧 NEW: Default colors array
+    }
+  })
 
   const [subCategoryOptions, setSubCategoryOptions] = useState([])
-  // 🔧 UPDATED: Changed default branches to bashundhara and mirpur
   const [branches, setBranches] = useState(['bashundhara', 'mirpur'])
   const [stock, setStock] = useState({})
   const [images, setImages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
   const [showBranchModal, setShowBranchModal] = useState(false)
-  // 🔥 FIX: Add force update hook to trigger re-renders
-const [, forceUpdate] = useState(0)
+  const [, forceUpdate] = useState(0)
 
   // State for category management modal
   const [showCategoryModal, setShowCategoryModal] = useState(false)
 
   // Separate states for category and subcategory custom inputs
   const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false)
-  const [isAddingCustomSubcategory, setIsAddingCustomSubcategory] =
-    useState(false)
+  const [isAddingCustomSubcategory, setIsAddingCustomSubcategory] = useState(false)
   const [customCategoryInput, setCustomCategoryInput] = useState('')
   const [customSubcategoryInput, setCustomSubcategoryInput] = useState('')
 
@@ -556,81 +733,74 @@ const [, forceUpdate] = useState(0)
 
   const category = watch('category')
 
-  // 🔧 NEW: Add refresh function for categories
   const refreshCategories = async () => {
-  try {
-    const response = await fetch('/api/products?getCategoriesOnly=true', {
-      headers: {
-        'Cache-Control': 'no-cache',
-      }
-    })
-    if (response.ok) {
-      const data = await response.json()
-      console.log('🔄 Raw API response:', data)
-      
-      setDynamicCategories({...data.categories}) // Force new object reference
-      console.log('🔄 Categories refreshed:', data.categories)
-    } else {
-      console.error('❌ Failed to load categories, using defaults')
-      setDynamicCategories({...VAPE_CATEGORIES})
-    }
-  } catch (error) {
-    console.error('❌ Error loading categories:', error)
-    setDynamicCategories({...VAPE_CATEGORIES})
-  }
-}
-
-  // 🔥 NEW: Load dynamic categories from API on component mount with authentication
-  useEffect(() => {
-    refreshCategories()
-  }, [])
-
-  // Load branches on component mount with authentication
-  useEffect(() => {
-  const loadBranches = async () => {
     try {
-      const token = localStorage.getItem('auth-token')
-      // 🔥 CRITICAL FIX: Use /api/branches instead of /api/products
-      const response = await fetch('/api/branches', {
+      const response = await fetch('/api/products?getCategoriesOnly=true', {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Cache-Control': 'no-cache'
+          'Cache-Control': 'no-cache',
         }
       })
       if (response.ok) {
         const data = await response.json()
-        console.log('🔄 Branches loaded from API:', data)
+        console.log('🔄 Raw API response:', data)
         
-        // 🔥 FIX: Backend returns { branches: [...] }
-        if (data.branches && Array.isArray(data.branches)) {
-          setBranches([...data.branches]) // Create new array reference
-          
-          // Initialize stock for all branches
-          const initialStock = {}
-          data.branches.forEach((branch) => {
-            initialStock[`${branch}_stock`] = 0
-          })
-          setStock(initialStock)
-          
-          console.log('✅ Branches set successfully:', data.branches)
-        } else {
-          console.warn('⚠️ Invalid branches data, using defaults')
-          setBranches(['bashundhara', 'mirpur'])
-        }
+        setDynamicCategories({...data.categories})
+        console.log('🔄 Categories refreshed:', data.categories)
       } else {
-        console.error('❌ Failed to fetch branches, status:', response.status)
-        setBranches(['bashundhara', 'mirpur'])
+        console.error('❌ Failed to load categories, using defaults')
+        setDynamicCategories({...VAPE_CATEGORIES})
       }
     } catch (error) {
-      console.error('❌ Error loading branches:', error)
-      setBranches(['bashundhara', 'mirpur'])
+      console.error('❌ Error loading categories:', error)
+      setDynamicCategories({...VAPE_CATEGORIES})
     }
   }
 
-  loadBranches()
-}, [])
+  useEffect(() => {
+    refreshCategories()
+  }, [])
 
-  // Initialize stock for branches
+  useEffect(() => {
+    const loadBranches = async () => {
+      try {
+        const token = localStorage.getItem('auth-token')
+        const response = await fetch('/api/branches', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Cache-Control': 'no-cache'
+          }
+        })
+        if (response.ok) {
+          const data = await response.json()
+          console.log('🔄 Branches loaded from API:', data)
+          
+          if (data.branches && Array.isArray(data.branches)) {
+            setBranches([...data.branches])
+            
+            const initialStock = {}
+            data.branches.forEach((branch) => {
+              initialStock[`${branch}_stock`] = 0
+            })
+            setStock(initialStock)
+            
+            console.log('✅ Branches set successfully:', data.branches)
+          } else {
+            console.warn('⚠️ Invalid branches data, using defaults')
+            setBranches(['bashundhara', 'mirpur'])
+          }
+        } else {
+          console.error('❌ Failed to fetch branches, status:', response.status)
+          setBranches(['bashundhara', 'mirpur'])
+        }
+      } catch (error) {
+        console.error('❌ Error loading branches:', error)
+        setBranches(['bashundhara', 'mirpur'])
+      }
+    }
+
+    loadBranches()
+  }, [])
+
   useEffect(() => {
     const initialStock = {}
     branches.forEach((branch) => {
@@ -639,7 +809,6 @@ const [, forceUpdate] = useState(0)
     setStock(initialStock)
   }, [branches])
 
-  // Update subcategories when category changes
   useEffect(() => {
     if (category && dynamicCategories[category]) {
       setSubCategoryOptions(dynamicCategories[category])
@@ -648,41 +817,31 @@ const [, forceUpdate] = useState(0)
     }
   }, [category, dynamicCategories])
 
-  // Handle branch updates from modal
-  // 🔥 CRITICAL FIX: Enhanced branch update handler with force re-render
-const handleBranchUpdate = async (updatedBranches) => {
-  try {
-    console.log('🔄 Branch update started:', updatedBranches)
-    
-    // First update local state immediately
-    setBranches([...updatedBranches])
-    
-    const newStock = {}
-    updatedBranches.forEach((branch) => {
-      newStock[`${branch}_stock`] = stock[`${branch}_stock`] || 0
-    })
-    setStock(newStock)
-    
-    // Force immediate re-render
-    forceUpdate(n => n + 1)
-    
-    
-    
-    console.log('✅ Branch update completed')
-  } catch (error) {
-    console.error('❌ Error in branch update:', error)
-    // Force re-render even if refresh fails
-    forceUpdate(n => n + 1)
+  const handleBranchUpdate = async (updatedBranches) => {
+    try {
+      console.log('🔄 Branch update started:', updatedBranches)
+      
+      setBranches([...updatedBranches])
+      
+      const newStock = {}
+      updatedBranches.forEach((branch) => {
+        newStock[`${branch}_stock`] = stock[`${branch}_stock`] || 0
+      })
+      setStock(newStock)
+      
+      forceUpdate(n => n + 1)
+      
+      console.log('✅ Branch update completed')
+    } catch (error) {
+      console.error('❌ Error in branch update:', error)
+      forceUpdate(n => n + 1)
+    }
   }
-}
 
-
-  // Handle category updates from category management modal
   const handleCategoryUpdate = (updatedCategories) => {
     setDynamicCategories(updatedCategories)
   }
 
-  // Real barcode scanning handler with authentication
   const handleBarcodeScan = async (data) => {
     try {
       if (data) {
@@ -706,8 +865,33 @@ const handleBranchUpdate = async (updatedBranches) => {
             setValue('category', product.category || '')
             setValue('subcategory', product.subcategory || '')
             setValue('description', product.description || '')
-            setValue('nicotineStrength', product.nicotineStrength || '')
-            setValue('vgPgRatio', product.vgPgRatio || '')
+            
+            // 🔧 NEW: Handle multi-select values for scanned products
+            if (product.nicotineStrength) {
+              const nicotineValues = Array.isArray(product.nicotineStrength) 
+                ? product.nicotineStrength.map(val => ({ value: val, label: val }))
+                : [{ value: product.nicotineStrength, label: product.nicotineStrength }]
+              setValue('nicotineStrength', nicotineValues)
+            }
+            
+            if (product.vgPgRatio) {
+              const vgPgValues = Array.isArray(product.vgPgRatio) 
+                ? product.vgPgRatio.map(val => ({ value: val, label: val }))
+                : [{ value: product.vgPgRatio, label: product.vgPgRatio }]
+              setValue('vgPgRatio', vgPgValues)
+            }
+
+            // 🔧 NEW: Handle colors for scanned products
+            if (product.colors) {
+              const colorValues = Array.isArray(product.colors) 
+                ? product.colors.map(colorValue => {
+                    const detectedColor = detectColorFromInput(colorValue)
+                    return detectedColor || { value: colorValue, label: colorValue, color: '#808080' }
+                  })
+                : [detectColorFromInput(product.colors) || { value: product.colors, label: product.colors, color: '#808080' }]
+              setValue('colors', colorValues)
+            }
+            
             setValue('flavor', product.flavor || '')
             setValue('resistance', product.resistance || '')
             setValue('wattageRange', product.wattageRange || '')
@@ -763,12 +947,10 @@ const handleBranchUpdate = async (updatedBranches) => {
     }
   }
 
-  // Handle barcode scan error
   const handleBarcodeScanError = (err) => {
     console.error('Barcode scan error:', err)
   }
 
-  // Handle image upload
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files)
     const newImages = files.map((file) => ({
@@ -779,7 +961,6 @@ const handleBranchUpdate = async (updatedBranches) => {
     setImages((prev) => [...prev, ...newImages])
   }
 
-  // Remove image
   const removeImage = (imageId) => {
     setImages((prev) => prev.filter((img) => img.id !== imageId))
     const imageToRemove = images.find((img) => img.id === imageId)
@@ -788,12 +969,10 @@ const handleBranchUpdate = async (updatedBranches) => {
     }
   }
 
-  // Update stock for specific branch
   const updateStock = (branchKey, value) => {
     setStock((prev) => ({ ...prev, [branchKey]: parseInt(value) || 0 }))
   }
 
-  // 🔧 FIX: Add custom category with refresh
   const handleAddCustomCategory = async () => {
     if (customCategoryInput.trim()) {
       try {
@@ -812,7 +991,6 @@ const handleBranchUpdate = async (updatedBranches) => {
         })
 
         if (response.ok) {
-          // 🔧 FIX: Refresh categories from database after successful add
           await refreshCategories()
           
           setValue('category', customCategoryInput.toUpperCase())
@@ -855,7 +1033,6 @@ const handleBranchUpdate = async (updatedBranches) => {
     }
   }
 
-  // 🔧 FIX: Add custom subcategory with refresh
   const handleAddCustomSubcategory = async () => {
     if (customSubcategoryInput.trim() && category) {
       try {
@@ -874,7 +1051,6 @@ const handleBranchUpdate = async (updatedBranches) => {
         })
 
         if (response.ok) {
-          // 🔧 FIX: Refresh categories from database after successful add
           await refreshCategories()
           
           setValue('subcategory', customSubcategoryInput)
@@ -917,23 +1093,26 @@ const handleBranchUpdate = async (updatedBranches) => {
     }
   }
 
-  // Form submission with enhanced error handling and authentication
+  // 🔧 UPDATED: Form submission to handle multi-select arrays including colors
   const onSubmit = async (data) => {
     setIsLoading(true)
     try {
       console.log('Submitting form data:', data)
 
-      const productData = {
+      // 🔧 NEW: Process multi-select values including colors
+      const processedData = {
         ...data,
         stock,
-        nicotineStrength: data.nicotineStrength || null,
-        vgPgRatio: data.vgPgRatio || null,
+        // Convert react-select values to simple arrays
+        nicotineStrength: data.nicotineStrength?.map(item => item.value) || [],
+        vgPgRatio: data.vgPgRatio?.map(item => item.value) || [],
+        colors: data.colors?.map(item => item.value) || [], // 🔧 NEW: Process colors
         resistance: data.resistance || null,
         wattageRange: data.wattageRange || null,
         tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()) : [],
       }
 
-      console.log('Sending product data:', productData)
+      console.log('Processed product data:', processedData)
 
       const token = localStorage.getItem('auth-token')
       const response = await fetch('/api/products', {
@@ -942,7 +1121,7 @@ const handleBranchUpdate = async (updatedBranches) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(productData),
+        body: JSON.stringify(processedData),
       })
 
       console.log('Response status:', response.status)
@@ -1004,7 +1183,11 @@ const handleBranchUpdate = async (updatedBranches) => {
       }
 
       // Reset form and states
-      reset()
+      reset({
+        nicotineStrength: [],
+        vgPgRatio: [],
+        colors: [], // 🔧 NEW: Reset colors
+      })
       setStock({})
       setImages([])
       setIsAddingCustomCategory(false)
@@ -1190,7 +1373,6 @@ const handleBranchUpdate = async (updatedBranches) => {
                       <Tag size={20} className="text-purple-600" />
                       Categories
                     </h3>
-                    {/* Button to open category management modal */}
                     <button
                       type="button"
                       onClick={() => setShowCategoryModal(true)}
@@ -1247,7 +1429,6 @@ const handleBranchUpdate = async (updatedBranches) => {
                         </button>
                       </div>
                     ) : (
-                      // 🔧 FIX: Add key to force re-render when categories change
                       <select
                         key={`category-${Object.keys(dynamicCategories).length}`}
                         {...register('category', {
@@ -1328,7 +1509,6 @@ const handleBranchUpdate = async (updatedBranches) => {
                         </button>
                       </div>
                     ) : (
-                      // 🔧 FIX: Add key to force re-render when subcategories change
                       <select
                         key={`subcategory-${category}-${subCategoryOptions.length}`}
                         {...register('subcategory', {
@@ -1424,7 +1604,7 @@ const handleBranchUpdate = async (updatedBranches) => {
 
               {/* Right Column */}
               <div className="space-y-6">
-                {/* Vape-Specific Fields */}
+                {/* 🔧 UPDATED: Vape-Specific Fields with Multi-Select and Colors */}
                 <motion.div variants={itemVariants} className="space-y-4">
                   <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                     <Zap size={20} className="text-purple-600" />
@@ -1432,40 +1612,106 @@ const handleBranchUpdate = async (updatedBranches) => {
                   </h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* 🔧 NEW: Multi-Select Nicotine Strength */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nicotine Strength
+                        Nicotine Strength (Multiple)
                       </label>
-                      <select
-                        {...register('nicotineStrength')}
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                      >
-                        <option value="">Select Strength</option>
-                        <option value="0mg">0mg</option>
-                        <option value="3mg">3mg</option>
-                        <option value="6mg">6mg</option>
-                        <option value="12mg">12mg</option>
-                        <option value="18mg">18mg</option>
-                        <option value="24mg">24mg</option>
-                        <option value="50mg">50mg</option>
-                      </select>
+                      <Controller
+                        name="nicotineStrength"
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            {...field}
+                            options={NICOTINE_OPTIONS}
+                            isMulti
+                            closeMenuOnSelect={false}
+                            placeholder="Select strengths..."
+                            styles={selectStyles}
+                            className="react-select-container"
+                            classNamePrefix="react-select"
+                          />
+                        )}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Select multiple nicotine strengths
+                      </p>
                     </div>
+
+                    {/* 🔧 NEW: Multi-Select VG/PG Ratio */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        VG/PG Ratio
+                        VG/PG Ratio (Multiple)
                       </label>
-                      <select
-                        {...register('vgPgRatio')}
-                        className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                      >
-                        <option value="">Select Ratio</option>
-                        <option value="50/50">50/50</option>
-                        <option value="60/40">60/40</option>
-                        <option value="70/30">70/30</option>
-                        <option value="80/20">80/20</option>
-                        <option value="Max VG">Max VG</option>
-                      </select>
+                      <Controller
+                        name="vgPgRatio"
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            {...field}
+                            options={VG_PG_OPTIONS}
+                            isMulti
+                            closeMenuOnSelect={false}
+                            placeholder="Select ratios..."
+                            styles={selectStyles}
+                            className="react-select-container"
+                            classNamePrefix="react-select"
+                          />
+                        )}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Select multiple VG/PG ratios
+                      </p>
                     </div>
+                  </div>
+
+                  {/* 🔧 NEW: Colors Field - Full Width */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                      <Palette size={16} className="text-purple-600" />
+                      Colors (Multiple - Auto-detect)
+                    </label>
+                    <Controller
+                      name="colors"
+                      control={control}
+                      render={({ field }) => (
+                        <CreatableSelect
+                          {...field}
+                          options={COLOR_OPTIONS}
+                          isMulti
+                          closeMenuOnSelect={false}
+                          placeholder="Type or select colors..."
+                          styles={colorSelectStyles}
+                          className="react-select-container"
+                          classNamePrefix="react-select"
+                          components={{
+                            Option: ColorOption,
+                            MultiValue: ColorMultiValue,
+                          }}
+                          formatCreateLabel={(inputValue) =>
+                            `Add "${inputValue}" color`
+                          }
+                          onCreateOption={(inputValue) => {
+                            const newColor = detectColorFromInput(inputValue)
+                            if (newColor) {
+                              const currentColors = field.value || []
+                              field.onChange([...currentColors, newColor])
+                            }
+                          }}
+                          filterOption={(option, inputValue) => {
+                            if (!inputValue) return true
+                            const searchValue = inputValue.toLowerCase()
+                            return (
+                              option.label.toLowerCase().includes(searchValue) ||
+                              option.value.toLowerCase().includes(searchValue)
+                            )
+                          }}
+                        />
+                      )}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Type color names (e.g., "red", "blue") and they'll be auto-detected with color preview
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1646,7 +1892,11 @@ const handleBranchUpdate = async (updatedBranches) => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => {
-                  reset()
+                  reset({
+                    nicotineStrength: [],
+                    vgPgRatio: [],
+                    colors: [], // 🔧 NEW: Reset colors
+                  })
                   setStock({})
                   setImages([])
                   setIsAddingCustomCategory(false)
@@ -1697,7 +1947,7 @@ const handleBranchUpdate = async (updatedBranches) => {
           onClose={() => setShowCategoryModal(false)}
           categories={dynamicCategories}
           onCategoryUpdate={handleCategoryUpdate}
-          refreshCategories={refreshCategories} // 🔧 NEW: Pass refresh function
+          refreshCategories={refreshCategories}
         />
 
         {/* Barcode Scanner Modal */}
