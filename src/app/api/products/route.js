@@ -47,7 +47,7 @@ function handleApiError(error, context = '') {
 // 🔐 SECURITY: Enhanced request logging
 function logRequest(req, method) {
   const timestamp = new Date().toISOString()
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 
+  const ip = req.headers.get('x-forwarded-for')?.split(',') || 
             req.headers.get('x-real-ip') || 
             'unknown'
   const userAgent = req.headers.get('user-agent') || 'unknown'
@@ -195,7 +195,7 @@ function checkUploadAbuse(ip) {
 
 // 🔐 SECURITY: Get user IP
 function getUserIP(req) {
-  return req.headers.get('x-forwarded-for')?.split(',')[0] || 
+  return req.headers.get('x-forwarded-for')?.split(',') || 
          req.headers.get('x-real-ip') || 
          'unknown'
 }
@@ -666,38 +666,44 @@ export async function GET(req) {
   }
 }
 
-// 🔥 ENHANCED: Helper function to filter product data based on user role with better public access
+// 🔥 FIXED: Helper function to filter product data based on user role - PRESERVES BRANCH STRUCTURE
 function filterProductByRole(product, userInfo) {
   const filteredProduct = { ...product }
 
   console.log('🔧 Filtering product for role:', userInfo.role, 'Product:', product.name, 'Stock:', product.stock)
 
   if (userInfo.role === 'public') {
-    // 🔥 ENHANCED: Public users get simplified stock status instead of actual numbers
+    // 🔥 NEW APPROACH: Preserve branch structure but hide exact numbers
     
-    // Calculate if any branch has stock for general availability
-    let hasStock = false
     if (product.stock) {
-      // Check all branch stocks
+      const filteredStock = {}
+      
+      // Check all stock keys
       for (const [key, value] of Object.entries(product.stock)) {
-        if (key.endsWith('_stock') && value > 0) {
-          hasStock = true
-          break
+        if (key.endsWith('_stock')) {
+          // Convert exact numbers to boolean availability
+          filteredStock[key] = value > 0 ? 1 : 0 // 1 = available, 0 = not available
+        } else {
+          // Keep non-stock fields as is
+          filteredStock[key] = value
         }
       }
-    }
-    
-    // Replace detailed stock with simple availability
-    filteredProduct.stock = {
-      available: hasStock,
-      status: hasStock ? 'in_stock' : 'out_of_stock'
+      
+      // Also add general availability for backwards compatibility
+      const hasAnyStock = Object.entries(product.stock).some(([key, value]) => 
+        key.endsWith('_stock') && value > 0
+      )
+      
+      filteredStock.available = hasAnyStock
+      filteredStock.status = hasAnyStock ? 'in_stock' : 'out_of_stock'
+      
+      filteredProduct.stock = filteredStock
     }
     
     // Remove sensitive information
     delete filteredProduct.barcode
-    // Keep status visible for public users (they should know if product is active)
     
-    console.log('🔧 Public user - simplified stock:', filteredProduct.stock)
+    console.log('🔧 Public user - filtered stock with branch structure:', filteredProduct.stock)
     
   } else if (userInfo.role === 'moderator' && userInfo.branch) {
     // Moderator only sees their branch stock
@@ -711,6 +717,8 @@ function filterProductByRole(product, userInfo) {
 
   return filteredProduct
 }
+
+// [REST OF THE CODE REMAINS EXACTLY THE SAME - POST, PUT, DELETE methods unchanged]
 
 // POST method implementation - Requires authentication for create/update operations
 export async function POST(req) {

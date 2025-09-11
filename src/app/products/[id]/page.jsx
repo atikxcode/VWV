@@ -11,7 +11,8 @@ import {
   Plus,
   Minus,
   Heart,
-  ShoppingCart
+  ShoppingCart,
+  ChevronDown
 } from 'lucide-react';
 import { useCart } from '../../../../components/hooks/useCart';
 import { useFavorites } from '../../../../components/hooks/useFavorites';
@@ -24,6 +25,11 @@ export default function ProductDetailPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
 
+  // Branch specification states
+  const [selectedNicotineStrength, setSelectedNicotineStrength] = useState('');
+  const [selectedVgPgRatio, setSelectedVgPgRatio] = useState('');
+  const [selectedColor, setSelectedColor] = useState('');
+
   // Add cart and favorites hooks
   const { addToCart } = useCart();
   const { toggleFavorite, isFavorite } = useFavorites();
@@ -32,20 +38,16 @@ export default function ProductDetailPage() {
     const fetchProduct = async () => {
       try {
         setLoading(true);
-        console.log('🔍 Fetching product with ID:', params.id);
         const response = await fetch(`/api/products?id=${params.id}`);
         
         if (!response.ok) {
-          console.error('❌ Product not found:', response.status);
           router.push('/products');
           return;
         }
         
         const data = await response.json();
-        console.log('🔍 Product loaded:', data.name);
         setProduct(data);
       } catch (error) {
-        console.error('❌ Error fetching product:', error);
         router.push('/products');
       } finally {
         setLoading(false);
@@ -60,15 +62,123 @@ export default function ProductDetailPage() {
   const handleAddToCart = () => {
     if (product) {
       addToCart(product, quantity);
-      console.log(`✅ Added ${quantity} ${product.name} to cart!`);
     }
   };
 
   const handleToggleFavorite = () => {
     if (product) {
       toggleFavorite(product);
-      console.log('❤️ Toggled favorite:', product.name);
     }
+  };
+
+  // Helper function to get all branches from stock
+  const getBranches = () => {
+    if (!product?.stock) {
+      return [];
+    }
+    
+    const stockKeys = Object.keys(product.stock);
+    const stockKeysFiltered = stockKeys.filter(key => key.endsWith('_stock'));
+    const branches = stockKeysFiltered.map(key => key.replace('_stock', ''));
+    
+    return branches;
+  };
+
+  // Helper function to get branch stock availability (raw stock only)
+  const getBranchStockStatus = (branchName) => {
+    const stockKey = `${branchName}_stock`;
+    const stockValue = product?.stock?.[stockKey] || 0;
+    
+    return stockValue > 0;
+  };
+
+  // Helper function to check if branch has selected specification
+  const branchHasSpecification = (branchName, specType, specValue) => {
+    if (!product?.branchSpecifications?.[branchName]?.[specType]) return false;
+    return product.branchSpecifications[branchName][specType].includes(specValue);
+  };
+
+  // Helper function to check if any specifications are selected
+  const hasAnySelections = () => {
+    return selectedNicotineStrength || selectedVgPgRatio || selectedColor;
+  };
+
+  // Helper function to get branch display status based on selections
+  const getBranchDisplayStatus = (branchName) => {
+    const hasStock = getBranchStockStatus(branchName);
+    
+    // If no selections made, show raw stock status only
+    if (!hasAnySelections()) {
+      return hasStock;
+    }
+
+    // Check if branch has all selected specifications
+    let hasAllSpecs = true;
+    
+    if (selectedNicotineStrength && !branchHasSpecification(branchName, 'nicotineStrength', selectedNicotineStrength)) {
+      hasAllSpecs = false;
+    }
+    
+    if (selectedVgPgRatio && !branchHasSpecification(branchName, 'vgPgRatio', selectedVgPgRatio)) {
+      hasAllSpecs = false;
+    }
+    
+    if (selectedColor && !branchHasSpecification(branchName, 'colors', selectedColor)) {
+      hasAllSpecs = false;
+    }
+
+    return hasStock && hasAllSpecs;
+  };
+
+  // Helper function to get unique values across all branches for a specification
+  const getUniqueSpecificationValues = (specType) => {
+    if (!product?.branchSpecifications) return [];
+    
+    const allValues = new Set();
+    Object.values(product.branchSpecifications).forEach(branchSpec => {
+      if (branchSpec[specType]) {
+        branchSpec[specType].forEach(value => allValues.add(value));
+      }
+    });
+    
+    return Array.from(allValues);
+  };
+
+  // Helper function to check if all branches have identical single value
+  const shouldShowAsText = (specType) => {
+    if (!product?.branchSpecifications) return false;
+    
+    const branches = Object.values(product.branchSpecifications);
+    if (branches.length === 0) return false;
+
+    // Check if all branches have exactly 1 item and all items are identical
+    let firstValue = null;
+    
+    for (const branchSpec of branches) {
+      if (!branchSpec[specType] || branchSpec[specType].length !== 1) {
+        return false;
+      }
+      
+      if (firstValue === null) {
+        firstValue = branchSpec[specType][0];
+      } else if (branchSpec[specType][0] !== firstValue) {
+        return false;
+      }
+    }
+    
+    return firstValue !== null;
+  };
+
+  // Helper function to get the single value for text display
+  const getSingleSpecificationValue = (specType) => {
+    if (!product?.branchSpecifications) return '';
+    const firstBranch = Object.values(product.branchSpecifications)[0];
+    return firstBranch?.[specType]?.[0] || '';
+  };
+
+  // Helper function to check if product has branch specifications
+  const hasBranchSpecifications = () => {
+    return product?.branchSpecifications && Object.keys(product.branchSpecifications).length > 0;
   };
 
   if (loading) {
@@ -96,10 +206,15 @@ export default function ProductDetailPage() {
     );
   }
 
+  const branches = getBranches();
+  const nicotineOptions = getUniqueSpecificationValues('nicotineStrength');
+  const vgPgOptions = getUniqueSpecificationValues('vgPgRatio');
+  const colorOptions = getUniqueSpecificationValues('colors');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
       {/* Clean Header - No Cart/Favorites Icons */}
-      <header className="bg-white shadow-lg sticky top-0 z-30">
+      <header className="bg-white shadow-lg sticky top-0 z-30 mb-10">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex justify-between items-center">
             <button
@@ -108,21 +223,6 @@ export default function ProductDetailPage() {
             >
               <ArrowLeft size={24} />
               <span className="text-lg font-semibold">Back to Products</span>
-            </button>
-
-            {/* Favorite Button in Header */}
-            <button
-              onClick={handleToggleFavorite}
-              className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-            >
-              <Heart
-                size={24}
-                className={`${
-                  isFavorite(product._id) 
-                    ? 'text-red-500 fill-red-500' 
-                    : 'text-gray-400 hover:text-red-500'
-                } transition-colors`}
-              />
             </button>
           </div>
         </div>
@@ -229,9 +329,172 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Stock Status */}
-            {product.stock && (
-              <div>
+            {/* Additional Product Info */}
+            {(product.flavor || product.resistance || product.wattageRange) && (
+              <div className="bg-white rounded-lg shadow p-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Specifications</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {product.flavor && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Flavor</span>
+                      <p className="text-gray-900">{product.flavor}</p>
+                    </div>
+                  )}
+                  {product.resistance && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Resistance</span>
+                      <p className="text-gray-900">{product.resistance}Ω</p>
+                    </div>
+                  )}
+                  {product.wattageRange && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Wattage</span>
+                      <p className="text-gray-900">{product.wattageRange}W</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Branch Specifications */}
+            {hasBranchSpecifications() && (
+              <div className="bg-white rounded-lg shadow p-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Product Options</h3>
+                <div className="space-y-4">
+                  
+                  {/* Nicotine Strength */}
+                  {nicotineOptions.length > 0 && (
+                    <div>
+                      {shouldShowAsText('nicotineStrength') ? (
+                        <div>
+                          <span className="text-sm font-medium text-gray-500">Nicotine Strength</span>
+                          <p className="text-gray-900 font-semibold">{getSingleSpecificationValue('nicotineStrength')}</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Nicotine Strength
+                          </label>
+                          <div className="relative">
+                            <select
+                              value={selectedNicotineStrength}
+                              onChange={(e) => setSelectedNicotineStrength(e.target.value)}
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none bg-white"
+                            >
+                              <option value="">Select nicotine strength</option>
+                              {nicotineOptions.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown size={20} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* VG/PG Ratio */}
+                  {vgPgOptions.length > 0 && (
+                    <div>
+                      {shouldShowAsText('vgPgRatio') ? (
+                        <div>
+                          <span className="text-sm font-medium text-gray-500">VG/PG Ratio</span>
+                          <p className="text-gray-900 font-semibold">{getSingleSpecificationValue('vgPgRatio')}</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            VG/PG Ratio
+                          </label>
+                          <div className="relative">
+                            <select
+                              value={selectedVgPgRatio}
+                              onChange={(e) => setSelectedVgPgRatio(e.target.value)}
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none bg-white"
+                            >
+                              <option value="">Select VG/PG ratio</option>
+                              {vgPgOptions.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown size={20} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Colors */}
+                  {colorOptions.length > 0 && (
+                    <div>
+                      {shouldShowAsText('colors') ? (
+                        <div>
+                          <span className="text-sm font-medium text-gray-500">Color</span>
+                          <p className="text-gray-900 font-semibold capitalize">{getSingleSpecificationValue('colors')}</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Color
+                          </label>
+                          <div className="relative">
+                            <select
+                              value={selectedColor}
+                              onChange={(e) => setSelectedColor(e.target.value)}
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none bg-white"
+                            >
+                              <option value="">Select color</option>
+                              {colorOptions.map((option) => (
+                                <option key={option} value={option}>
+                                  {option.charAt(0).toUpperCase() + option.slice(1)}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown size={20} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Outlet Wise Stock Status - Always show if branches exist */}
+            {branches.length > 0 && (
+              <div className="bg-white rounded-lg shadow p-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Outlet Wise Stock:</h3>
+                <div className="space-y-2">
+                  {branches.map((branch) => {
+                    const isAvailable = hasBranchSpecifications() ? getBranchDisplayStatus(branch) : getBranchStockStatus(branch);
+                    
+                    return (
+                      <div key={branch} className="flex items-center gap-3">
+                        <Store size={18} className={isAvailable ? "text-green-600" : "text-red-600"} />
+                        <span className="font-medium text-gray-900 uppercase">
+                          {branch.toUpperCase()}:
+                        </span>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          isAvailable 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {isAvailable ? 'In Stock' : 'Out of Stock'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Fallback - if no stock data at all */}
+            {branches.length === 0 && product.stock && product.stock.available !== undefined && (
+              <div className="bg-white rounded-lg shadow p-4">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Availability</h3>
                 <div className="flex items-center gap-2">
                   <Store size={20} className="text-green-600" />
@@ -276,15 +539,15 @@ export default function ProductDetailPage() {
               <div className="flex gap-4">
                 <button
                   onClick={handleAddToCart}
-                  disabled={!product.stock?.available}
+                  disabled={branches.length > 0 ? !branches.some(branch => hasBranchSpecifications() ? getBranchDisplayStatus(branch) : getBranchStockStatus(branch)) : !product.stock?.available}
                   className={`flex-1 py-4 rounded-xl font-bold text-xl transition-all flex items-center justify-center gap-2 ${
-                    product.stock?.available
+                    (branches.length > 0 ? branches.some(branch => hasBranchSpecifications() ? getBranchDisplayStatus(branch) : getBranchStockStatus(branch)) : product.stock?.available)
                       ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 shadow-lg hover:shadow-xl'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
                 >
                   <ShoppingCart size={20} />
-                  {product.stock?.available 
+                  {(branches.length > 0 ? branches.some(branch => hasBranchSpecifications() ? getBranchDisplayStatus(branch) : getBranchStockStatus(branch)) : product.stock?.available)
                     ? `Add to Cart - BDT ${(product.price * quantity).toLocaleString()}` 
                     : 'Out of Stock'
                   }
