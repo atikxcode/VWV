@@ -59,10 +59,13 @@ import {
   Printer,
   Globe,
   Shield,
+  Info,
+  Palette,
+  Zap,
 } from 'lucide-react'
 import { AuthContext } from '../../../../Provider/AuthProvider'
 
-// 💳 Compact Payment Methods Configuration (same as admin)
+// Payment Methods Configuration
 const PAYMENT_METHODS = [
   {
     id: 'cash',
@@ -126,8 +129,423 @@ const PAYMENT_METHODS = [
   },
 ]
 
-// 🔒 MODIFIED: Product Card Component (NO BRANCH SELECTOR)
-const ProductCard = ({ product, onAddToCart, moderatorBranch }) => {
+// Security: Get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('auth-token')
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Cache-Control': 'no-cache'
+  }
+}
+
+// Security: Check authentication
+const checkAuth = () => {
+  const token = localStorage.getItem('auth-token')
+  if (!token) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Authentication Required',
+      text: 'Please login to continue.',
+    }).then(() => {
+      window.location.href = '/admin/login'
+    })
+    return false
+  }
+  return true
+}
+
+// 🔥 NEW: Product Details Modal Component for Moderator
+const ProductDetailsModal = ({ isOpen, product, moderatorBranch, onClose, onAddToCart }) => {
+  const [selectedNicotine, setSelectedNicotine] = useState('')
+  const [selectedVgPg, setSelectedVgPg] = useState('')
+  const [selectedColor, setSelectedColor] = useState('')
+
+  // Reset selections when modal opens/closes or product changes
+  useEffect(() => {
+    if (isOpen && product) {
+      setSelectedNicotine('')
+      setSelectedVgPg('')
+      setSelectedColor('')
+    }
+  }, [isOpen, product])
+
+  if (!product) return null
+
+  // Get options available in moderator's branch only
+  const getBranchOptions = (optionType) => {
+    const branchOptions = new Set()
+    if (product.branchSpecifications && moderatorBranch) {
+      const branchSpec = product.branchSpecifications[moderatorBranch.toLowerCase()]
+      if (branchSpec && branchSpec[optionType]) {
+        branchSpec[optionType].forEach(option => branchOptions.add(option))
+      }
+    }
+    return Array.from(branchOptions)
+  }
+
+  const nicotineOptions = getBranchOptions('nicotineStrength')
+  const vgPgOptions = getBranchOptions('vgPgRatio')
+  const colorOptions = getBranchOptions('colors')
+
+  // Check if current selections are available in the moderator's branch
+  const isSpecAvailable = () => {
+    if (!product.branchSpecifications || !selectedNicotine || !selectedVgPg || !selectedColor || !moderatorBranch) {
+      return false
+    }
+
+    const branchSpec = product.branchSpecifications[moderatorBranch.toLowerCase()]
+    if (!branchSpec) return false
+
+    const nicotineMatch = branchSpec.nicotineStrength?.includes(selectedNicotine)
+    const vgPgMatch = branchSpec.vgPgRatio?.includes(selectedVgPg)
+    const colorMatch = branchSpec.colors?.includes(selectedColor)
+
+    return nicotineMatch && vgPgMatch && colorMatch
+  }
+
+  // Get stock for moderator's branch
+  const getStockForBranch = () => {
+    if (!product.stock || !moderatorBranch) return 0
+    const stockKey = `${moderatorBranch.toLowerCase()}_stock`
+    return product.stock[stockKey] || 0
+  }
+
+  // Check if add to cart is possible
+  const canAddToCart = () => {
+    // If no branch specifications exist, allow simple add to cart
+    if (!product.branchSpecifications || !product.branchSpecifications[moderatorBranch?.toLowerCase()]) {
+      return getStockForBranch() > 0
+    }
+
+    // If branch specifications exist, require all selections
+    if (!selectedNicotine || !selectedVgPg || !selectedColor) {
+      return false
+    }
+    
+    const isSpecAvail = isSpecAvailable()
+    const hasStock = getStockForBranch() > 0
+    
+    return isSpecAvail && hasStock
+  }
+
+  const handleAddToCart = () => {
+    if (!canAddToCart()) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid Selection',
+        text: 'Selected specifications are not available in your branch or product is out of stock.',
+      })
+      return
+    }
+
+    // Prepare specifications only if they exist and are selected
+    let specifications = null
+    if (product.branchSpecifications && product.branchSpecifications[moderatorBranch?.toLowerCase()]) {
+      specifications = {
+        nicotineStrength: selectedNicotine,
+        vgPgRatio: selectedVgPg,
+        color: selectedColor
+      }
+    }
+
+    // Call the parent's add to cart function with specifications
+    onAddToCart(product, moderatorBranch, specifications)
+    onClose()
+  }
+
+  const stock = getStockForBranch()
+  const hasBranchSpecs = product.branchSpecifications && product.branchSpecifications[moderatorBranch?.toLowerCase()]
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
+          >
+            {/* Header */}
+            <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-yellow-50">
+              <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Info size={28} className="text-orange-600" />
+                Product Details
+                <span className="text-sm bg-orange-100 text-orange-800 px-3 py-1 rounded-full font-medium">
+                  {moderatorBranch?.charAt(0).toUpperCase() + moderatorBranch?.slice(1)} Branch Only
+                </span>
+              </h3>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 p-2 rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Column - Product Info */}
+                <div className="space-y-6">
+                  {/* Basic Info */}
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <h4 className="text-xl font-bold text-gray-900 mb-4">{product.name}</h4>
+                    
+                    {product.description && (
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <p className="text-gray-600">{product.description}</p>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {product.brand && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+                          <p className="font-semibold text-gray-900">{product.brand}</p>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
+                        <p className="text-2xl font-bold text-purple-600">${product.price?.toFixed(2) || '0.00'}</p>
+                      </div>
+
+                      {product.comparePrice && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Compare Price</label>
+                          <p className="text-lg text-gray-500 line-through">${product.comparePrice.toFixed(2)}</p>
+                        </div>
+                      )}
+
+                      {product.barcode && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Barcode</label>
+                          <p className="font-mono text-gray-900">{product.barcode}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {product.tags && product.tags.length > 0 && (
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                        <div className="flex flex-wrap gap-2">
+                          {product.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* General Specifications */}
+                  {(product.flavor || product.resistance || product.wattageRange) && (
+                    <div className="bg-blue-50 rounded-xl p-6">
+                      <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <Zap size={20} className="text-blue-600" />
+                        General Specifications
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {product.flavor && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Flavor</label>
+                            <p className="font-semibold text-gray-900">{product.flavor}</p>
+                          </div>
+                        )}
+                        {product.resistance && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Resistance</label>
+                            <p className="font-semibold text-gray-900">{product.resistance}</p>
+                          </div>
+                        )}
+                        {product.wattageRange && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Wattage Range</label>
+                            <p className="font-semibold text-gray-900">{product.wattageRange}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column - Branch-Specific Specifications & Selection */}
+                <div className="space-y-6">
+                  {/* Branch Stock Info */}
+                  <div className="bg-orange-50 rounded-xl p-6 border border-orange-200">
+                    <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <Store size={20} className="text-orange-600" />
+                      Branch Availability
+                    </h4>
+                    <div className="flex items-center justify-between p-3 bg-white rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-orange-600 text-white rounded-lg flex items-center justify-center">
+                          <Store size={16} />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900 capitalize">
+                            {moderatorBranch} Branch
+                          </p>
+                          <p className="text-sm text-gray-600">Your assigned branch</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-lg font-bold ${stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {stock > 0 ? `${stock} in stock` : 'Out of Stock'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Specification Selection - Only show if branch specifications exist */}
+                  {hasBranchSpecs && (
+                    <div className="bg-purple-50 rounded-xl p-6">
+                      <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <Settings size={20} className="text-purple-600" />
+                        Select Specifications
+                      </h4>
+
+                      <div className="space-y-4">
+                        {/* Nicotine Strength */}
+                        {nicotineOptions.length > 0 && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Nicotine Strength *
+                            </label>
+                            <select
+                              value={selectedNicotine}
+                              onChange={(e) => setSelectedNicotine(e.target.value)}
+                              className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            >
+                              <option value="">Select Nicotine Strength</option>
+                              {nicotineOptions.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {/* VG/PG Ratio */}
+                        {vgPgOptions.length > 0 && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              VG/PG Ratio *
+                            </label>
+                            <select
+                              value={selectedVgPg}
+                              onChange={(e) => setSelectedVgPg(e.target.value)}
+                              className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            >
+                              <option value="">Select VG/PG Ratio</option>
+                              {vgPgOptions.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {/* Color */}
+                        {colorOptions.length > 0 && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                              <Palette size={16} className="text-purple-600" />
+                              Color *
+                            </label>
+                            <select
+                              value={selectedColor}
+                              onChange={(e) => setSelectedColor(e.target.value)}
+                              className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            >
+                              <option value="">Select Color</option>
+                              {colorOptions.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+
+                      {selectedNicotine && selectedVgPg && selectedColor && !isSpecAvailable() && (
+                        <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg">
+                          <p className="text-red-800 text-sm">
+                            ⚠️ Selected specifications are not available in your branch
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Show message if no branch specifications */}
+                  {!hasBranchSpecs && (
+                    <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                      <div className="text-center">
+                        <Package2 size={48} className="mx-auto text-gray-400 mb-4" />
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                          Simple Product
+                        </h4>
+                        <p className="text-gray-600">
+                          This product doesn't have branch-specific specifications. You can add it directly to your cart.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-gray-200 bg-gray-50">
+              <div className="flex gap-4">
+                <button
+                  onClick={onClose}
+                  className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddToCart}
+                  disabled={!canAddToCart()}
+                  className={`flex-2 py-3 px-6 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 ${
+                    canAddToCart()
+                      ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white hover:from-orange-700 hover:to-red-700'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  <ShoppingCart size={20} />
+                  {canAddToCart() ? 'Add to Cart' : (
+                    hasBranchSpecs
+                      ? 'Select All Specifications'
+                      : 'Out of Stock'
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+// 🔒 UPDATED: Product Card Component with Details Button (NO BRANCH SELECTOR)
+const ProductCard = ({ product, onAddToCart, onShowDetails, moderatorBranch }) => {
   const stock = product.stock?.[`${moderatorBranch}_stock`] || 0
   const isOutOfStock = stock <= 0
 
@@ -144,12 +562,16 @@ const ProductCard = ({ product, onAddToCart, moderatorBranch }) => {
             src={product.images[0].url}
             alt={product.images[0].alt || product.name}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              e.target.style.display = 'none'
+              e.target.nextSibling.style.display = 'flex'
+            }}
           />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Package2 size={48} className="text-gray-400" />
-          </div>
-        )}
+        ) : null}
+        
+        <div className="w-full h-full flex items-center justify-center" style={{ display: product.images?.length > 0 ? 'none' : 'flex' }}>
+          <Package2 size={48} className="text-gray-400" />
+        </div>
 
         {/* Stock Status Badge */}
         <div
@@ -164,24 +586,33 @@ const ProductCard = ({ product, onAddToCart, moderatorBranch }) => {
 
         {/* Price Badge */}
         <div className="absolute bottom-3 left-3 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-          ${product.price}
+          ${product.price?.toFixed(2) || '0.00'}
         </div>
+
+        {/* Details Button */}
+        <button
+          onClick={() => onShowDetails(product)}
+          className="absolute top-3 left-3 bg-white bg-opacity-90 text-orange-600 p-2 rounded-full hover:bg-opacity-100 transition-all"
+          title="View Details"
+        >
+          <Info size={16} />
+        </button>
       </div>
 
       {/* Product Info */}
       <div className="p-4">
         <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2">
-          {product.name}
+          {product.name || 'Unnamed Product'}
         </h3>
 
         <div className="flex items-center gap-2 mb-3">
           <Tag size={14} className="text-purple-600" />
           <span className="text-sm text-gray-600">
-            {product.category} • {product.subcategory}
+            {product.category || 'N/A'} • {product.subcategory || 'N/A'}
           </span>
         </div>
 
-        {/* 🔒 FIXED: Branch Display (NO SELECTOR) */}
+        {/* Branch Display (NO SELECTOR) */}
         <div className="mb-3">
           <div className="flex items-center gap-2 p-2 bg-orange-50 border border-orange-200 rounded-lg">
             <Store size={14} className="text-orange-600" />
@@ -191,24 +622,32 @@ const ProductCard = ({ product, onAddToCart, moderatorBranch }) => {
           </div>
         </div>
 
-        {/* Add to Cart Button */}
-        <button
-          onClick={() => onAddToCart(product, moderatorBranch)}
-          disabled={isOutOfStock}
-          className={`w-full py-2 rounded-lg font-medium transition-colors ${
-            isOutOfStock
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-purple-600 text-white hover:bg-purple-700'
-          }`}
-        >
-          {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-        </button>
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => onShowDetails(product)}
+            className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+          >
+            View Details
+          </button>
+          <button
+            onClick={() => onAddToCart(product, moderatorBranch)}
+            disabled={isOutOfStock}
+            className={`flex-1 py-2 rounded-lg font-medium transition-colors text-sm ${
+              isOutOfStock
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-orange-600 text-white hover:bg-orange-700'
+            }`}
+          >
+            {isOutOfStock ? 'Out of Stock' : 'Quick Add'}
+          </button>
+        </div>
       </div>
     </motion.div>
   )
 }
 
-// 💫 Sortable Cart Item Component (same as admin)
+// 🔥 UPDATED: Enhanced Sortable Cart Item with specifications support
 const SortableCartItem = ({ item, onUpdateQuantity, onRemove }) => {
   const {
     attributes,
@@ -224,7 +663,7 @@ const SortableCartItem = ({ item, onUpdateQuantity, onRemove }) => {
     transition,
   }
 
-  const totalPrice = item.product.price * item.quantity
+  const totalPrice = (item.product?.price ?? 0) * (item.quantity ?? 1)
 
   return (
     <div
@@ -245,49 +684,73 @@ const SortableCartItem = ({ item, onUpdateQuantity, onRemove }) => {
         </div>
 
         {/* Product Image */}
-        <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-blue-100 rounded-lg flex-shrink-0 overflow-hidden">
-          {item.product.images && item.product.images.length > 0 ? (
+        <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-yellow-100 rounded-lg flex-shrink-0 overflow-hidden">
+          {item.product?.images && item.product.images.length > 0 ? (
             <img
               src={item.product.images[0].url}
               alt={item.product.name}
               className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.style.display = 'none'
+                e.target.nextSibling.style.display = 'flex'
+              }}
             />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Package2 size={24} className="text-purple-400" />
-            </div>
-          )}
+          ) : null}
+          <div className="w-full h-full flex items-center justify-center" style={{ display: item.product?.images?.length > 0 ? 'none' : 'flex' }}>
+            <Package2 size={24} className="text-orange-400" />
+          </div>
         </div>
 
         {/* Product Details */}
         <div className="flex-1 min-w-0">
           <h4 className="font-semibold text-gray-900 truncate text-sm">
-            {item.product.name}
+            {item.product?.name || 'Unknown Product'}
           </h4>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
-              {item.branch.charAt(0).toUpperCase() + item.branch.slice(1)}
+              {item.branch?.charAt(0).toUpperCase() + item.branch?.slice(1) || 'N/A'}
             </span>
             <span className="text-sm font-medium text-purple-600">
-              ${item.product.price}
+              ${item.product?.price?.toFixed(2) || '0.00'}
             </span>
           </div>
+          
+          {/* Show specifications if available */}
+          {item.specifications && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {item.specifications.nicotineStrength && (
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                  {item.specifications.nicotineStrength}
+                </span>
+              )}
+              {item.specifications.vgPgRatio && (
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                  {item.specifications.vgPgRatio}
+                </span>
+              )}
+              {item.specifications.color && (
+                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">
+                  {item.specifications.color}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Quantity Controls */}
         <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-1">
           <button
-            onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+            onClick={() => onUpdateQuantity(item.id, (item.quantity || 1) - 1)}
             className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition-colors"
           >
             <Minus size={14} />
           </button>
           <span className="w-8 text-center font-semibold text-gray-900">
-            {item.quantity}
+            {item.quantity || 1}
           </span>
           <button
-            onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-            className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700 transition-colors"
+            onClick={() => onUpdateQuantity(item.id, (item.quantity || 1) + 1)}
+            className="w-8 h-8 rounded-lg bg-orange-600 text-white flex items-center justify-center hover:bg-orange-700 transition-colors"
           >
             <Plus size={14} />
           </button>
@@ -310,58 +773,41 @@ const SortableCartItem = ({ item, onUpdateQuantity, onRemove }) => {
   )
 }
 
-// Invoice generation (same as admin)
+// Invoice generation (same as existing)
 const generateInvoice = async (saleData) => {
   const invoiceElement = document.createElement('div')
-  // Use RGB colors and more compact design
   invoiceElement.innerHTML = `
     <div style="font-family: 'Arial', sans-serif; max-width: 550px; margin: 0 auto; padding: 20px; background: rgb(255, 255, 255); color: rgb(51, 51, 51); line-height: 1.4;">
       
-      <!-- Compact Header -->
+      <!-- Header -->
       <div style="text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid rgb(139, 92, 246);">
         <h1 style="color: rgb(139, 92, 246); margin: 0 0 8px 0; font-size: 24px; font-weight: bold;">VWV VAPE SHOP</h1>
         <p style="margin: 0; color: rgb(107, 114, 128); font-size: 12px;">📍 123 Vape Street, Dhaka-1000 | 📞 +880-123-456-789 | 📧 sales@vwvvape.com</p>
       </div>
 
-      <!-- Invoice Info & Customer - Side by Side -->
+      <!-- Invoice Info & Customer -->
       <div style="display: flex; justify-content: space-between; margin-bottom: 20px; background: rgb(248, 250, 252); padding: 15px; border-radius: 8px;">
-        <!-- Invoice Details -->
         <div style="flex: 1;">
           <h2 style="margin: 0 0 10px 0; color: rgb(139, 92, 246); font-size: 18px; font-weight: bold;">INVOICE</h2>
           <div style="font-size: 12px; color: rgb(55, 65, 81);">
-            <p style="margin: 3px 0;"><strong>ID:</strong> ${
-              saleData.saleId
-            }</p>
-            <p style="margin: 3px 0;"><strong>Date:</strong> ${new Date(
-              saleData.timestamp
-            ).toLocaleDateString()}</p>
-            <p style="margin: 3px 0;"><strong>Time:</strong> ${new Date(
-              saleData.timestamp
-            ).toLocaleTimeString()}</p>
-            <p style="margin: 3px 0;"><strong>Cashier:</strong> ${
-              saleData.cashier
-            }</p>
+            <p style="margin: 3px 0;"><strong>ID:</strong> ${saleData.saleId || 'N/A'}</p>
+            <p style="margin: 3px 0;"><strong>Date:</strong> ${new Date(saleData.timestamp || Date.now()).toLocaleDateString()}</p>
+            <p style="margin: 3px 0;"><strong>Time:</strong> ${new Date(saleData.timestamp || Date.now()).toLocaleTimeString()}</p>
+            <p style="margin: 3px 0;"><strong>Cashier:</strong> ${saleData.cashier || 'Unknown'}</p>
           </div>
         </div>
         
-        <!-- Customer Details -->
         <div style="flex: 1; text-align: right;">
           <h3 style="margin: 0 0 10px 0; color: rgb(139, 92, 246); font-size: 14px; font-weight: bold;">CUSTOMER</h3>
           <div style="font-size: 12px; color: rgb(55, 65, 81);">
-            <p style="margin: 3px 0;"><strong>Name:</strong> ${
-              saleData.customer.name
-            }</p>
-            ${
-              saleData.customer.phone
-                ? `<p style="margin: 3px 0;"><strong>Phone:</strong> ${saleData.customer.phone}</p>`
-                : ''
-            }
+            <p style="margin: 3px 0;"><strong>Name:</strong> ${saleData.customer?.name || 'Walk-in Customer'}</p>
+            ${saleData.customer?.phone ? `<p style="margin: 3px 0;"><strong>Phone:</strong> ${saleData.customer.phone}</p>` : ''}
             <span style="background: rgb(16, 185, 129); color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600;">PAID</span>
           </div>
         </div>
       </div>
 
-      <!-- Compact Items Table -->
+      <!-- Items Table -->
       <div style="margin-bottom: 20px;">
         <h3 style="margin: 0 0 10px 0; color: rgb(55, 65, 81); font-size: 14px; font-weight: bold;">ITEMS PURCHASED</h3>
         <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
@@ -376,7 +822,7 @@ const generateInvoice = async (saleData) => {
             </tr>
           </thead>
           <tbody>
-            ${saleData.items
+            ${(saleData.items || [])
               .map(
                 (item, index) => `
               <tr style="border-bottom: 1px solid rgb(229, 231, 235); ${
@@ -384,28 +830,20 @@ const generateInvoice = async (saleData) => {
                   ? 'background: rgb(249, 250, 251);'
                   : 'background: white;'
               }">
-                <td style="padding: 6px; font-weight: 600; color: rgb(107, 114, 128);">${
-                  index + 1
-                }</td>
+                <td style="padding: 6px; font-weight: 600; color: rgb(107, 114, 128);">${index + 1}</td>
                 <td style="padding: 6px; font-weight: 500; color: rgb(55, 65, 81);">${
-                  item.productName.length > 30
-                    ? item.productName.substring(0, 30) + '...'
-                    : item.productName
+                  (item.productName || 'Unknown Product').length > 30
+                    ? (item.productName || 'Unknown Product').substring(0, 30) + '...'
+                    : (item.productName || 'Unknown Product')
                 }</td>
                 <td style="padding: 6px; text-align: center;">
                   <span style="background: rgb(139, 92, 246); color: white; padding: 1px 6px; border-radius: 10px; font-size: 9px; font-weight: 600;">
-                    ${item.branch.toUpperCase()}
+                    ${(item.branch || 'N/A').toUpperCase()}
                   </span>
                 </td>
-                <td style="padding: 6px; text-align: center; font-weight: 600; color: rgb(55, 65, 81);">${
-                  item.quantity
-                }</td>
-                <td style="padding: 6px; text-align: right; font-weight: 500; color: rgb(55, 65, 81);">$${item.unitPrice.toFixed(
-                  2
-                )}</td>
-                <td style="padding: 6px; text-align: right; font-weight: 700; color: rgb(5, 150, 105);">$${item.totalPrice.toFixed(
-                  2
-                )}</td>
+                <td style="padding: 6px; text-align: center; font-weight: 600; color: rgb(55, 65, 81);">${item.quantity || 0}</td>
+                <td style="padding: 6px; text-align: right; font-weight: 500; color: rgb(55, 65, 81);">$${(item.unitPrice || 0).toFixed(2)}</td>
+                <td style="padding: 6px; text-align: right; font-weight: 700; color: rgb(5, 150, 105);">$${(item.totalPrice || 0).toFixed(2)}</td>
               </tr>
             `
               )
@@ -414,63 +852,49 @@ const generateInvoice = async (saleData) => {
         </table>
       </div>
 
-      <!-- Payment & Totals Section -->
+      <!-- Payment & Totals -->
       <div style="margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between; gap: 15px;">
-          <!-- Payment Method -->
           <div style="flex: 1; background: rgb(240, 253, 244); padding: 12px; border-radius: 8px; border-left: 3px solid rgb(16, 185, 129);">
             <h4 style="margin: 0 0 8px 0; color: rgb(5, 150, 105); font-size: 12px; font-weight: bold;">PAYMENT METHOD</h4>
-            ${saleData.payment.methods
+            ${(saleData.payment?.methods || [])
               .map(
                 (method) => `
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <span style="font-size: 11px; font-weight: 600; color: rgb(55, 65, 81);">
                   <span style="width: 6px; height: 6px; background: rgb(16, 185, 129); border-radius: 50%; display: inline-block; margin-right: 5px;"></span>
-                  ${method.name}
+                  ${method.name || 'Unknown'}
                 </span>
-                <span style="font-size: 11px; font-weight: 700; color: rgb(5, 150, 105);">$${(
-                  method.amount || saleData.totalAmount
-                ).toFixed(2)}</span>
+                <span style="font-size: 11px; font-weight: 700; color: rgb(5, 150, 105);">$${(method.amount || saleData.totalAmount || 0).toFixed(2)}</span>
               </div>
             `
               )
               .join('')}
           </div>
           
-          <!-- Totals -->
           <div style="flex: 1; background: rgb(254, 254, 254); padding: 12px; border-radius: 8px; border: 1px solid rgb(139, 92, 246);">
             <h4 style="margin: 0 0 8px 0; color: rgb(139, 92, 246); font-size: 12px; font-weight: bold;">TOTAL SUMMARY</h4>
             <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px;">
               <span style="color: rgb(55, 65, 81);">Subtotal:</span>
-              <span style="font-weight: 600;">$${saleData.totalAmount.toFixed(
-                2
-              )}</span>
+              <span style="font-weight: 600;">$${(saleData.totalAmount || 0).toFixed(2)}</span>
             </div>
             <div style="border-top: 1px solid rgb(226, 232, 240); padding-top: 6px;">
               <div style="display: flex; justify-content: space-between; align-items: center; background: rgb(139, 92, 246); color: white; padding: 8px; border-radius: 4px;">
                 <span style="font-size: 12px; font-weight: bold;">TOTAL:</span>
-                <span style="font-size: 14px; font-weight: bold;">$${saleData.payment.totalPaid.toFixed(
-                  2
-                )}</span>
+                <span style="font-size: 14px; font-weight: bold;">$${(saleData.payment?.totalPaid || saleData.totalAmount || 0).toFixed(2)}</span>
               </div>
-              ${
-                saleData.payment.change > 0
-                  ? `
+              ${(saleData.payment?.change || 0) > 0 ? `
                 <div style="display: flex; justify-content: space-between; align-items: center; background: rgb(16, 185, 129); color: white; padding: 6px; border-radius: 4px; margin-top: 4px;">
                   <span style="font-size: 11px; font-weight: 600;">Change:</span>
-                  <span style="font-size: 12px; font-weight: bold;">$${saleData.payment.change.toFixed(
-                    2
-                  )}</span>
+                  <span style="font-size: 12px; font-weight: bold;">$${(saleData.payment.change || 0).toFixed(2)}</span>
                 </div>
-              `
-                  : ''
-              }
+              ` : ''}
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Compact Footer -->
+      <!-- Footer -->
       <div style="text-align: center; padding-top: 15px; border-top: 1px solid rgb(229, 231, 235); background: rgb(248, 250, 252); border-radius: 8px; padding: 15px;">
         <h3 style="margin: 0 0 8px 0; color: rgb(5, 150, 105); font-size: 14px; font-weight: bold;">Thank You for Your Business!</h3>
         <p style="margin: 0 0 10px 0; color: rgb(107, 114, 128); font-size: 11px;">We appreciate your trust in VWV Vape Shop</p>
@@ -530,10 +954,8 @@ const generateInvoice = async (saleData) => {
       heightLeft -= pageHeight
     }
 
-    // Save the PDF
-    pdf.save(`VWV-Invoice-${saleData.saleId}.pdf`)
+    pdf.save(`VWV-Invoice-${saleData.saleId || 'unknown'}.pdf`)
 
-    // Show success message
     Swal.fire({
       icon: 'success',
       title: 'Invoice Generated!',
@@ -555,7 +977,7 @@ const generateInvoice = async (saleData) => {
   }
 }
 
-// 💳 Compact Payment Method Selector (same as admin)
+// Payment Method Selector (same as existing)
 const PaymentMethodSelector = ({
   selectedMethods,
   onMethodChange,
@@ -572,19 +994,20 @@ const PaymentMethodSelector = ({
       delete newAmounts[method.id]
       setAmounts(newAmounts)
     } else {
-      const newMethod = { ...method, amount: totalAmount }
+      const newMethod = { ...method, amount: totalAmount || 0 }
       onMethodChange([newMethod])
-      setAmounts({ [method.id]: totalAmount })
+      setAmounts({ [method.id]: totalAmount || 0 })
     }
   }
 
   const handleAmountChange = (methodId, amount) => {
-    const newAmounts = { ...amounts, [methodId]: parseFloat(amount) || 0 }
+    const parsedAmount = parseFloat(amount) || 0
+    const newAmounts = { ...amounts, [methodId]: parsedAmount }
     setAmounts(newAmounts)
 
     const updatedMethods = selectedMethods.map((method) =>
       method.id === methodId
-        ? { ...method, amount: parseFloat(amount) || 0 }
+        ? { ...method, amount: parsedAmount }
         : method
     )
     onMethodChange(updatedMethods)
@@ -594,7 +1017,7 @@ const PaymentMethodSelector = ({
     (sum, method) => sum + (method.amount || 0),
     0
   )
-  const remainingAmount = Math.max(0, totalAmount - totalPaid)
+  const remainingAmount = Math.max(0, (totalAmount || 0) - totalPaid)
 
   return (
     <div className="space-y-6">
@@ -606,7 +1029,7 @@ const PaymentMethodSelector = ({
         <p className="text-gray-600">Choose payment option</p>
       </div>
 
-      {/* 🔥 Compact Payment Method Grid */}
+      {/* Payment Method Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {PAYMENT_METHODS.map((method) => {
           const IconComponent = method.icon
@@ -685,7 +1108,7 @@ const PaymentMethodSelector = ({
               return (
                 <div
                   key={method.id}
-                  className="bg-white rounded-lg p-3 shadow-sm"
+                  className="bg-white rounded-lg p-3 shadow-sm mb-3"
                 >
                   <div className="flex items-center gap-3 mb-3">
                     <div
@@ -703,12 +1126,12 @@ const PaymentMethodSelector = ({
                       type="number"
                       step="0.01"
                       min="0"
-                      max={totalAmount}
+                      max={totalAmount || 999999}
                       value={amounts[method.id] || ''}
                       onChange={(e) =>
                         handleAmountChange(method.id, e.target.value)
                       }
-                      placeholder={`${totalAmount.toFixed(2)}`}
+                      placeholder={`${(totalAmount || 0).toFixed(2)}`}
                       className="w-full p-3 pl-10 pr-4 text-lg font-semibold rounded-lg border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                     <DollarSign
@@ -721,13 +1144,13 @@ const PaymentMethodSelector = ({
             })}
           </div>
 
-          {/* Compact Payment Summary */}
+          {/* Payment Summary */}
           <div className="bg-white p-4 rounded-xl border-2 border-purple-200 shadow-lg">
             <h4 className="font-bold text-gray-900 text-lg mb-3">Summary</h4>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Total:</span>
-                <span className="font-semibold">${totalAmount.toFixed(2)}</span>
+                <span className="font-semibold">${(totalAmount || 0).toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Paying:</span>
@@ -736,16 +1159,16 @@ const PaymentMethodSelector = ({
               <div className="border-t pt-2">
                 <div className="flex justify-between items-center text-lg font-bold text-purple-600">
                   <span>Balance:</span>
-                  <span>${totalAmount.toFixed(2)}</span>
+                  <span>${(totalAmount || 0).toFixed(2)}</span>
                 </div>
               </div>
               {remainingAmount > 0 ? (
                 <div className="bg-red-50 p-2 rounded text-red-700 font-semibold text-sm">
                   Remaining: ${remainingAmount.toFixed(2)}
                 </div>
-              ) : totalPaid > totalAmount ? (
+              ) : totalPaid > (totalAmount || 0) ? (
                 <div className="bg-green-50 p-2 rounded text-green-700 font-semibold text-sm">
-                  Change: ${(totalPaid - totalAmount).toFixed(2)}
+                  Change: ${(totalPaid - (totalAmount || 0)).toFixed(2)}
                 </div>
               ) : null}
             </div>
@@ -758,7 +1181,7 @@ const PaymentMethodSelector = ({
 
 // 🔒 MAIN MODERATOR SELL PAGE COMPONENT
 export default function SellPageModerator() {
-  // 🔥 GET USER FROM AUTH CONTEXT
+  // Get user from auth context
   const { user } = useContext(AuthContext)
 
   // States (same as admin but with restrictions)
@@ -772,7 +1195,7 @@ export default function SellPageModerator() {
   const [saleCompleted, setSaleCompleted] = useState(false)
   const [completedSaleData, setCompletedSaleData] = useState(null)
 
-  // 🔒 MODERATOR INFO FROM DATABASE
+  // Moderator info from database
   const [moderatorBranch, setModeratorBranch] = useState(null)
   const [moderatorRole, setModeratorRole] = useState(null)
 
@@ -793,6 +1216,10 @@ export default function SellPageModerator() {
   const [totalPages, setTotalPages] = useState(1)
   const itemsPerPage = 12
 
+  // 🔥 NEW: Product details modal state
+  const [showProductModal, setShowProductModal] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState(null)
+
   // dnd-kit sensors
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -801,32 +1228,13 @@ export default function SellPageModerator() {
     })
   )
 
-  // 🔧 SECURITY: Get auth headers
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('auth-token')
-    return {
-      'Authorization': `Bearer ${token}`,
-      'Cache-Control': 'no-cache'
-    }
+  // 🔥 NEW: Handle showing product details
+  const handleShowProductDetails = (product) => {
+    setSelectedProduct(product)
+    setShowProductModal(true)
   }
 
-  // 🔧 SECURITY: Check authentication
-  const checkAuth = () => {
-    const token = localStorage.getItem('auth-token')
-    if (!token) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Authentication Required',
-        text: 'Please login to continue.',
-      }).then(() => {
-        window.location.href = '/admin/login'
-      })
-      return false
-    }
-    return true
-  }
-
-  // 🔥 Fetch user details from database to get role and branch
+  // Fetch user details from database to get role and branch
   useEffect(() => {
     const fetchUserDetails = async () => {
       if (!user?.email) {
@@ -887,7 +1295,7 @@ export default function SellPageModerator() {
 
   // Load initial data
   useEffect(() => {
-    if (!moderatorBranch) return // Wait for user details to load
+    if (!moderatorBranch) return
 
     const loadData = async () => {
       if (!checkAuth()) return
@@ -910,7 +1318,7 @@ export default function SellPageModerator() {
 
         if (categoriesRes.ok) {
           const categoriesData = await categoriesRes.json()
-          setCategories(categoriesData.categories)
+          setCategories(categoriesData.categories || {})
         }
 
         fetchProducts()
@@ -925,9 +1333,9 @@ export default function SellPageModerator() {
     }
 
     loadData()
-  }, [moderatorBranch]) // Depend on moderatorBranch
+  }, [moderatorBranch])
 
-  // 🔒 FIXED: Fetch products filtered by moderator's branch stock
+  // Fetch products filtered by moderator's branch stock
   const fetchProducts = async () => {
     if (!moderatorBranch || !checkAuth()) return
 
@@ -944,10 +1352,8 @@ export default function SellPageModerator() {
       if (barcodeFilter) params.append('barcode', barcodeFilter)
       if (inStockOnly) params.append('inStock', 'true')
 
-      // 🔒 Filter by moderator's branch stock
+      // Filter by moderator's branch stock
       params.append('branch', moderatorBranch)
-
-      console.log('Fetching with params:', params.toString())
 
       const response = await fetch(`/api/products?${params}`, {
         headers: getAuthHeaders()
@@ -961,7 +1367,6 @@ export default function SellPageModerator() {
 
       if (response.ok) {
         const data = await response.json()
-        console.log('Products data:', data)
         setProducts(data.products || [])
         setTotalPages(data.pagination?.totalPages || 1)
       }
@@ -993,17 +1398,15 @@ export default function SellPageModerator() {
     }
   }, [currentPage, moderatorBranch])
 
-  // 🔍 Enhanced Barcode scan handler
+  // Enhanced Barcode scan handler
   const handleBarcodeScan = async (data) => {
     try {
       if (data) {
-        console.log('Scanned barcode:', data)
         setBarcodeFilter(data)
         setShowBarcodeScanner(false)
 
         if (!checkAuth()) return
 
-        // 🔥 Direct search for barcode
         const response = await fetch(
           `/api/products?barcode=${encodeURIComponent(data)}&limit=1`,
           {
@@ -1019,7 +1422,6 @@ export default function SellPageModerator() {
 
         if (response.ok) {
           const result = await response.json()
-          console.log('Barcode search result:', result)
 
           if (result.products && result.products.length > 0) {
             const product = result.products[0]
@@ -1054,52 +1456,113 @@ export default function SellPageModerator() {
     }
   }
 
-  // 🔒 FIXED: Cart handlers (always use moderator's branch)
-  const handleAddToCart = (product, branch) => {
-    // 🔒 Ensure only moderator's branch is used
-    const finalBranch = moderatorBranch
-    const stock = product.stock?.[`${finalBranch}_stock`] || 0
+  // 🔥 UPDATED: Enhanced handleAddToCart with specifications support
+  const handleAddToCart = (product, branch, specifications = null) => {
+    try {
+      if (!product || !product._id) {
+        throw new Error('Invalid product data')
+      }
 
-    if (stock <= 0) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Out of Stock',
-        text: 'This product is out of stock in your branch',
-      })
-      return
-    }
+      // Ensure only moderator's branch is used
+      const finalBranch = moderatorBranch.toLowerCase()
+      const stock = product.stock?.[`${finalBranch}_stock`] || 0
 
-    const existingItem = cart.find(
-      (item) => item.product._id === product._id && item.branch === finalBranch
-    )
-
-    if (existingItem) {
-      if (existingItem.quantity >= stock) {
+      if (stock <= 0) {
         Swal.fire({
-          icon: 'warning',
-          title: 'Stock Limit',
-          text: 'Cannot add more items than available stock in your branch',
+          icon: 'error',
+          title: 'Out of Stock',
+          text: 'This product is out of stock in your branch',
         })
         return
       }
-      handleUpdateQuantity(existingItem.id, existingItem.quantity + 1)
-    } else {
-      const newItem = {
-        id: Date.now() + Math.random(),
-        product,
-        branch: finalBranch,
-        quantity: 1,
-      }
-      setCart((prev) => [...prev, newItem])
 
+      // If specifications are provided, validate them
+      if (specifications && product.branchSpecifications) {
+        const branchSpec = product.branchSpecifications[finalBranch]
+        if (!branchSpec) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Branch Not Available',
+            text: 'This product is not available for your branch',
+          })
+          return
+        }
+
+        // Validate each specification
+        const { nicotineStrength, vgPgRatio, color } = specifications
+        if (nicotineStrength && !branchSpec.nicotineStrength?.includes(nicotineStrength)) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Specification Not Available',
+            text: 'Selected nicotine strength is not available for your branch',
+          })
+          return
+        }
+
+        if (vgPgRatio && !branchSpec.vgPgRatio?.includes(vgPgRatio)) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Specification Not Available',
+            text: 'Selected VG/PG ratio is not available for your branch',
+          })
+          return
+        }
+
+        if (color && !branchSpec.colors?.includes(color)) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Specification Not Available',
+            text: 'Selected color is not available for your branch',
+          })
+          return
+        }
+      }
+
+      const existingItem = cart.find(
+        (item) => item.product._id === product._id && 
+                  item.branch === finalBranch &&
+                  JSON.stringify(item.specifications || {}) === JSON.stringify(specifications || {})
+      )
+
+      if (existingItem) {
+        if (existingItem.quantity >= stock) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Stock Limit Reached',
+            text: 'Cannot add more items than available stock in your branch',
+          })
+          return
+        }
+        handleUpdateQuantity(existingItem.id, existingItem.quantity + 1)
+      } else {
+        const newItem = {
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          product,
+          branch: finalBranch,
+          quantity: 1,
+          specifications: specifications || null
+        }
+        setCart((prev) => [...prev, newItem])
+
+        const specText = specifications ? 
+          ` (${specifications.nicotineStrength}, ${specifications.vgPgRatio}, ${specifications.color})` : ''
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Added to Cart!',
+          text: `${product.name}${specText} added to cart`,
+          timer: 1500,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end',
+        })
+      }
+    } catch (error) {
+      console.error('[CART] Error adding to cart:', error)
       Swal.fire({
-        icon: 'success',
-        title: 'Added to Cart!',
-        text: `${product.name} added to cart`,
-        timer: 1500,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end',
+        icon: 'error',
+        title: 'Add to Cart Failed',
+        text: error.message || 'Could not add item to cart',
       })
     }
   }
@@ -1164,12 +1627,12 @@ export default function SellPageModerator() {
 
   // Calculate totals
   const cartTotal = cart.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
+    (sum, item) => sum + ((item.product?.price ?? 0) * (item.quantity ?? 1)),
     0
   )
-  const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0)
+  const cartItemsCount = cart.reduce((sum, item) => sum + (item.quantity ?? 1), 0)
 
-  // 🔒 FIXED: Enhanced Process Sale (moderator-specific)
+  // Enhanced Process Sale (moderator-specific)
   const handleProcessSale = async () => {
     if (cart.length === 0) {
       Swal.fire({
@@ -1198,9 +1661,7 @@ export default function SellPageModerator() {
       Swal.fire({
         icon: 'error',
         title: 'Insufficient Payment',
-        text: `Please ensure payment covers the full amount of $${cartTotal.toFixed(
-          2
-        )}`,
+        text: `Please ensure payment covers the full amount of $${cartTotal.toFixed(2)}`,
       })
       return
     }
@@ -1218,79 +1679,76 @@ export default function SellPageModerator() {
         },
       })
 
-      if (paymentMethod.type === 'cash') {
-        // 💵 CASH PAYMENT - Direct processing
-        console.log('Processing cash payment...')
-
-        const saleData = {
-          customer: {
-            name: customerName || 'Walk-in Customer',
-            phone: customerPhone || '',
-          },
-          items: cart.map((item) => ({
-            productId: item.product._id,
-            productName: item.product.name,
-            branch: item.branch, // This will always be moderatorBranch
-            quantity: item.quantity,
-            unitPrice: item.product.price,
-            totalPrice: item.product.price * item.quantity,
+      const saleData = {
+        customer: {
+          name: customerName || 'Walk-in Customer',
+          phone: customerPhone || '',
+        },
+        items: cart.map((item) => ({
+          productId: item.product._id,
+          productName: item.product.name,
+          branch: item.branch,
+          quantity: item.quantity,
+          unitPrice: item.product.price,
+          totalPrice: item.product.price * item.quantity,
+          specifications: item.specifications || null
+        })),
+        payment: {
+          methods: selectedPaymentMethods.map(method => ({
+            id: method.id,
+            name: method.name,
+            type: method.type,
+            amount: method.amount || 0,
           })),
-          payment: {
-            methods: selectedPaymentMethods,
-            totalAmount: cartTotal,
-            totalPaid: totalPaid,
-            change: totalPaid - cartTotal,
-          },
           totalAmount: cartTotal,
-          timestamp: new Date(),
-          cashier: user?.displayName || 'Moderator', // 🔒 Use actual moderator name
-          paymentType: 'cash',
-          status: 'completed',
+          totalPaid: totalPaid,
+          change: Math.max(0, totalPaid - cartTotal),
+        },
+        totalAmount: cartTotal,
+        timestamp: new Date(),
+        cashier: user?.displayName || 'Moderator',
+        paymentType: paymentMethod.type || 'cash',
+        status: 'completed',
+      }
+
+      // Use existing sales API
+      const response = await fetch('/api/sales', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(saleData),
+      })
+
+      if (response.status === 401) {
+        localStorage.removeItem('auth-token')
+        window.location.href = '/admin/login'
+        return
+      }
+
+      if (response.ok) {
+        const result = await response.json()
+        
+        // Refresh products data immediately
+        await fetchProducts()
+        
+        Swal.close()
+
+        // Use the saleId from the API response
+        const completedSale = {
+          ...saleData,
+          saleId: result.saleId,
         }
 
-        // 🔥 Use your existing sales API - it handles stock updates
-        const response = await fetch('/api/sales', {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify(saleData),
-        })
+        setCompletedSaleData(completedSale)
+        setSaleCompleted(true)
 
-        if (response.status === 401) {
-          localStorage.removeItem('auth-token')
-          window.location.href = '/admin/login'
-          return
-        }
-
-          if (response.ok) {
-          const result = await response.json()
-          
-          //  REFRESH PRODUCTS DATA IMMEDIATELY
-          await fetchProducts()
-          
-          Swal.close()
-
-          // Use the saleId from the API response
-          const completedSale = {
-            ...saleData,
-            saleId: result.saleId,
-          }
-
-          setCompletedSaleData(completedSale)
-          setSaleCompleted(true)
-
-          // Clear cart and reset form
-          setCart([])
-          setSelectedPaymentMethods([])
-          setCustomerName('')
-          setCustomerPhone('')
-        } else {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to save sale')
-        }
+        // Clear cart and reset form
+        setCart([])
+        setSelectedPaymentMethods([])
+        setCustomerName('')
+        setCustomerPhone('')
       } else {
-        // 🌐 ONLINE PAYMENT - SSLCommerz Integration
-        console.log('Processing online payment via SSLCommerz...')
-        // Implement SSLCommerz integration here if needed
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save sale')
       }
     } catch (error) {
       console.error('Error processing sale:', error)
@@ -1324,9 +1782,9 @@ export default function SellPageModerator() {
   // Show loading if user data is still loading
   if (userLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-amber-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading user information...</p>
         </div>
       </div>
@@ -1336,7 +1794,7 @@ export default function SellPageModerator() {
   // Check if user is moderator
   if (moderatorRole !== 'moderator') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-amber-100 flex items-center justify-center">
         <div className="text-center">
           <Shield size={64} className="mx-auto text-red-500 mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -1357,7 +1815,7 @@ export default function SellPageModerator() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-amber-100 p-4">
       <div className="max-w-7xl mx-auto">
         {/* Header with Cart Icon */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
@@ -1378,7 +1836,7 @@ export default function SellPageModerator() {
             whileHover={{ scale: 1.02, y: -2 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => setShowCartModal(true)}
-            className="relative bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-600 text-white rounded-2xl shadow-xl p-6 flex items-center gap-4 hover:shadow-2xl transition-all min-w-[200px]"
+            className="relative bg-gradient-to-r from-orange-600 via-orange-700 to-red-600 text-white rounded-2xl shadow-xl p-6 flex items-center gap-4 hover:shadow-2xl transition-all min-w-[200px]"
           >
             <div className="relative">
               <ShoppingCart size={32} />
@@ -1412,7 +1870,7 @@ export default function SellPageModerator() {
                 placeholder="Search products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
 
@@ -1426,11 +1884,11 @@ export default function SellPageModerator() {
                 placeholder="Filter by barcode..."
                 value={barcodeFilter}
                 onChange={(e) => setBarcodeFilter(e.target.value)}
-                className="w-full pl-10 pr-12 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full pl-10 pr-12 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
               <button
                 onClick={() => setShowBarcodeScanner(true)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-600 hover:text-purple-700"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-600 hover:text-orange-700"
                 title="Scan Barcode"
               >
                 <Camera size={20} />
@@ -1443,7 +1901,7 @@ export default function SellPageModerator() {
                 setSelectedCategory(e.target.value)
                 setSelectedSubcategory('')
               }}
-              className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               <option value="">All Categories</option>
               {Object.keys(categories).map((category) => (
@@ -1457,7 +1915,7 @@ export default function SellPageModerator() {
               value={selectedSubcategory}
               onChange={(e) => setSelectedSubcategory(e.target.value)}
               disabled={!selectedCategory}
-              className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+              className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50"
             >
               <option value="">All Subcategories</option>
               {subcategoryOptions.map((subcategory) => (
@@ -1475,12 +1933,12 @@ export default function SellPageModerator() {
                   type="checkbox"
                   checked={inStockOnly}
                   onChange={(e) => setInStockOnly(e.target.checked)}
-                  className="rounded text-purple-600"
+                  className="rounded text-orange-600"
                 />
                 <span className="text-sm text-gray-700">In Stock Only</span>
               </label>
               
-              {/* 🔒 Branch Info Display */}
+              {/* Branch Info Display */}
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-800">
                 <div className="flex items-center gap-2">
                   <Store size={14} />
@@ -1501,7 +1959,7 @@ export default function SellPageModerator() {
                 setSelectedSubcategory('')
                 setInStockOnly(false)
               }}
-              className="px-4 py-2 text-purple-600 hover:text-purple-700"
+              className="px-4 py-2 text-orange-600 hover:text-orange-700"
             >
               Clear Filters
             </button>
@@ -1511,7 +1969,7 @@ export default function SellPageModerator() {
         {/* Products Grid */}
         {loading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
           </div>
         ) : (
           <>
@@ -1521,7 +1979,8 @@ export default function SellPageModerator() {
                   key={product._id}
                   product={product}
                   onAddToCart={handleAddToCart}
-                  moderatorBranch={moderatorBranch} // 🔒 Pass moderator branch
+                  onShowDetails={handleShowProductDetails}
+                  moderatorBranch={moderatorBranch}
                 />
               ))}
             </div>
@@ -1571,7 +2030,19 @@ export default function SellPageModerator() {
         )}
       </div>
 
-      {/* Barcode Scanner Modal (same as admin) */}
+      {/* 🔥 NEW: Product Details Modal */}
+      <ProductDetailsModal
+        isOpen={showProductModal}
+        product={selectedProduct}
+        moderatorBranch={moderatorBranch}
+        onClose={() => {
+          setShowProductModal(false)
+          setSelectedProduct(null)
+        }}
+        onAddToCart={handleAddToCart}
+      />
+
+      {/* Barcode Scanner Modal */}
       <AnimatePresence>
         {showBarcodeScanner && (
           <motion.div
@@ -1588,7 +2059,7 @@ export default function SellPageModerator() {
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                  <Scan size={24} className="text-purple-600" />
+                  <Scan size={24} className="text-orange-600" />
                   Barcode Scanner
                 </h3>
                 <button
@@ -1621,7 +2092,7 @@ export default function SellPageModerator() {
         )}
       </AnimatePresence>
 
-      {/* Enhanced Cart Modal - Wider (same layout as admin) */}
+      {/* Enhanced Cart Modal */}
       <AnimatePresence>
         {showCartModal && (
           <motion.div
@@ -1637,9 +2108,9 @@ export default function SellPageModerator() {
               className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
             >
               {/* Modal Header */}
-              <div className="flex justify-between items-center p-8 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
+              <div className="flex justify-between items-center p-8 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-yellow-50">
                 <h3 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                  <ShoppingCart size={32} className="text-purple-600" />
+                  <ShoppingCart size={32} className="text-orange-600" />
                   {saleCompleted ? '✅ Sale Completed' : '🛒 Shopping Cart'}
                   <span className="text-lg bg-orange-100 text-orange-800 px-3 py-1 rounded-full font-medium">
                     {moderatorBranch?.charAt(0).toUpperCase() + moderatorBranch?.slice(1)} Branch
@@ -1675,13 +2146,13 @@ export default function SellPageModerator() {
 
                     {completedSaleData && (
                       <div className="max-w-3xl mx-auto">
-                        <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-8 mb-8 border border-purple-200">
+                        <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-2xl p-8 mb-8 border border-orange-200">
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
                             <div>
                               <p className="text-sm font-medium text-gray-600 mb-1">
                                 Sale ID
                               </p>
-                              <p className="text-lg font-bold text-purple-600">
+                              <p className="text-lg font-bold text-orange-600">
                                 {completedSaleData.saleId}
                               </p>
                             </div>
@@ -1690,7 +2161,7 @@ export default function SellPageModerator() {
                                 Customer
                               </p>
                               <p className="text-lg font-bold text-gray-900">
-                                {completedSaleData.customer.name}
+                                {completedSaleData.customer?.name || 'Walk-in Customer'}
                               </p>
                             </div>
                             <div>
@@ -1698,7 +2169,7 @@ export default function SellPageModerator() {
                                 Total Amount
                               </p>
                               <p className="text-lg font-bold text-green-600">
-                                ${completedSaleData.totalAmount.toFixed(2)}
+                                ${(completedSaleData.totalAmount || 0).toFixed(2)}
                               </p>
                             </div>
                             <div>
@@ -1706,7 +2177,7 @@ export default function SellPageModerator() {
                                 Items
                               </p>
                               <p className="text-lg font-bold text-gray-900">
-                                {completedSaleData.items.length} items
+                                {(completedSaleData.items || []).length} items
                               </p>
                             </div>
                           </div>
@@ -1738,8 +2209,8 @@ export default function SellPageModerator() {
                 ) : cart.length === 0 ? (
                   /* Empty Cart */
                   <div className="flex flex-col items-center justify-center py-20">
-                    <div className="w-32 h-32 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full flex items-center justify-center mb-6">
-                      <ShoppingCart size={48} className="text-purple-400" />
+                    <div className="w-32 h-32 bg-gradient-to-br from-orange-100 to-yellow-100 rounded-full flex items-center justify-center mb-6">
+                      <ShoppingCart size={48} className="text-orange-400" />
                     </div>
                     <h3 className="text-2xl font-bold text-gray-900 mb-4">
                       Your cart is empty
@@ -1749,9 +2220,9 @@ export default function SellPageModerator() {
                     </p>
                   </div>
                 ) : (
-                  /* Cart Content - Wider Layout */
+                  /* Cart Content */
                   <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 p-8">
-                    {/* Cart Items - Takes more space */}
+                    {/* Cart Items */}
                     <div className="lg:col-span-3">
                       <h4 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-between">
                         <span>Items in Cart ({cartItemsCount})</span>
@@ -1786,12 +2257,12 @@ export default function SellPageModerator() {
                       </DndContext>
                     </div>
 
-                    {/* Order Summary & Payment - More space */}
+                    {/* Order Summary & Payment */}
                     <div className="lg:col-span-2 space-y-8">
                       {/* Customer Info */}
-                      <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-6 border border-purple-200">
+                      <div className="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-2xl p-6 border border-orange-200">
                         <h4 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                          <User size={20} className="text-purple-600" />
+                          <User size={20} className="text-orange-600" />
                           Customer Information
                         </h4>
                         <div className="space-y-4">
@@ -1800,14 +2271,14 @@ export default function SellPageModerator() {
                             placeholder="Customer Name (Optional)"
                             value={customerName}
                             onChange={(e) => setCustomerName(e.target.value)}
-                            className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                            className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                           />
                           <input
                             type="tel"
                             placeholder="Customer Phone (Optional)"
                             value={customerPhone}
                             onChange={(e) => setCustomerPhone(e.target.value)}
-                            className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                            className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                           />
                         </div>
                       </div>
@@ -1848,7 +2319,7 @@ export default function SellPageModerator() {
 
               {/* Modal Footer */}
               {!saleCompleted && cart.length > 0 && (
-                <div className="p-8 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-purple-50">
+                <div className="p-8 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-orange-50">
                   <div className="flex gap-6">
                     <button
                       onClick={() => setShowCartModal(false)}

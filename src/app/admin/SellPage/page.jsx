@@ -59,6 +59,9 @@ import {
   Printer,
   Globe,
   Shield,
+  Info,
+  Palette,
+  Zap,
 } from 'lucide-react'
 
 // 🔥 FIX: Enhanced Payment Methods with proper structure
@@ -125,7 +128,7 @@ const PAYMENT_METHODS = [
   },
 ]
 
-// 🔥 FIX: Get auth headers with cache-busting (same as manage products page)
+// 🔥 FIX: Get auth headers with cache-busting
 const getAuthHeaders = (bustCache = false) => {
   const token = getAuthToken()
   const headers = {
@@ -133,7 +136,6 @@ const getAuthHeaders = (bustCache = false) => {
     'Content-Type': 'application/json'
   }
   
-  // 🔥 FIX: Add cache-busting headers when needed
   if (bustCache) {
     headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     headers['Pragma'] = 'no-cache'
@@ -142,7 +144,6 @@ const getAuthHeaders = (bustCache = false) => {
   
   return headers
 }
-
 
 // 🔥 FIX: Helper function to get auth token
 const getAuthToken = () => {
@@ -165,13 +166,11 @@ const makeAuthenticatedRequest = async (url, options = {}, bustCache = false) =>
     headers.Authorization = token
   }
 
-  // 🔥 FIX: Add cache-busting headers when needed
   if (bustCache) {
     headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     headers['Pragma'] = 'no-cache'
     headers['Expires'] = '0'
     
-    // Add timestamp to URL for cache busting
     const separator = url.includes('?') ? '&' : '?'
     url = `${url}${separator}_t=${Date.now()}`
   }
@@ -182,23 +181,425 @@ const makeAuthenticatedRequest = async (url, options = {}, bustCache = false) =>
   })
 }
 
-// 🔥 CRITICAL FIX: Enhanced Product Card with proper branch normalization
-const ProductCard = ({ product, onAddToCart, branches }) => {
+// 🔥 NEW: Product Details Modal Component
+const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }) => {
+  const [selectedNicotine, setSelectedNicotine] = useState('')
+  const [selectedVgPg, setSelectedVgPg] = useState('')
+  const [selectedColor, setSelectedColor] = useState('')
+  const [selectedBranch, setSelectedBranch] = useState('')
+
+  // Reset selections when modal opens/closes or product changes
+  useEffect(() => {
+    if (isOpen && product) {
+      setSelectedNicotine('')
+      setSelectedVgPg('')
+      setSelectedColor('')
+      setSelectedBranch(branches[0] || '')
+    }
+  }, [isOpen, product, branches])
+
+  if (!product) return null
+
+  // Get all unique options across all branches
+  const getAllUniqueOptions = (optionType) => {
+    const allOptions = new Set()
+    if (product.branchSpecifications) {
+      Object.values(product.branchSpecifications).forEach(branchSpec => {
+        if (branchSpec[optionType]) {
+          branchSpec[optionType].forEach(option => allOptions.add(option))
+        }
+      })
+    }
+    return Array.from(allOptions)
+  }
+
+  const allNicotineOptions = getAllUniqueOptions('nicotineStrength')
+  const allVgPgOptions = getAllUniqueOptions('vgPgRatio')
+  const allColorOptions = getAllUniqueOptions('colors')
+
+  // Check if current selections are available in a specific branch
+  const isSpecAvailableInBranch = (branchName) => {
+    if (!product.branchSpecifications || !selectedNicotine || !selectedVgPg || !selectedColor) {
+      return false
+    }
+
+    const branchKey = branchName.toLowerCase()
+    const branchSpec = product.branchSpecifications[branchKey]
+    
+    if (!branchSpec) return false
+
+    const nicotineMatch = branchSpec.nicotineStrength?.includes(selectedNicotine)
+    const vgPgMatch = branchSpec.vgPgRatio?.includes(selectedVgPg)
+    const colorMatch = branchSpec.colors?.includes(selectedColor)
+
+    return nicotineMatch && vgPgMatch && colorMatch
+  }
+
+  // Get available branches for current selection
+  const getAvailableBranches = () => {
+    return branches.filter(branch => isSpecAvailableInBranch(branch))
+  }
+
+  // Check if a specific spec option is available in any branch
+  const isOptionAvailableInAnyBranch = (optionType, optionValue) => {
+    if (!product.branchSpecifications) return false
+    
+    return Object.values(product.branchSpecifications).some(branchSpec => 
+      branchSpec[optionType]?.includes(optionValue)
+    )
+  }
+
+  // Get stock for selected branch
+  const getStockForBranch = (branchName) => {
+    if (!product.stock || !branchName) return 0
+    const stockKey = `${branchName.toLowerCase()}_stock`
+    return product.stock[stockKey] || 0
+  }
+
+  // Check if add to cart is possible
+  const canAddToCart = () => {
+    if (!selectedNicotine || !selectedVgPg || !selectedColor || !selectedBranch) {
+      return false
+    }
+    
+    const isSpecAvailable = isSpecAvailableInBranch(selectedBranch)
+    const hasStock = getStockForBranch(selectedBranch) > 0
+    
+    return isSpecAvailable && hasStock
+  }
+
+  const handleAddToCart = () => {
+    if (!canAddToCart()) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid Selection',
+        text: 'Selected specifications are not available in the chosen branch or product is out of stock.',
+      })
+      return
+    }
+
+    // Call the parent's add to cart function with specifications
+    onAddToCart(product, selectedBranch, {
+      nicotineStrength: selectedNicotine,
+      vgPgRatio: selectedVgPg,
+      color: selectedColor
+    })
+
+    onClose()
+  }
+
+  const availableBranches = getAvailableBranches()
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
+          >
+            {/* Header */}
+            <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
+              <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Info size={28} className="text-purple-600" />
+                Product Details
+              </h3>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 p-2 rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Column - Product Info */}
+                <div className="space-y-6">
+                  {/* Basic Info */}
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <h4 className="text-xl font-bold text-gray-900 mb-4">{product.name}</h4>
+                    
+                    {product.description && (
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <p className="text-gray-600">{product.description}</p>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {product.brand && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+                          <p className="font-semibold text-gray-900">{product.brand}</p>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
+                        <p className="text-2xl font-bold text-purple-600">${product.price?.toFixed(2) || '0.00'}</p>
+                      </div>
+
+                      {product.comparePrice && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Compare Price</label>
+                          <p className="text-lg text-gray-500 line-through">${product.comparePrice.toFixed(2)}</p>
+                        </div>
+                      )}
+
+                      {product.barcode && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Barcode</label>
+                          <p className="font-mono text-gray-900">{product.barcode}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {product.tags && product.tags.length > 0 && (
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                        <div className="flex flex-wrap gap-2">
+                          {product.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* General Specifications */}
+                  {(product.flavor || product.resistance || product.wattageRange) && (
+                    <div className="bg-blue-50 rounded-xl p-6">
+                      <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <Zap size={20} className="text-blue-600" />
+                        General Specifications
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {product.flavor && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Flavor</label>
+                            <p className="font-semibold text-gray-900">{product.flavor}</p>
+                          </div>
+                        )}
+                        {product.resistance && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Resistance</label>
+                            <p className="font-semibold text-gray-900">{product.resistance}</p>
+                          </div>
+                        )}
+                        {product.wattageRange && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Wattage Range</label>
+                            <p className="font-semibold text-gray-900">{product.wattageRange}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column - Specifications & Selection */}
+                <div className="space-y-6">
+                  {/* Specification Selection */}
+                  <div className="bg-purple-50 rounded-xl p-6">
+                    <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <Settings size={20} className="text-purple-600" />
+                      Select Specifications
+                    </h4>
+
+                    <div className="space-y-4">
+                      {/* Nicotine Strength */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Nicotine Strength *
+                        </label>
+                        <select
+                          value={selectedNicotine}
+                          onChange={(e) => setSelectedNicotine(e.target.value)}
+                          className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="">Select Nicotine Strength</option>
+                          {allNicotineOptions.map((option) => (
+                            <option
+                              key={option}
+                              value={option}
+                              disabled={!isOptionAvailableInAnyBranch('nicotineStrength', option)}
+                            >
+                              {option} {!isOptionAvailableInAnyBranch('nicotineStrength', option) && '(Not Available)'}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* VG/PG Ratio */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          VG/PG Ratio *
+                        </label>
+                        <select
+                          value={selectedVgPg}
+                          onChange={(e) => setSelectedVgPg(e.target.value)}
+                          className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="">Select VG/PG Ratio</option>
+                          {allVgPgOptions.map((option) => (
+                            <option
+                              key={option}
+                              value={option}
+                              disabled={!isOptionAvailableInAnyBranch('vgPgRatio', option)}
+                            >
+                              {option} {!isOptionAvailableInAnyBranch('vgPgRatio', option) && '(Not Available)'}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Color */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                          <Palette size={16} className="text-purple-600" />
+                          Color *
+                        </label>
+                        <select
+                          value={selectedColor}
+                          onChange={(e) => setSelectedColor(e.target.value)}
+                          className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="">Select Color</option>
+                          {allColorOptions.map((option) => (
+                            <option
+                              key={option}
+                              value={option}
+                              disabled={!isOptionAvailableInAnyBranch('colors', option)}
+                            >
+                              {option} {!isOptionAvailableInAnyBranch('colors', option) && '(Not Available)'}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Branch Selection */}
+                  <div className="bg-green-50 rounded-xl p-6">
+                    <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <Store size={20} className="text-green-600" />
+                      Select Branch
+                    </h4>
+
+                    <div className="space-y-3">
+                      {branches.map((branch) => {
+                        const isAvailable = isSpecAvailableInBranch(branch)
+                        const stock = getStockForBranch(branch)
+                        const isOutOfStock = stock <= 0
+
+                        return (
+                          <label
+                            key={branch}
+                            className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                              selectedBranch === branch
+                                ? 'border-green-500 bg-green-100'
+                                : isAvailable && !isOutOfStock
+                                ? 'border-gray-300 bg-white hover:border-green-300'
+                                : 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="branch"
+                              value={branch}
+                              checked={selectedBranch === branch}
+                              onChange={(e) => setSelectedBranch(e.target.value)}
+                              disabled={!isAvailable || isOutOfStock}
+                              className="mr-3"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold capitalize">{branch}</span>
+                                <div className="flex items-center gap-2">
+                                  {isAvailable && !isOutOfStock ? (
+                                    <span className="text-green-600 font-medium">
+                                      Stock: {stock}
+                                    </span>
+                                  ) : isOutOfStock ? (
+                                    <span className="text-red-600 font-medium">
+                                      Out of Stock
+                                    </span>
+                                  ) : (
+                                    <span className="text-orange-600 font-medium">
+                                      Specs Not Available
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+
+                    {selectedNicotine && selectedVgPg && selectedColor && availableBranches.length === 0 && (
+                      <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg">
+                        <p className="text-red-800 text-sm">
+                          ⚠️ Selected specifications are not available in any branch
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-gray-200 bg-gray-50">
+              <div className="flex gap-4">
+                <button
+                  onClick={onClose}
+                  className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddToCart}
+                  disabled={!canAddToCart()}
+                  className={`flex-2 py-3 px-6 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 ${
+                    canAddToCart()
+                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  <ShoppingCart size={20} />
+                  {canAddToCart() ? 'Add to Cart' : 'Select All Specifications'}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+// 🔥 UPDATED: Enhanced Product Card with Details Button
+const ProductCard = ({ product, onAddToCart, branches, onShowDetails }) => {
   const [selectedBranch, setSelectedBranch] = useState(branches[0] || 'bashundhara')
   
-  // 🔥 CRITICAL FIX: Always normalize branch to lowercase for stock lookup
   const normalizedBranch = selectedBranch.toLowerCase()
   const stock = product.stock?.[`${normalizedBranch}_stock`] ?? 0
   const isOutOfStock = stock <= 0
-
-  console.log(`[ProductCard] ${product.name}:`, {
-    selectedBranch,
-    normalizedBranch,
-    stockKey: `${normalizedBranch}_stock`,
-    stockData: product.stock,
-    calculatedStock: stock,
-    isOutOfStock
-  })
 
   return (
     <motion.div
@@ -220,7 +621,6 @@ const ProductCard = ({ product, onAddToCart, branches }) => {
           />
         ) : null}
         
-        {/* Fallback icon */}
         <div className="w-full h-full flex items-center justify-center" style={{ display: product.images?.length > 0 ? 'none' : 'flex' }}>
           <Package2 size={48} className="text-gray-400" />
         </div>
@@ -240,6 +640,15 @@ const ProductCard = ({ product, onAddToCart, branches }) => {
         <div className="absolute bottom-3 left-3 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
           ${product.price?.toFixed(2) || '0.00'}
         </div>
+
+        {/* Details Button */}
+        <button
+          onClick={() => onShowDetails(product)}
+          className="absolute top-3 left-3 bg-white bg-opacity-90 text-purple-600 p-2 rounded-full hover:bg-opacity-100 transition-all"
+          title="View Details"
+        >
+          <Info size={16} />
+        </button>
       </div>
 
       {/* Product Info */}
@@ -255,7 +664,7 @@ const ProductCard = ({ product, onAddToCart, branches }) => {
           </span>
         </div>
 
-        {/* Branch Selector with normalized stock display */}
+        {/* Branch Selector */}
         <div className="mb-3">
           <label className="block text-xs font-medium text-gray-700 mb-1">
             Branch Stock
@@ -266,7 +675,6 @@ const ProductCard = ({ product, onAddToCart, branches }) => {
             className="w-full p-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
             {branches.map((branch) => {
-              // 🔥 CRITICAL FIX: Normalize branch for stock lookup in dropdown
               const normalizedDisplayBranch = branch.toLowerCase()
               const branchStock = product.stock?.[`${normalizedDisplayBranch}_stock`] ?? 0
               return (
@@ -278,24 +686,32 @@ const ProductCard = ({ product, onAddToCart, branches }) => {
           </select>
         </div>
 
-        {/* Add to Cart Button */}
-        <button
-          onClick={() => onAddToCart(product, selectedBranch)}
-          disabled={isOutOfStock}
-          className={`w-full py-2 rounded-lg font-medium transition-colors ${
-            isOutOfStock
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-purple-600 text-white hover:bg-purple-700'
-          }`}
-        >
-          {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-        </button>
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => onShowDetails(product)}
+            className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+          >
+            View Details
+          </button>
+          <button
+            onClick={() => onAddToCart(product, selectedBranch)}
+            disabled={isOutOfStock}
+            className={`flex-1 py-2 rounded-lg font-medium transition-colors text-sm ${
+              isOutOfStock
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-purple-600 text-white hover:bg-purple-700'
+            }`}
+          >
+            {isOutOfStock ? 'Out of Stock' : 'Quick Add'}
+          </button>
+        </div>
       </div>
     </motion.div>
   )
 }
 
-// 🔥 FIX: Enhanced Sortable Cart Item with better error handling
+// 🔥 UPDATED: Enhanced Sortable Cart Item with specifications support
 const SortableCartItem = ({ item, onUpdateQuantity, onRemove }) => {
   const {
     attributes,
@@ -362,6 +778,27 @@ const SortableCartItem = ({ item, onUpdateQuantity, onRemove }) => {
               ${item.product?.price?.toFixed(2) || '0.00'}
             </span>
           </div>
+          
+          {/* Show specifications if available */}
+          {item.specifications && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {item.specifications.nicotineStrength && (
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                  {item.specifications.nicotineStrength}
+                </span>
+              )}
+              {item.specifications.vgPgRatio && (
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                  {item.specifications.vgPgRatio}
+                </span>
+              )}
+              {item.specifications.color && (
+                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">
+                  {item.specifications.color}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Quantity Controls */}
@@ -400,7 +837,7 @@ const SortableCartItem = ({ item, onUpdateQuantity, onRemove }) => {
   )
 }
 
-// 🔥 FIX: Enhanced invoice generation with better error handling
+// Keep the existing generateInvoice function exactly as is
 const generateInvoice = async (saleData) => {
   const invoiceElement = document.createElement('div')
   invoiceElement.innerHTML = `
@@ -604,7 +1041,7 @@ const generateInvoice = async (saleData) => {
   }
 }
 
-// 🔥 FIX: Enhanced Payment Method Selector with better validation
+// Keep the existing PaymentMethodSelector component exactly as is
 const PaymentMethodSelector = ({
   selectedMethods,
   onMethodChange,
@@ -806,9 +1243,9 @@ const PaymentMethodSelector = ({
   )
 }
 
-// 🔥 MAIN COMPONENT: Enhanced Sales Page with Complete Error Handling
+// 🔥 MAIN COMPONENT: Enhanced Sales Page with Product Details Modal
 export default function SellPageAdmin() {
-  // States
+  // All existing states
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState({})
   const [branches, setBranches] = useState([])
@@ -836,6 +1273,10 @@ export default function SellPageAdmin() {
   const [totalPages, setTotalPages] = useState(1)
   const itemsPerPage = 12
 
+  // 🔥 NEW: Product details modal state
+  const [showProductModal, setShowProductModal] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState(null)
+
   // dnd-kit sensors
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -844,7 +1285,7 @@ export default function SellPageAdmin() {
     })
   )
 
-  // 🔥 CRITICAL FIX: Enhanced data loading with consistent branch handling
+  // Load initial data
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -869,15 +1310,15 @@ export default function SellPageAdmin() {
           const branchesRes = await makeAuthenticatedRequest('/api/branches')
           if (branchesRes.ok) {
             const branchesData = await branchesRes.json()
-            setBranches(branchesData.branches || ['bashundhara', 'mirpur']) // 🔥 CRITICAL FIX: Updated fallback
+            setBranches(branchesData.branches || ['bashundhara', 'mirpur'])
             console.log('Branches loaded:', branchesData.branches)
           } else {
             console.warn('Failed to load branches, using defaults')
-            setBranches(['bashundhara', 'mirpur']) // 🔥 CRITICAL FIX: Updated fallback
+            setBranches(['bashundhara', 'mirpur'])
           }
         } catch (error) {
           console.error('Error loading branches:', error)
-          setBranches(['bashundhara', 'mirpur']) // 🔥 CRITICAL FIX: Updated fallback
+          setBranches(['bashundhara', 'mirpur'])
         }
 
         // Load initial products
@@ -897,64 +1338,61 @@ export default function SellPageAdmin() {
     loadData()
   }, [])
 
-  // 🔥 FIX: Enhanced product fetching with proper authentication
-  // 🔥 FIX: Enhanced product fetching with cache-busting and proper refresh
+  // Fetch products with cache-busting and proper refresh
   const fetchProducts = async (bustCache = false) => {
-  try {
-    const params = new URLSearchParams({
-      limit: itemsPerPage.toString(),
-      page: currentPage.toString(),
-      status: 'active',
-    })
-
-    if (searchTerm.trim()) params.append('search', searchTerm.trim())
-    if (selectedCategory) params.append('category', selectedCategory)
-    if (selectedSubcategory) params.append('subcategory', selectedSubcategory)
-    if (barcodeFilter.trim()) params.append('barcode', barcodeFilter.trim())
-    if (inStockOnly) params.append('inStock', 'true')
-    
-    // 🔥 FIX: Add cache-busting timestamp
-    if (bustCache) {
-      params.append('_t', Date.now().toString())
-    }
-
-    console.log('[FETCH] Requesting products with params:', params.toString(), 'Cache busted:', bustCache)
-
-    const response = await makeAuthenticatedRequest(`/api/products?${params}`, {}, bustCache)
-    
-    if (response.ok) {
-      const data = await response.json()
-      console.log('[FETCH] Products received:', {
-        count: data.products?.length || 0,
-        pagination: data.pagination,
-        sampleProduct: data.products?.[0]?.name,
-        sampleStock: data.products?.[0]?.stock,
-        cachebusted: bustCache
+    try {
+      const params = new URLSearchParams({
+        limit: itemsPerPage.toString(),
+        page: currentPage.toString(),
+        status: 'active',
       })
-      
-      setProducts(data.products || [])
-      setTotalPages(data.pagination?.totalPages || 1)
-    } else {
-      console.error('[FETCH] Products API error:', response.status, response.statusText)
-      
-      if (response.status === 401) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Authentication Error',
-          text: 'Please log in to access products. Using demo mode.',
-        })
-      }
-    }
-  } catch (error) {
-    console.error('[FETCH] Error fetching products:', error)
-    Swal.fire({
-      icon: 'error',
-      title: 'Connection Error',
-      text: 'Failed to load products. Please check your connection.',
-    })
-  }
-}
 
+      if (searchTerm.trim()) params.append('search', searchTerm.trim())
+      if (selectedCategory) params.append('category', selectedCategory)
+      if (selectedSubcategory) params.append('subcategory', selectedSubcategory)
+      if (barcodeFilter.trim()) params.append('barcode', barcodeFilter.trim())
+      if (inStockOnly) params.append('inStock', 'true')
+      
+      if (bustCache) {
+        params.append('_t', Date.now().toString())
+      }
+
+      console.log('[FETCH] Requesting products with params:', params.toString(), 'Cache busted:', bustCache)
+
+      const response = await makeAuthenticatedRequest(`/api/products?${params}`, {}, bustCache)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('[FETCH] Products received:', {
+          count: data.products?.length || 0,
+          pagination: data.pagination,
+          sampleProduct: data.products?.[0]?.name,
+          sampleStock: data.products?.[0]?.stock,
+          cachebusted: bustCache
+        })
+        
+        setProducts(data.products || [])
+        setTotalPages(data.pagination?.totalPages || 1)
+      } else {
+        console.error('[FETCH] Products API error:', response.status, response.statusText)
+        
+        if (response.status === 401) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Authentication Error',
+            text: 'Please log in to access products. Using demo mode.',
+          })
+        }
+      }
+    } catch (error) {
+      console.error('[FETCH] Error fetching products:', error)
+      Swal.fire({
+        icon: 'error',
+        title: 'Connection Error',
+        text: 'Failed to load products. Please check your connection.',
+      })
+    }
+  }
 
   // Apply filters
   useEffect(() => {
@@ -967,7 +1405,13 @@ export default function SellPageAdmin() {
     }
   }, [currentPage, searchTerm, selectedCategory, selectedSubcategory, barcodeFilter, inStockOnly])
 
-  // 🔥 FIX: Enhanced barcode scanning with better error handling
+  // 🔥 NEW: Handle showing product details
+  const handleShowProductDetails = (product) => {
+    setSelectedProduct(product)
+    setShowProductModal(true)
+  }
+
+  // Enhanced barcode scanning with better error handling
   const handleBarcodeScan = async (data) => {
     try {
       if (data && data.trim()) {
@@ -986,7 +1430,7 @@ export default function SellPageAdmin() {
 
           if (result.products && result.products.length > 0) {
             const product = result.products[0]
-            const defaultBranch = branches[0] || 'bashundhara' // 🔥 CRITICAL FIX: Updated default
+            const defaultBranch = branches[0] || 'bashundhara'
             
             // Automatically add to cart
             handleAddToCart(product, defaultBranch)
@@ -1032,8 +1476,8 @@ export default function SellPageAdmin() {
     }
   }
 
-  // 🔥 CRITICAL FIX: Enhanced cart management with proper branch normalization
-  const handleAddToCart = (product, branch) => {
+  // 🔥 UPDATED: Enhanced handleAddToCart with specifications support
+  const handleAddToCart = (product, branch, specifications = null) => {
     try {
       if (!product || !product._id) {
         throw new Error('Invalid product data')
@@ -1043,7 +1487,6 @@ export default function SellPageAdmin() {
         throw new Error('Branch is required')
       }
 
-      // 🔥 CRITICAL FIX: Normalize branch to lowercase for consistent stock handling
       const normalizedBranch = branch.toLowerCase()
       const stock = product.stock?.[`${normalizedBranch}_stock`] ?? 0
 
@@ -1053,7 +1496,8 @@ export default function SellPageAdmin() {
         normalizedBranch,
         stockKey: `${normalizedBranch}_stock`,
         stock,
-        stockData: product.stock
+        stockData: product.stock,
+        specifications
       })
 
       if (stock <= 0) {
@@ -1065,8 +1509,52 @@ export default function SellPageAdmin() {
         return
       }
 
+      // If specifications are provided, validate them
+      if (specifications && product.branchSpecifications) {
+        const branchSpec = product.branchSpecifications[normalizedBranch]
+        if (!branchSpec) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Branch Not Available',
+            text: 'This product is not available for the selected branch',
+          })
+          return
+        }
+
+        // Validate each specification
+        const { nicotineStrength, vgPgRatio, color } = specifications
+        if (nicotineStrength && !branchSpec.nicotineStrength?.includes(nicotineStrength)) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Specification Not Available',
+            text: 'Selected nicotine strength is not available for this branch',
+          })
+          return
+        }
+
+        if (vgPgRatio && !branchSpec.vgPgRatio?.includes(vgPgRatio)) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Specification Not Available',
+            text: 'Selected VG/PG ratio is not available for this branch',
+          })
+          return
+        }
+
+        if (color && !branchSpec.colors?.includes(color)) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Specification Not Available',
+            text: 'Selected color is not available for this branch',
+          })
+          return
+        }
+      }
+
       const existingItem = cart.find(
-        (item) => item.product._id === product._id && item.branch === normalizedBranch
+        (item) => item.product._id === product._id && 
+                  item.branch === normalizedBranch &&
+                  JSON.stringify(item.specifications || {}) === JSON.stringify(specifications || {})
       )
 
       if (existingItem) {
@@ -1083,15 +1571,19 @@ export default function SellPageAdmin() {
         const newItem = {
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           product,
-          branch: normalizedBranch, // 🔥 CRITICAL FIX: Store normalized branch
+          branch: normalizedBranch,
           quantity: 1,
+          specifications: specifications || null
         }
         setCart((prev) => [...prev, newItem])
 
+        const specText = specifications ? 
+          ` (${specifications.nicotineStrength}, ${specifications.vgPgRatio}, ${specifications.color})` : ''
+        
         Swal.fire({
           icon: 'success',
           title: 'Added to Cart!',
-          text: `${product.name} added to cart`,
+          text: `${product.name}${specText} added to cart`,
           timer: 1500,
           showConfirmButton: false,
           toast: true,
@@ -1117,7 +1609,6 @@ export default function SellPageAdmin() {
     setCart((prev) =>
       prev.map((item) => {
         if (item.id === itemId) {
-          // 🔥 CRITICAL FIX: Use normalized branch for stock check
           const normalizedBranch = item.branch.toLowerCase()
           const stock = item.product?.stock?.[`${normalizedBranch}_stock`] ?? 0
           
@@ -1184,133 +1675,133 @@ export default function SellPageAdmin() {
   )
   const cartItemsCount = cart.reduce((sum, item) => sum + (item.quantity ?? 1), 0)
 
-  // 🔥 FIX: Complete sales processing with proper error handling and authentication
+  // Complete sales processing with proper error handling and authentication
   const handleProcessSale = async () => {
-  try {
-    // Validation
-    if (cart.length === 0) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Empty Cart',
-        text: 'Please add items to cart before processing sale',
-      })
-      return
-    }
-
-    if (selectedPaymentMethods.length === 0) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Select Payment Method',
-        text: 'Please select a payment method to continue',
-      })
-      return
-    }
-
-    const paymentMethod = selectedPaymentMethods[0]
-    const totalPaid = paymentMethod.amount || 0
-
-    if (totalPaid < cartTotal) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Insufficient Payment',
-        text: `Please ensure payment covers the full amount of $${cartTotal.toFixed(2)}`,
-      })
-      return
-    }
-
-    // Show loading
-    Swal.fire({
-      title: 'Processing Sale...',
-      text: 'Please wait while we process your payment',
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      showConfirmButton: false,
-      didOpen: () => {
-        Swal.showLoading()
-      },
-    })
-
-    // 🔥 CRITICAL FIX: Prepare sale data with properly normalized branch names
-    const saleData = {
-      customer: {
-        name: customerName.trim() || 'Walk-in Customer',
-        phone: customerPhone.trim() || '',
-      },
-      items: cart.map((item) => ({
-        productId: item.product._id,
-        productName: item.product.name || 'Unknown Product',
-        branch: item.branch.toLowerCase(), // 🔥 CRITICAL FIX: Ensure lowercase branch
-        quantity: item.quantity || 1,
-        unitPrice: item.product.price || 0,
-        totalPrice: (item.product.price || 0) * (item.quantity || 1),
-      })),
-      payment: {
-        methods: selectedPaymentMethods.map(method => ({
-          id: method.id,
-          name: method.name,
-          type: method.type,
-          amount: method.amount || 0,
-        })),
-        totalAmount: cartTotal,
-        totalPaid: totalPaid,
-        change: Math.max(0, totalPaid - cartTotal),
-      },
-      totalAmount: cartTotal,
-      timestamp: new Date(),
-      cashier: 'Admin',
-      paymentType: paymentMethod.type || 'cash',
-      status: 'completed',
-    }
-
-    console.log('[SALE] Processing sale data:', saleData)
-
-    // Process sale through API
-    const response = await makeAuthenticatedRequest('/api/sales', {
-      method: 'POST',
-      body: JSON.stringify(saleData),
-    })
-
-    if (response.ok) {
-      const result = await response.json()
-      console.log('[SALE] Sale processed successfully:', result)
-      
-      Swal.close()
-
-      // Complete sale
-      const completedSale = {
-        ...saleData,
-        saleId: result.saleId || `SALE-${Date.now()}`,
+    try {
+      // Validation
+      if (cart.length === 0) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Empty Cart',
+          text: 'Please add items to cart before processing sale',
+        })
+        return
       }
 
-      setCompletedSaleData(completedSale)
-      setSaleCompleted(true)
+      if (selectedPaymentMethods.length === 0) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Select Payment Method',
+          text: 'Please select a payment method to continue',
+        })
+        return
+      }
 
-      // Clear form
-      setCart([])
-      setSelectedPaymentMethods([])
-      setCustomerName('')
-      setCustomerPhone('')
+      const paymentMethod = selectedPaymentMethods[0]
+      const totalPaid = paymentMethod.amount || 0
 
-      // 🔥 CRITICAL FIX: Force immediate refresh with cache busting to get updated stock
-      console.log('🔄 Sale completed, forcing immediate stock refresh...')
-      await fetchProducts(true) // Force cache bust to get latest stock data
-      console.log('✅ Stock data refreshed after sale')
+      if (totalPaid < cartTotal) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Insufficient Payment',
+          text: `Please ensure payment covers the full amount of $${cartTotal.toFixed(2)}`,
+        })
+        return
+      }
 
-    } else {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.error || `API Error: ${response.status}`)
+      // Show loading
+      Swal.fire({
+        title: 'Processing Sale...',
+        text: 'Please wait while we process your payment',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          Swal.showLoading()
+        },
+      })
+
+      // Prepare sale data with properly normalized branch names
+      const saleData = {
+        customer: {
+          name: customerName.trim() || 'Walk-in Customer',
+          phone: customerPhone.trim() || '',
+        },
+        items: cart.map((item) => ({
+          productId: item.product._id,
+          productName: item.product.name || 'Unknown Product',
+          branch: item.branch.toLowerCase(),
+          quantity: item.quantity || 1,
+          unitPrice: item.product.price || 0,
+          totalPrice: (item.product.price || 0) * (item.quantity || 1),
+          specifications: item.specifications || null
+        })),
+        payment: {
+          methods: selectedPaymentMethods.map(method => ({
+            id: method.id,
+            name: method.name,
+            type: method.type,
+            amount: method.amount || 0,
+          })),
+          totalAmount: cartTotal,
+          totalPaid: totalPaid,
+          change: Math.max(0, totalPaid - cartTotal),
+        },
+        totalAmount: cartTotal,
+        timestamp: new Date(),
+        cashier: 'Admin',
+        paymentType: paymentMethod.type || 'cash',
+        status: 'completed',
+      }
+
+      console.log('[SALE] Processing sale data:', saleData)
+
+      // Process sale through API
+      const response = await makeAuthenticatedRequest('/api/sales', {
+        method: 'POST',
+        body: JSON.stringify(saleData),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        console.log('[SALE] Sale processed successfully:', result)
+        
+        Swal.close()
+
+        // Complete sale
+        const completedSale = {
+          ...saleData,
+          saleId: result.saleId || `SALE-${Date.now()}`,
+        }
+
+        setCompletedSaleData(completedSale)
+        setSaleCompleted(true)
+
+        // Clear form
+        setCart([])
+        setSelectedPaymentMethods([])
+        setCustomerName('')
+        setCustomerPhone('')
+
+        // Force immediate refresh with cache busting to get updated stock
+        console.log('🔄 Sale completed, forcing immediate stock refresh...')
+        await fetchProducts(true)
+        console.log('✅ Stock data refreshed after sale')
+
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `API Error: ${response.status}`)
+      }
+
+    } catch (error) {
+      console.error('[SALE] Error processing sale:', error)
+      Swal.fire({
+        icon: 'error',
+        title: 'Payment Failed',
+        text: error.message || 'There was an error processing the payment. Please try again.',
+      })
     }
-
-  } catch (error) {
-    console.error('[SALE] Error processing sale:', error)
-    Swal.fire({
-      icon: 'error',
-      title: 'Payment Failed',
-      text: error.message || 'There was an error processing the payment. Please try again.',
-    })
   }
-}
-
 
   const handlePrintInvoice = async () => {
     if (completedSaleData) {
@@ -1480,6 +1971,7 @@ export default function SellPageAdmin() {
                   key={product._id}
                   product={product}
                   onAddToCart={handleAddToCart}
+                  onShowDetails={handleShowProductDetails}
                   branches={branches}
                 />
               ))}
@@ -1525,6 +2017,18 @@ export default function SellPageAdmin() {
           </>
         )}
       </div>
+
+      {/* 🔥 NEW: Product Details Modal */}
+      <ProductDetailsModal
+        isOpen={showProductModal}
+        product={selectedProduct}
+        branches={branches}
+        onClose={() => {
+          setShowProductModal(false)
+          setSelectedProduct(null)
+        }}
+        onAddToCart={handleAddToCart}
+      />
 
       {/* Barcode Scanner Modal */}
       <AnimatePresence>

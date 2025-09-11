@@ -42,6 +42,7 @@ const NICOTINE_OPTIONS = [
   { value: '12mg', label: '12mg' },
   { value: '18mg', label: '18mg' },
   { value: '24mg', label: '24mg' },
+  { value: '30mg', label: '30mg' },
   { value: '50mg', label: '50mg' },
 ]
 
@@ -1230,6 +1231,10 @@ export default function AddProduct() {
       setCustomCategoryInput('')
       setCustomSubcategoryInput('')
 
+      if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+
       MySwal.fire({
         icon: 'success',
         title: 'Success!',
@@ -1920,7 +1925,7 @@ export default function AddProduct() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tags (comma separated)
+                  Tags (Comma separated)
                 </label>
                 <input
                   type="text"

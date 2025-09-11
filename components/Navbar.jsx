@@ -1,4 +1,5 @@
 'use client'
+
 import React, { useState, useRef, useEffect, useContext } from 'react'
 import {
   Search,
@@ -19,10 +20,16 @@ import {
 import Link from 'next/link'
 import { AuthContext } from '../Provider/AuthProvider' // Adjust path as needed
 import { useRouter } from 'next/navigation'
+import { useCart } from './hooks/useCart.jsx'
+import { useFavorites } from './hooks/useFavorites.jsx'
 
 const Navbar = () => {
   const { user, logOut } = useContext(AuthContext) // Access user and logout from AuthContext
   const router = useRouter()
+
+  // Add cart and favorites hooks
+  const { getCartItemsCount, isHydrated: cartHydrated } = useCart()
+  const { favorites, isHydrated: favoritesHydrated } = useFavorites()
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const searchRef = useRef(null)
@@ -125,7 +132,6 @@ const Navbar = () => {
           </a>
 
           {/* Desktop Navigation start */}
-
           <div className="hidden xl:flex gap-6 text-sm  tracking-wide">
             {/* E-LIQUID */}
             <div className="relative group">
@@ -455,12 +461,32 @@ const Navbar = () => {
           {/* Side Icons  start*/}
 
           <div className="flex items-center gap-4">
-            <Link href="/cart">
+            {/* Updated Cart Link with Badge */}
+            <Link href="/cart" className="relative">
               <ShoppingCart />
+              {cartHydrated && getCartItemsCount() > 0 && (
+                <span 
+                  className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+                  suppressHydrationWarning
+                >
+                  {getCartItemsCount()}
+                </span>
+              )}
             </Link>
-            <Link href="/cart">
+
+            {/* Updated Favorites Link with Badge */}
+            <Link href="/favorites" className="relative">
               <Heart></Heart>
+              {favoritesHydrated && favorites.length > 0 && (
+                <span 
+                  className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+                  suppressHydrationWarning
+                >
+                  {favorites.length}
+                </span>
+              )}
             </Link>
+
             {/* User */}
             <Link href="/cart">
               <User />
