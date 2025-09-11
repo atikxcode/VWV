@@ -169,7 +169,7 @@ export default function ProductDetailPage() {
     return firstValue !== null;
   };
 
-  // Helper function to get the single value for text display
+  // 🔧 FIXED: Helper function to get the single value for text display
   const getSingleSpecificationValue = (specType) => {
     if (!product?.branchSpecifications) return '';
     const firstBranch = Object.values(product.branchSpecifications)[0];
@@ -179,6 +179,15 @@ export default function ProductDetailPage() {
   // Helper function to check if product has branch specifications
   const hasBranchSpecifications = () => {
     return product?.branchSpecifications && Object.keys(product.branchSpecifications).length > 0;
+  };
+
+  // Helper function to check if product has any specifications at all
+  const hasAnySpecifications = () => {
+    const nicotineOptions = getUniqueSpecificationValues('nicotineStrength');
+    const vgPgOptions = getUniqueSpecificationValues('vgPgRatio');
+    const colorOptions = getUniqueSpecificationValues('colors');
+    
+    return nicotineOptions.length > 0 || vgPgOptions.length > 0 || colorOptions.length > 0;
   };
 
   if (loading) {
@@ -356,8 +365,8 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Branch Specifications */}
-            {hasBranchSpecifications() && (
+            {/* Branch Specifications - Only show if there are actual specifications */}
+            {hasBranchSpecifications() && hasAnySpecifications() && (
               <div className="bg-white rounded-lg shadow p-4">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Product Options</h3>
                 <div className="space-y-4">
