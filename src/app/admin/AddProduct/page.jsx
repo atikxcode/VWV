@@ -43,6 +43,7 @@ const NICOTINE_OPTIONS = [
   { value: '18mg', label: '18mg' },
   { value: '24mg', label: '24mg' },
   { value: '30mg', label: '30mg' },
+  { value: '40mg', label: '40mg' },
   { value: '50mg', label: '50mg' },
 ]
 
