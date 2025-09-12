@@ -11,6 +11,7 @@ const MAX_IMAGES_PER_UPLOAD = 10
 const MAX_REQUEST_BODY_SIZE = 50000 // 50KB
 const MAX_SEARCH_LENGTH = 100
 const MAX_FILENAME_LENGTH = 255
+const MAX_DESCRIPTION_WORDS = 2000 // 🆕 NEW: 2000 word limit for descriptions
 
 // Rate limiting per role
 const RATE_LIMITS = {
@@ -85,6 +86,31 @@ function sanitizeProductInput(input) {
     .replace(/expression\(/gi, '') 
     .trim()
     .substring(0, 1000) 
+}
+
+// 🆕 NEW: Description-specific sanitization with 2000 WORD limit
+function sanitizeDescriptionInput(input) {
+  if (typeof input !== 'string') return input
+  
+  // First sanitize for security
+  let sanitized = input
+    .replace(/[<>"'%;]/g, '') 
+    .replace(/\$/g, '') 
+    .replace(/\{/g, '') 
+    .replace(/\}/g, '') 
+    .replace(/javascript:/gi, '')
+    .replace(/data:/gi, '') 
+    .replace(/on\w+=/gi, '') 
+    .replace(/expression\(/gi, '') 
+    .trim()
+  
+  // Then check word count (2000 WORDS)
+  const words = sanitized.split(/\s+/).filter(word => word.length > 0)
+  if (words.length > MAX_DESCRIPTION_WORDS) {
+    sanitized = words.slice(0, MAX_DESCRIPTION_WORDS).join(' ')
+  }
+  
+  return sanitized
 }
 
 // Category and Subcategories sanitization (preserves business formatting)
@@ -718,8 +744,6 @@ function filterProductByRole(product, userInfo) {
   return filteredProduct
 }
 
-// [REST OF THE CODE REMAINS EXACTLY THE SAME - POST, PUT, DELETE methods unchanged]
-
 // POST method implementation - Requires authentication for create/update operations
 export async function POST(req) {
   const ip = getUserIP(req)
@@ -1033,7 +1057,7 @@ export async function POST(req) {
       )
     }
 
-    // 🔧 FIXED: Handle product update with proper branch data merging
+    // 🆕 UPDATED: Handle product update with ALL NEW FIELDS + proper branch data merging
     if (action === 'update') {
       console.log('POST: Updating product:', body.id)
       const productId = sanitizeInput(body.id)
@@ -1063,17 +1087,38 @@ export async function POST(req) {
         resistance,
         wattageRange,
         imageOrder,
+        // 🆕 NEW FIELDS FROM FRONTEND
+        bottleSizes,
+        bottleType,
+        unit,
+        puffs,
+        coil,
+        volume,
+        charging,
+        chargingTime,
+        features,
+        eachSetContains,
       } = body
 
-      // 🔧 UPDATED: Use product-specific sanitization for product data
+      // 🆕 UPDATED: Use product-specific sanitization + NEW description sanitizer
       const sanitizedName = sanitizeProductInput(name)
-      const sanitizedDescription = sanitizeProductInput(description)
+      const sanitizedDescription = sanitizeDescriptionInput(description) // 🆕 NEW: 2000 word limit
       const sanitizedBrand = sanitizeProductInput(brand)
       const sanitizedBarcode = sanitizeInput(barcode) // Barcode uses strict sanitization
       const sanitizedCategory = sanitizeCategoryInput(category)
       const sanitizedSubcategory = sanitizeCategoryInput(subcategory)
       const sanitizedFlavor = sanitizeProductInput(flavor)
       const sanitizedStatus = sanitizeInput(status)
+
+      // 🆕 NEW: Sanitize additional fields
+      const sanitizedBottleSizes = sanitizeProductInput(bottleSizes)
+      const sanitizedBottleType = sanitizeProductInput(bottleType)
+      const sanitizedUnit = sanitizeProductInput(unit)
+      const sanitizedPuffs = sanitizeProductInput(puffs)
+      const sanitizedCoil = sanitizeProductInput(coil)
+      const sanitizedVolume = sanitizeProductInput(volume)
+      const sanitizedCharging = sanitizeProductInput(charging)
+      const sanitizedChargingTime = sanitizeProductInput(chargingTime)
 
       console.log('POST: Processing branch specifications:', branchSpecifications)
 
@@ -1094,9 +1139,10 @@ export async function POST(req) {
         )
       }
 
-      if (sanitizedDescription && sanitizedDescription.length > 2000) {
+      // 🆕 NEW: Description validation is now 2000 WORDS
+      if (sanitizedDescription && sanitizedDescription.split(/\s+/).length > MAX_DESCRIPTION_WORDS) {
         return NextResponse.json(
-          { error: 'Description too long (max 2000 characters)' },
+          { error: `Description too long (max ${MAX_DESCRIPTION_WORDS} words)` },
           { status: 400 }
         )
       }
@@ -1191,7 +1237,11 @@ export async function POST(req) {
         })
       }
 
-      // Update product data with merged values
+      // 🆕 NEW: Process features and each set contains arrays
+      const sanitizedFeatures = sanitizeAndValidateArray(features, 'features', 20, 200, true)
+      const sanitizedEachSetContains = sanitizeAndValidateArray(eachSetContains, 'eachSetContains', 20, 200, true)
+
+      // Update product data with merged values + ALL NEW FIELDS
       const updateData = {
         name: sanitizedName.trim(),
         description: sanitizedDescription?.trim() || '',
@@ -1212,6 +1262,17 @@ export async function POST(req) {
         flavor: sanitizedFlavor?.trim() || '',
         resistance: resistance || null,
         wattageRange: wattageRange || null,
+        // 🆕 ALL NEW FIELDS
+        bottleSizes: sanitizedBottleSizes?.trim() || '',
+        bottleType: sanitizedBottleType?.trim() || '',
+        unit: sanitizedUnit?.trim() || '',
+        puffs: sanitizedPuffs?.trim() || '',
+        coil: sanitizedCoil?.trim() || '',
+        volume: sanitizedVolume?.trim() || '',
+        charging: sanitizedCharging?.trim() || '',
+        chargingTime: sanitizedChargingTime?.trim() || '',
+        features: sanitizedFeatures,
+        eachSetContains: sanitizedEachSetContains,
         updatedAt: new Date(),
         updatedBy: userInfo.userId,
       }
@@ -1270,7 +1331,7 @@ export async function POST(req) {
       )
     }
 
-    // Handle product creation (default behavior) - Admin/Moderator only
+    // 🆕 UPDATED: Handle product creation (default behavior) - WITH ALL NEW FIELDS
     console.log('POST: Creating new product:', body.name)
     const {
       name,
@@ -1290,17 +1351,38 @@ export async function POST(req) {
       flavor,
       resistance,
       wattageRange,
+      // 🆕 NEW FIELDS FROM FRONTEND
+      bottleSizes,
+      bottleType,
+      unit,
+      puffs,
+      coil,
+      volume,
+      charging,
+      chargingTime,
+      features,
+      eachSetContains,
     } = body
 
-    // 🔧 UPDATED: Use product-specific sanitization for new product
+    // 🆕 UPDATED: Use product-specific sanitization + NEW description sanitizer
     const sanitizedName = sanitizeProductInput(name)
-    const sanitizedDescription = sanitizeProductInput(description)
+    const sanitizedDescription = sanitizeDescriptionInput(description) // 🆕 NEW: 2000 word limit
     const sanitizedBrand = sanitizeProductInput(brand)
     const sanitizedBarcode = sanitizeInput(barcode) // Barcode uses strict sanitization
     const sanitizedCategory = sanitizeCategoryInput(category)
     const sanitizedSubcategory = sanitizeCategoryInput(subcategory)
     const sanitizedFlavor = sanitizeProductInput(flavor)
     const sanitizedStatus = sanitizeInput(status)
+
+    // 🆕 NEW: Sanitize additional fields
+    const sanitizedBottleSizes = sanitizeProductInput(bottleSizes)
+    const sanitizedBottleType = sanitizeProductInput(bottleType)
+    const sanitizedUnit = sanitizeProductInput(unit)
+    const sanitizedPuffs = sanitizeProductInput(puffs)
+    const sanitizedCoil = sanitizeProductInput(coil)
+    const sanitizedVolume = sanitizeProductInput(volume)
+    const sanitizedCharging = sanitizeProductInput(charging)
+    const sanitizedChargingTime = sanitizeProductInput(chargingTime)
 
     console.log('POST: Processing branch specifications for new product:', branchSpecifications)
 
@@ -1321,9 +1403,10 @@ export async function POST(req) {
       )
     }
 
-    if (sanitizedDescription && sanitizedDescription.length > 2000) {
+    // 🆕 NEW: Description validation is now 2000 WORDS
+    if (sanitizedDescription && sanitizedDescription.split(/\s+/).length > MAX_DESCRIPTION_WORDS) {
       return NextResponse.json(
-        { error: 'Description too long (max 2000 characters)' },
+        { error: `Description too long (max ${MAX_DESCRIPTION_WORDS} words)` },
         { status: 400 }
       )
     }
@@ -1397,7 +1480,11 @@ export async function POST(req) {
       })
     }
 
-    // Create new product
+    // 🆕 NEW: Process features and each set contains arrays for new product
+    const sanitizedFeatures = sanitizeAndValidateArray(features, 'features', 20, 200, true)
+    const sanitizedEachSetContains = sanitizeAndValidateArray(eachSetContains, 'eachSetContains', 20, 200, true)
+
+    // Create new product with ALL FIELDS including new ones
     const newProduct = {
       name: sanitizedName.trim(),
       description: sanitizedDescription?.trim() || '',
@@ -1418,6 +1505,17 @@ export async function POST(req) {
       flavor: sanitizedFlavor?.trim() || '',
       resistance: resistance || null,
       wattageRange: wattageRange || null,
+      // 🆕 ALL NEW FIELDS
+      bottleSizes: sanitizedBottleSizes?.trim() || '',
+      bottleType: sanitizedBottleType?.trim() || '',
+      unit: sanitizedUnit?.trim() || '',
+      puffs: sanitizedPuffs?.trim() || '',
+      coil: sanitizedCoil?.trim() || '',
+      volume: sanitizedVolume?.trim() || '',
+      charging: sanitizedCharging?.trim() || '',
+      chargingTime: sanitizedChargingTime?.trim() || '',
+      features: sanitizedFeatures,
+      eachSetContains: sanitizedEachSetContains,
       images: [],
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -1446,7 +1544,7 @@ export async function POST(req) {
   }
 }
 
-// PUT method - Image upload (requires authentication)
+// PUT method - Image upload (requires authentication) - UNCHANGED
 export async function PUT(req) {
   const ip = getUserIP(req)
   logRequest(req, 'PUT')
@@ -1711,7 +1809,7 @@ export async function PUT(req) {
   }
 }
 
-// DELETE method - Different permissions for images vs products
+// DELETE method - Different permissions for images vs products - UNCHANGED
 export async function DELETE(req) {
   const ip = getUserIP(req)
   logRequest(req, 'DELETE')

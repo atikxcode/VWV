@@ -30,6 +30,12 @@ import {
   ArrowLeft,
   Lock,
   Palette,
+  PillBottle,
+  Droplet,
+  Layers,
+  Battery,
+  Clock,
+  Settings,
 } from 'lucide-react'
 import BarcodeReader from 'react-barcode-reader'
 import { AuthContext } from '../Provider/AuthProvider'
@@ -37,13 +43,55 @@ import { AuthContext } from '../Provider/AuthProvider'
 // 🔧 NEW: Options for multi-select dropdowns
 const NICOTINE_OPTIONS = [
   { value: '0mg', label: '0mg' },
+  { value: '1mg', label: '1mg' },
+  { value: '2mg', label: '2mg' },
   { value: '3mg', label: '3mg' },
+  { value: '4mg', label: '4mg' },
+  { value: '5mg', label: '5mg' },
   { value: '6mg', label: '6mg' },
+  { value: '7mg', label: '7mg' },
+  { value: '8mg', label: '8mg' },
+  { value: '9mg', label: '9mg' },
+  { value: '10mg', label: '10mg' },
+  { value: '11mg', label: '11mg' },
   { value: '12mg', label: '12mg' },
+  { value: '13mg', label: '13mg' },
+  { value: '14mg', label: '14mg' },
+  { value: '15mg', label: '15mg' },
+  { value: '16mg', label: '16mg' },
+  { value: '17mg', label: '17mg' },
   { value: '18mg', label: '18mg' },
+  { value: '19mg', label: '19mg' },
+  { value: '20mg', label: '20mg' },
+  { value: '21mg', label: '21mg' },
+  { value: '22mg', label: '22mg' },
+  { value: '23mg', label: '23mg' },
   { value: '24mg', label: '24mg' },
+  { value: '25mg', label: '25mg' },
+  { value: '26mg', label: '26mg' },
+  { value: '27mg', label: '27mg' },
+  { value: '28mg', label: '28mg' },
+  { value: '29mg', label: '29mg' },
   { value: '30mg', label: '30mg' },
+  { value: '31mg', label: '31mg' },
+  { value: '32mg', label: '32mg' },
+  { value: '33mg', label: '33mg' },
+  { value: '34mg', label: '34mg' },
+  { value: '35mg', label: '35mg' },
+  { value: '36mg', label: '36mg' },
+  { value: '37mg', label: '37mg' },
+  { value: '38mg', label: '38mg' },
+  { value: '39mg', label: '39mg' },
   { value: '40mg', label: '40mg' },
+  { value: '41mg', label: '41mg' },
+  { value: '42mg', label: '42mg' },
+  { value: '43mg', label: '43mg' },
+  { value: '44mg', label: '44mg' },
+  { value: '45mg', label: '45mg' },
+  { value: '46mg', label: '46mg' },
+  { value: '47mg', label: '47mg' },
+  { value: '48mg', label: '48mg' },
+  { value: '49mg', label: '49mg' },
   { value: '50mg', label: '50mg' },
 ]
 
@@ -594,6 +642,85 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate, isAdmin }) => 
   )
 }
 
+// 🆕 NEW: Dynamic Array Management Component
+const DynamicArrayField = ({ 
+  items, 
+  onItemsChange, 
+  placeholder, 
+  label, 
+  icon: Icon,
+  maxItems = 10 
+}) => {
+  const addItem = () => {
+    if (items.length < maxItems) {
+      onItemsChange([...items, ''])
+    }
+  }
+
+  const updateItem = (index, value) => {
+    const updatedItems = items.map((item, i) => i === index ? value : item)
+    onItemsChange(updatedItems)
+  }
+
+  const removeItem = (index) => {
+    const updatedItems = items.filter((_, i) => i !== index)
+    onItemsChange(updatedItems)
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-between items-center">
+        <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
+          {Icon && <Icon size={16} className="text-purple-600" />}
+          {label}
+        </label>
+        <button
+          type="button"
+          onClick={addItem}
+          disabled={items.length >= maxItems}
+          className="text-purple-600 hover:text-purple-700 text-sm flex items-center gap-1 disabled:opacity-50"
+        >
+          <Plus size={14} /> Add Item
+        </button>
+      </div>
+
+      <div className="space-y-2 max-h-48 overflow-y-auto">
+        {items.map((item, index) => (
+          <div key={index} className="flex gap-2">
+            <input
+              type="text"
+              value={item}
+              onChange={(e) => updateItem(index, e.target.value)}
+              placeholder={`${placeholder} ${index + 1}`}
+              className="flex-1 p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+            <button
+              type="button"
+              onClick={() => removeItem(index)}
+              className="p-3 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {items.length === 0 && (
+        <div className="text-center py-4 text-gray-500 border border-dashed border-gray-300 rounded-lg">
+          <p className="text-sm">No items added yet. Click "Add Item" to get started.</p>
+        </div>
+      )}
+
+      {items.length >= maxItems && (
+        <p className="text-sm text-orange-600 flex items-center gap-1">
+          <AlertCircle size={14} />
+          Maximum {maxItems} items allowed
+        </p>
+      )}
+    </div>
+  )
+}
+
 // Main Edit Product Component
 export default function EditProduct({ productId, onBack }) {
   const { user } = useContext(AuthContext)
@@ -628,6 +755,30 @@ export default function EditProduct({ productId, onBack }) {
 
   // 🔧 NEW: Branch-specific specifications state
   const [branchSpecifications, setBranchSpecifications] = useState({})
+
+  // 🆕 NEW: Additional product fields state
+  const [bottleSizes, setBottleSizes] = useState('')
+  const [bottleType, setBottleType] = useState('')
+  const [unit, setUnit] = useState('')
+  const [puffs, setPuffs] = useState('')
+  const [coil, setCoil] = useState('')
+  const [volume, setVolume] = useState('')
+  const [charging, setCharging] = useState('')
+  const [chargingTime, setChargingTime] = useState('')
+  const [features, setFeatures] = useState([])
+  const [eachSetContains, setEachSetContains] = useState([])
+
+  // Toggle states for new fields
+  const [showBottleSizes, setShowBottleSizes] = useState(false)
+  const [showBottleType, setShowBottleType] = useState(false)
+  const [showUnit, setShowUnit] = useState(false)
+  const [showPuffs, setShowPuffs] = useState(false)
+  const [showCoil, setShowCoil] = useState(false)
+  const [showVolume, setShowVolume] = useState(false)
+  const [showCharging, setShowCharging] = useState(false)
+  const [showChargingTime, setShowChargingTime] = useState(false)
+  const [showFeatures, setShowFeatures] = useState(false)
+  const [showEachSetContains, setShowEachSetContains] = useState(false)
 
   // Category states
   const [categories, setCategories] = useState({})
@@ -801,6 +952,48 @@ export default function EditProduct({ productId, onBack }) {
             setBranchSpecifications(productData.branchSpecifications)
           }
 
+          // 🆕 NEW: Load additional fields and set toggle states
+          if (productData.bottleSizes) {
+            setBottleSizes(productData.bottleSizes)
+            setShowBottleSizes(true)
+          }
+          if (productData.bottleType) {
+            setBottleType(productData.bottleType)
+            setShowBottleType(true)
+          }
+          if (productData.unit) {
+            setUnit(productData.unit)
+            setShowUnit(true)
+          }
+          if (productData.puffs) {
+            setPuffs(productData.puffs)
+            setShowPuffs(true)
+          }
+          if (productData.coil) {
+            setCoil(productData.coil)
+            setShowCoil(true)
+          }
+          if (productData.volume) {
+            setVolume(productData.volume)
+            setShowVolume(true)
+          }
+          if (productData.charging) {
+            setCharging(productData.charging)
+            setShowCharging(true)
+          }
+          if (productData.chargingTime) {
+            setChargingTime(productData.chargingTime)
+            setShowChargingTime(true)
+          }
+          if (productData.features && productData.features.length > 0) {
+            setFeatures(productData.features)
+            setShowFeatures(true)
+          }
+          if (productData.eachSetContains && productData.eachSetContains.length > 0) {
+            setEachSetContains(productData.eachSetContains)
+            setShowEachSetContains(true)
+          }
+
           reset({
             name: productData.name || '',
             brand: productData.brand || '',
@@ -857,191 +1050,217 @@ export default function EditProduct({ productId, onBack }) {
   }, [branches, product])
 
   // Update subcategories when category changes
-useEffect(() => {
-  if (category) {
-    const categoryKey = category.toUpperCase()
-    if (categories[categoryKey]) {
-      setSubCategoryOptions(categories[categoryKey])
+  useEffect(() => {
+    if (category) {
+      const categoryKey = category.toUpperCase()
+      if (categories[categoryKey]) {
+        setSubCategoryOptions(categories[categoryKey])
+      } else {
+        setSubCategoryOptions([])
+      }
     } else {
       setSubCategoryOptions([])
     }
-  } else {
-    setSubCategoryOptions([])
-  }
-}, [category, categories])
+  }, [category, categories])
 
-  // 🔧 UPDATED: Save product function with branch specifications
+  // 🔧 UPDATED: Save product function with branch specifications and new fields
   const handleSave = useCallback(async (data, isSilent = false) => {
-  console.log('🔄 handleSave called', { isSaving, isSilent })
-  
-  if (isSaving) {
-    console.log('⚠️ Save already in progress, skipping')
-    return
-  }
-
-  if (!checkAuth()) return
-  
-  setIsSaving(true)
-  try {
-    console.log('💾 Starting save process...', { isSilent, hasData: !!data })
+    console.log('🔄 handleSave called', { isSaving, isSilent })
     
-    // 🔧 NEW: Filter branch data based on user role
-    let filteredBranchSpecs = branchSpecifications
-    let filteredStock = stock
-
-    if (userRole === 'moderator' && userBranch) {
-      // Moderator: only send their branch specifications
-      filteredBranchSpecs = {}
-      if (branchSpecifications[userBranch]) {
-        filteredBranchSpecs[userBranch] = branchSpecifications[userBranch]
-      }
-
-      // Moderator: only send their branch stock
-      filteredStock = {}
-      if (stock[`${userBranch}_stock`] !== undefined) {
-        filteredStock[`${userBranch}_stock`] = stock[`${userBranch}_stock`]
-      }
-
-      console.log('🔧 Moderator data filtered:', {
-        branch: userBranch,
-        branchSpecs: filteredBranchSpecs,
-        stock: filteredStock
-      })
-    } else {
-      console.log('🔧 Admin sending all branch data:', {
-        branchSpecs: Object.keys(branchSpecifications),
-        stock: Object.keys(stock)
-      })
+    if (isSaving) {
+      console.log('⚠️ Save already in progress, skipping')
+      return
     }
+
+    if (!checkAuth()) return
     
-    // 🔧 UPDATED: Use filtered data in the payload
-    const processedData = {
-      action: 'update',
-      id: productId,
-      ...data,
-      stock: filteredStock,
-      // 🔧 FIXED: Use filtered branch specifications
-      branchSpecifications: filteredBranchSpecs,
-      resistance: data.resistance || null,
-      wattageRange: data.wattageRange || null,
-      tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()) : [],
-      imageOrder: images.map((img, index) => ({
-        publicId: img.publicId,
-        url: img.url,
-        alt: img.alt,
-        order: index,
-      })),
-    }
-
-    console.log('📤 Sending to API:', {
-      userRole,
-      userBranch,
-      branchSpecKeys: Object.keys(processedData.branchSpecifications),
-      stockKeys: Object.keys(processedData.stock)
-    })
-
-    const response = await fetch('/api/products', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(processedData),
-    })
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        window.location.href = '/admin/login'
-        return
-      }
-      const errorData = await response.json()
-      throw new Error(errorData.error || 'Failed to update product')
-    }
-
-    const result = await response.json()
-
-    // 🔧 CRITICAL FIX: Upload new images and immediately update state
-    const newImages = images.filter((img) => img.isNew && img.file)
-    if (newImages.length > 0) {
-      console.log('📤 Uploading', newImages.length, 'new images...')
+    setIsSaving(true)
+    try {
+      console.log('💾 Starting save process...', { isSilent, hasData: !!data })
       
-      const formData = new FormData()
-      formData.append('productId', productId)
-      newImages.forEach((image) => {
-        formData.append('images', image.file)
-      })
+      // 🔧 NEW: Filter branch data based on user role
+      let filteredBranchSpecs = branchSpecifications
+      let filteredStock = stock
 
-      const imageResponse = await fetch('/api/products', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
-        },
-        body: formData,
-      })
+      if (userRole === 'moderator' && userBranch) {
+        // Moderator: only send their branch specifications
+        filteredBranchSpecs = {}
+        if (branchSpecifications[userBranch]) {
+          filteredBranchSpecs[userBranch] = branchSpecifications[userBranch]
+        }
 
-      if (imageResponse.ok) {
-        const imageResult = await imageResponse.json()
-        console.log('✅ Images uploaded successfully:', imageResult.uploadedImages)
-        
-        // 🔧 CRITICAL FIX: Immediately update images state with uploaded info
-        setImages((prevImages) => {
-          const updatedImages = prevImages.map((img, index) => {
-            if (img.isNew) {
-              const uploadedImg = imageResult.uploadedImages.find(
-                (uploaded) => uploaded.alt.includes(img.alt.split(' ').pop())
-              )
-              if (uploadedImg) {
-                return {
-                  ...img,
-                  url: uploadedImg.url,
-                  publicId: uploadedImg.publicId,
-                  isNew: false,
-                }
-              }
-            }
-            return img
-          })
-          
-          console.log('📷 Updated images after upload:', updatedImages.length)
-          return updatedImages
+        // Moderator: only send their branch stock
+        filteredStock = {}
+        if (stock[`${userBranch}_stock`] !== undefined) {
+          filteredStock[`${userBranch}_stock`] = stock[`${userBranch}_stock`]
+        }
+
+        console.log('🔧 Moderator data filtered:', {
+          branch: userBranch,
+          branchSpecs: filteredBranchSpecs,
+          stock: filteredStock
         })
       } else {
-        console.warn('⚠️ Image upload failed but product updated successfully')
+        console.log('🔧 Admin sending all branch data:', {
+          branchSpecs: Object.keys(branchSpecifications),
+          stock: Object.keys(stock)
+        })
       }
-    }
+      
+      // 🆕 UPDATED: Use filtered data in the payload with NEW FIELDS
+      const processedData = {
+        action: 'update',
+        id: productId,
+        ...data,
+        stock: filteredStock,
+        // 🔧 FIXED: Use filtered branch specifications
+        branchSpecifications: filteredBranchSpecs,
+        resistance: data.resistance || null,
+        wattageRange: data.wattageRange || null,
+        tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()) : [],
+        // 🆕 NEW FIELDS
+        bottleSizes: showBottleSizes ? bottleSizes : '',
+        bottleType: showBottleType ? bottleType : '',
+        unit: showUnit ? unit : '',
+        puffs: showPuffs ? puffs : '',
+        coil: showCoil ? coil : '',
+        volume: showVolume ? volume : '',
+        charging: showCharging ? charging : '',
+        chargingTime: showChargingTime ? chargingTime : '',
+        features: showFeatures ? features : [],
+        eachSetContains: showEachSetContains ? eachSetContains : [],
+        imageOrder: images.map((img, index) => ({
+          publicId: img.publicId,
+          url: img.url,
+          alt: img.alt,
+          order: index,
+        })),
+      }
 
-    setOriginalProduct(result.product)
+      console.log('📤 Sending to API:', {
+        userRole,
+        userBranch,
+        branchSpecKeys: Object.keys(processedData.branchSpecifications),
+        stockKeys: Object.keys(processedData.stock),
+        newFields: {
+          bottleSizes: processedData.bottleSizes,
+          bottleType: processedData.bottleType,
+          unit: processedData.unit,
+          puffs: processedData.puffs,
+          coil: processedData.coil,
+          volume: processedData.volume,
+          charging: processedData.charging,
+          chargingTime: processedData.chargingTime,
+          featuresCount: processedData.features.length,
+          eachSetContainsCount: processedData.eachSetContains.length
+        }
+      })
 
-    if (!isSilent) {
-      Swal.fire({
-        icon: 'success',
-        title: 'Success!',
-        text: 'Product has been updated successfully!',
-        confirmButtonColor: '#8B5CF6',
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(processedData),
       })
-    } else {
-      console.log('✅ Auto-save completed successfully')
-      Swal.fire({
-        icon: 'success',
-        title: 'Auto-saved',
-        timer: 1500,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end',
-      })
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          window.location.href = '/admin/login'
+          return
+        }
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update product')
+      }
+
+      const result = await response.json()
+
+      // 🔧 CRITICAL FIX: Upload new images and immediately update state
+      const newImages = images.filter((img) => img.isNew && img.file)
+      if (newImages.length > 0) {
+        console.log('📤 Uploading', newImages.length, 'new images...')
+        
+        const formData = new FormData()
+        formData.append('productId', productId)
+        newImages.forEach((image) => {
+          formData.append('images', image.file)
+        })
+
+        const imageResponse = await fetch('/api/products', {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+          },
+          body: formData,
+        })
+
+        if (imageResponse.ok) {
+          const imageResult = await imageResponse.json()
+          console.log('✅ Images uploaded successfully:', imageResult.uploadedImages)
+          
+          // 🔧 CRITICAL FIX: Immediately update images state with uploaded info
+          setImages((prevImages) => {
+            const updatedImages = prevImages.map((img, index) => {
+              if (img.isNew) {
+                const uploadedImg = imageResult.uploadedImages.find(
+                  (uploaded) => uploaded.alt.includes(img.alt.split(' ').pop())
+                )
+                if (uploadedImg) {
+                  return {
+                    ...img,
+                    url: uploadedImg.url,
+                    publicId: uploadedImg.publicId,
+                    isNew: false,
+                  }
+                }
+              }
+              return img
+            })
+            
+            console.log('📷 Updated images after upload:', updatedImages.length)
+            return updatedImages
+          })
+        } else {
+          console.warn('⚠️ Image upload failed but product updated successfully')
+        }
+      }
+
+      setOriginalProduct(result.product)
+
+      if (!isSilent) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'Product has been updated successfully!',
+          confirmButtonColor: '#8B5CF6',
+        })
+      } else {
+        console.log('✅ Auto-save completed successfully')
+        Swal.fire({
+          icon: 'success',
+          title: 'Auto-saved',
+          timer: 1500,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end',
+        })
+      }
+    } catch (error) {
+      console.error('❌ Save error:', error)
+      if (!isSilent) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Oops...',
+          text: 'Error updating product: ' + error.message,
+          confirmButtonColor: '#8B5CF6',
+        })
+      }
+    } finally {
+      setIsSaving(false)
+      console.log('🏁 Save process completed')
     }
-  } catch (error) {
-    console.error('❌ Save error:', error)
-    if (!isSilent) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Oops...',
-        text: 'Error updating product: ' + error.message,
-        confirmButtonColor: '#8B5CF6',
-      })
-    }
-  } finally {
-    setIsSaving(false)
-    console.log('🏁 Save process completed')
-  }
-}, [productId, stock, images, isSaving, branchSpecifications, userRole, userBranch])
+  }, [productId, stock, images, isSaving, branchSpecifications, userRole, userBranch, 
+      bottleSizes, bottleType, unit, puffs, coil, volume, charging, chargingTime, 
+      features, eachSetContains, showBottleSizes, showBottleType, showUnit, showPuffs, 
+      showCoil, showVolume, showCharging, showChargingTime, showFeatures, showEachSetContains])
 
   // Auto-save functionality with stable dependencies
   const watchedValues = watch()
@@ -1490,6 +1709,30 @@ useEffect(() => {
 
         // 🔧 NEW: Reset branch specifications
         setBranchSpecifications(originalProduct.branchSpecifications || {})
+
+        // 🆕 NEW: Reset additional fields
+        setBottleSizes(originalProduct.bottleSizes || '')
+        setBottleType(originalProduct.bottleType || '')
+        setUnit(originalProduct.unit || '')
+        setPuffs(originalProduct.puffs || '')
+        setCoil(originalProduct.coil || '')
+        setVolume(originalProduct.volume || '')
+        setCharging(originalProduct.charging || '')
+        setChargingTime(originalProduct.chargingTime || '')
+        setFeatures(originalProduct.features || [])
+        setEachSetContains(originalProduct.eachSetContains || [])
+
+        // Reset toggle states
+        setShowBottleSizes(!!originalProduct.bottleSizes)
+        setShowBottleType(!!originalProduct.bottleType)
+        setShowUnit(!!originalProduct.unit)
+        setShowPuffs(!!originalProduct.puffs)
+        setShowCoil(!!originalProduct.coil)
+        setShowVolume(!!originalProduct.volume)
+        setShowCharging(!!originalProduct.charging)
+        setShowChargingTime(!!originalProduct.chargingTime)
+        setShowFeatures(originalProduct.features && originalProduct.features.length > 0)
+        setShowEachSetContains(originalProduct.eachSetContains && originalProduct.eachSetContains.length > 0)
 
         setStock(originalProduct.stock || {})
         setImages(
@@ -1970,6 +2213,297 @@ useEffect(() => {
                     </div>
                   </div>
                 </div>
+
+                {/* 🆕 NEW: Additional Product Fields Section */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                      <Settings size={20} className="text-purple-600" />
+                      Additional Product Details
+                    </h3>
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
+                      Optional Fields
+                    </span>
+                  </div>
+
+                  {/* Toggle Buttons for Additional Fields */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowBottleSizes(!showBottleSizes)}
+                      className={`p-2 rounded-lg text-sm flex items-center gap-2 transition-all ${
+                        showBottleSizes
+                          ? 'bg-purple-100 text-purple-800 border-purple-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <PillBottle size={14} />
+                      Bottle Sizes
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => setShowBottleType(!showBottleType)}
+                      className={`p-2 rounded-lg text-sm flex items-center gap-2 transition-all ${
+                        showBottleType
+                          ? 'bg-purple-100 text-purple-800 border-purple-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Droplet size={14} />
+                      Bottle Type
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowUnit(!showUnit)}
+                      className={`p-2 rounded-lg text-sm flex items-center gap-2 transition-all ${
+                        showUnit
+                          ? 'bg-purple-100 text-purple-800 border-purple-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Package size={14} />
+                      Unit
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowPuffs(!showPuffs)}
+                      className={`p-2 rounded-lg text-sm flex items-center gap-2 transition-all ${
+                        showPuffs
+                          ? 'bg-purple-100 text-purple-800 border-purple-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Zap size={14} />
+                      Puffs
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowCoil(!showCoil)}
+                      className={`p-2 rounded-lg text-sm flex items-center gap-2 transition-all ${
+                        showCoil
+                          ? 'bg-purple-100 text-purple-800 border-purple-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Layers size={14} />
+                      Coil
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowVolume(!showVolume)}
+                      className={`p-2 rounded-lg text-sm flex items-center gap-2 transition-all ${
+                        showVolume
+                          ? 'bg-purple-100 text-purple-800 border-purple-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Package size={14} />
+                      Volume
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowCharging(!showCharging)}
+                      className={`p-2 rounded-lg text-sm flex items-center gap-2 transition-all ${
+                        showCharging
+                          ? 'bg-purple-100 text-purple-800 border-purple-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Battery size={14} />
+                      Charging
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowChargingTime(!showChargingTime)}
+                      className={`p-2 rounded-lg text-sm flex items-center gap-2 transition-all ${
+                        showChargingTime
+                          ? 'bg-purple-100 text-purple-800 border-purple-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Clock size={14} />
+                      Charge Time
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowFeatures(!showFeatures)}
+                      className={`p-2 rounded-lg text-sm flex items-center gap-2 transition-all ${
+                        showFeatures
+                          ? 'bg-purple-100 text-purple-800 border-purple-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Settings size={14} />
+                      Features
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowEachSetContains(!showEachSetContains)}
+                      className={`p-2 rounded-lg text-sm flex items-center gap-2 transition-all ${
+                        showEachSetContains
+                          ? 'bg-purple-100 text-purple-800 border-purple-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Package size={14} />
+                      Set Contains
+                    </button>
+                  </div>
+
+                  {/* Dynamic Fields Based on Toggle States */}
+                  <div className="space-y-4">
+                    {showBottleSizes && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Bottle Sizes
+                        </label>
+                        <input
+                          type="text"
+                          value={bottleSizes}
+                          onChange={(e) => setBottleSizes(e.target.value)}
+                          placeholder="e.g., 30ml, 60ml, 100ml"
+                          className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                    )}
+
+                    {showBottleType && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Bottle Type
+                        </label>
+                        <input
+                          type="text"
+                          value={bottleType}
+                          onChange={(e) => setBottleType(e.target.value)}
+                          placeholder="e.g., Glass, Plastic, Squeeze"
+                          className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                    )}
+
+                    {showUnit && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Unit
+                        </label>
+                        <input
+                          type="text"
+                          value={unit}
+                          onChange={(e) => setUnit(e.target.value)}
+                          placeholder="e.g., Piece, Pack, Set"
+                          className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                    )}
+
+                    {showPuffs && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Puffs
+                        </label>
+                        <input
+                          type="text"
+                          value={puffs}
+                          onChange={(e) => setPuffs(e.target.value)}
+                          placeholder="e.g., 600, 1500, 2500+"
+                          className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                    )}
+
+                    {showCoil && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Coil
+                        </label>
+                        <input
+                          type="text"
+                          value={coil}
+                          onChange={(e) => setCoil(e.target.value)}
+                          placeholder="e.g., Mesh, Ceramic, Cotton"
+                          className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                    )}
+
+                    {showVolume && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Volume
+                        </label>
+                        <input
+                          type="text"
+                          value={volume}
+                          onChange={(e) => setVolume(e.target.value)}
+                          placeholder="e.g., 2ml, 5ml, 10ml"
+                          className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                    )}
+
+                    {showCharging && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Charging
+                        </label>
+                        <input
+                          type="text"
+                          value={charging}
+                          onChange={(e) => setCharging(e.target.value)}
+                          placeholder="e.g., USB-C, Micro USB, Wireless"
+                          className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                    )}
+
+                    {showChargingTime && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Charging Time
+                        </label>
+                        <input
+                          type="text"
+                          value={chargingTime}
+                          onChange={(e) => setChargingTime(e.target.value)}
+                          placeholder="e.g., 45 minutes, 1-2 hours"
+                          className="w-full p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                    )}
+
+                    {showFeatures && (
+                      <DynamicArrayField
+                        items={features}
+                        onItemsChange={setFeatures}
+                        placeholder="Enter feature"
+                        label="Features"
+                        icon={Settings}
+                        maxItems={15}
+                      />
+                    )}
+
+                    {showEachSetContains && (
+                      <DynamicArrayField
+                        items={eachSetContains}
+                        onItemsChange={setEachSetContains}
+                        placeholder="Enter item"
+                        label="Each Set Contains"
+                        icon={Package}
+                        maxItems={15}
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Right Column */}
@@ -2196,7 +2730,7 @@ useEffect(() => {
                     ))}
                   </div>
 
-                  {visibleBranches.length === 0 && (
+                                    {visibleBranches.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
                       <Store size={48} className="mx-auto mb-2" />
                       <p>
