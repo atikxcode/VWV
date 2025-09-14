@@ -1311,7 +1311,7 @@ export default function ModeratorAddProduct() {
                               onClick={() => toggleAdditionalField(field.key)}
                               className={`p-1 rounded-lg transition-colors ${
                                 additionalFields[field.key]
-                                  ? 'text-green-600 hover:bg-green-100'
+                                  ? 'text-purple-600 hover:bg-purple-100'
                                   : 'text-gray-400 hover:bg-gray-200'
                               }`}
                             >
@@ -1354,7 +1354,7 @@ export default function ModeratorAddProduct() {
                       onClick={() => setShowFeatures(!showFeatures)}
                       className={`p-2 rounded-lg transition-colors ${
                         showFeatures
-                          ? 'text-green-600 hover:bg-green-100'
+                          ? 'text-purple-600 hover:bg-purple-100'
                           : 'text-gray-400 hover:bg-gray-200'
                       }`}
                     >
@@ -1419,7 +1419,7 @@ export default function ModeratorAddProduct() {
                       onClick={() => setShowEachSetContains(!showEachSetContains)}
                       className={`p-2 rounded-lg transition-colors ${
                         showEachSetContains
-                          ? 'text-green-600 hover:bg-green-100'
+                          ? 'text-purple-600 hover:bg-purple-100'
                           : 'text-gray-400 hover:bg-gray-200'
                       }`}
                     >
