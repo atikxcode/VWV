@@ -1,6 +1,14 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { 
+  useState, 
+  useEffect, 
+  useCallback, 
+  useMemo, 
+  useRef,
+  startTransition,
+  useDeferredValue
+} from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,7 +21,8 @@ import {
   Search,
   Loader2,
   Filter,
-  X
+  X,
+  Zap
 } from 'lucide-react';
 import { Suspense } from 'react';
 import { useCart } from '../../../components/hooks/useCart';
@@ -25,20 +34,20 @@ const PRODUCTS_PER_PAGE = 12;
 const DEFAULT_MIN_PRICE = 0;
 const FALLBACK_MAX_PRICE = 10000;
 
-// Skeleton Component for Better Loading Experience
+// Enhanced Skeleton Component
 const ProductSkeleton = React.memo(() => (
-  <div className="bg-white rounded-sm shadow-lg overflow-hidden animate-pulse max-w-sm mx-auto w-full">
-    <div className="relative w-full h-90 bg-gray-200" />
+  <div className="bg-white rounded-sm shadow-lg overflow-hidden max-w-sm mx-auto w-full">
+    <div className="relative w-full h-90 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer" />
     <div className="p-6">
-      <div className="h-4 bg-gray-200 rounded mb-2" />
-      <div className="h-4 bg-gray-200 rounded w-2/3 mb-3" />
-      <div className="h-6 bg-gray-200 rounded w-1/3 mb-4" />
+      <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded mb-2" />
+      <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-2/3 mb-3" />
+      <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-1/3" />
     </div>
   </div>
 ));
 ProductSkeleton.displayName = 'ProductSkeleton';
 
-// Price Range Slider Component with enhanced performance
+// Enhanced Price Range Slider
 const PriceRangeSlider = React.memo(({ 
   minPrice, 
   maxPrice, 
@@ -49,20 +58,26 @@ const PriceRangeSlider = React.memo(({
   const [localMinPrice, setLocalMinPrice] = useState(minPrice || DEFAULT_MIN_PRICE);
   const [localMaxPrice, setLocalMaxPrice] = useState(maxPrice || maxValue);
   const [isDragging, setIsDragging] = useState(false);
+  const [activeThumb, setActiveThumb] = useState(null);
   const updateTimeoutRef = useRef(null);
+  
+  // Add deferred values for performance
+  const deferredMinPrice = useDeferredValue(localMinPrice);
+  const deferredMaxPrice = useDeferredValue(localMaxPrice);
 
   useEffect(() => {
     setLocalMinPrice(minPrice || DEFAULT_MIN_PRICE);
     setLocalMaxPrice(maxPrice || maxValue);
   }, [minPrice, maxPrice, maxValue]);
 
-  // Debounced range change handler
   const debouncedRangeChange = useCallback((newRange) => {
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
     }
     updateTimeoutRef.current = setTimeout(() => {
-      onRangeChange(newRange);
+      startTransition(() => {
+        onRangeChange(newRange);
+      });
     }, 150);
   }, [onRangeChange]);
 
@@ -71,6 +86,7 @@ const PriceRangeSlider = React.memo(({
     if (value >= minValue && value <= (localMaxPrice - 100)) {
       setLocalMinPrice(value);
       setIsDragging(true);
+      setActiveThumb('min');
     }
   }, [localMaxPrice, minValue]);
 
@@ -79,12 +95,14 @@ const PriceRangeSlider = React.memo(({
     if (value <= maxValue && value >= (localMinPrice + 100)) {
       setLocalMaxPrice(value);
       setIsDragging(true);
+      setActiveThumb('max');
     }
   }, [localMinPrice, maxValue]);
 
   const handleMouseUp = useCallback(() => {
     if (isDragging) {
       setIsDragging(false);
+      setActiveThumb(null);
       debouncedRangeChange([localMinPrice, localMaxPrice]);
     }
   }, [isDragging, localMinPrice, localMaxPrice, debouncedRangeChange]);
@@ -106,15 +124,14 @@ const PriceRangeSlider = React.memo(({
 
   const minPercent = useMemo(() => {
     const range = maxValue - minValue;
-    return range > 0 ? ((localMinPrice - minValue) / range) * 100 : 0;
-  }, [localMinPrice, minValue, maxValue]);
+    return range > 0 ? ((deferredMinPrice - minValue) / range) * 100 : 0;
+  }, [deferredMinPrice, minValue, maxValue]);
   
   const maxPercent = useMemo(() => {
     const range = maxValue - minValue;
-    return range > 0 ? ((localMaxPrice - minValue) / range) * 100 : 100;
-  }, [localMaxPrice, minValue, maxValue]);
+    return range > 0 ? ((deferredMaxPrice - minValue) / range) * 100 : 100;
+  }, [deferredMaxPrice, minValue, maxValue]);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (updateTimeoutRef.current) {
@@ -127,21 +144,28 @@ const PriceRangeSlider = React.memo(({
     <div className="w-full">
       <div className="mb-4">
         <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-medium text-gray-700">Price Range</span>
-          <span className="text-sm text-gray-500">
-            BDT {(localMinPrice || 0).toLocaleString()} - BDT {(localMaxPrice || 0).toLocaleString()}
+          <span className="text-sm font-medium text-gray-700 flex items-center">
+            <Zap size={16} className="mr-1 text-purple-500" />
+            Price Range
+          </span>
+          <span className="text-sm text-gray-500 font-mono">
+            BDT {(deferredMinPrice || 0).toLocaleString()} - BDT {(deferredMaxPrice || 0).toLocaleString()}
           </span>
         </div>
         
-        <div className="text-xs text-gray-400 mb-2">
-          Available range: BDT {minValue.toLocaleString()} - BDT {maxValue.toLocaleString()}
+        <div className="text-xs text-gray-400 mb-2 flex items-center justify-between">
+          <span>Range: BDT {minValue.toLocaleString()} - BDT {maxValue.toLocaleString()}</span>
+          {isDragging && (
+            <span className="text-purple-500 animate-pulse">Adjusting...</span>
+          )}
         </div>
         
-        {/* Dual Range Slider */}
         <div className="relative h-6 mb-4">
           <div className="absolute w-full h-2 bg-gray-200 rounded top-2"></div>
           <div 
-            className="absolute h-2 bg-purple-500 rounded top-2"
+            className={`absolute h-2 rounded top-2 transition-all duration-200 ${
+              isDragging ? 'bg-purple-600 shadow-lg' : 'bg-purple-500'
+            }`}
             style={{
               left: `${Math.max(0, minPercent)}%`,
               width: `${Math.max(0, maxPercent - minPercent)}%`
@@ -156,8 +180,9 @@ const PriceRangeSlider = React.memo(({
             onChange={handleMinChange}
             onMouseUp={handleMouseUp}
             onTouchEnd={handleMouseUp}
-            className="absolute w-full h-6 bg-transparent appearance-none cursor-pointer slider-thumb"
-            style={{ zIndex: 1 }}
+            className={`absolute w-full h-6 bg-transparent appearance-none cursor-pointer slider-thumb ${
+              activeThumb === 'min' ? 'z-30' : 'z-10'
+            }`}
           />
           
           <input
@@ -168,12 +193,12 @@ const PriceRangeSlider = React.memo(({
             onChange={handleMaxChange}
             onMouseUp={handleMouseUp}
             onTouchEnd={handleMouseUp}
-            className="absolute w-full h-6 bg-transparent appearance-none cursor-pointer slider-thumb"
-            style={{ zIndex: 2 }}
+            className={`absolute w-full h-6 bg-transparent appearance-none cursor-pointer slider-thumb ${
+              activeThumb === 'max' ? 'z-30' : 'z-20'
+            }`}
           />
         </div>
 
-        {/* Input Fields */}
         <div className="flex items-center space-x-2">
           <div className="flex-1">
             <label className="block text-xs text-gray-500 mb-1">Min Price</label>
@@ -181,7 +206,7 @@ const PriceRangeSlider = React.memo(({
               type="number"
               value={localMinPrice || 0}
               onChange={(e) => handleInputChange('min', e.target.value)}
-              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent outline-none"
+              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
               min={minValue}
               max={maxValue}
             />
@@ -195,7 +220,7 @@ const PriceRangeSlider = React.memo(({
               type="number"
               value={localMaxPrice || 0}
               onChange={(e) => handleInputChange('max', e.target.value)}
-              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent outline-none"
+              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
               min={minValue}
               max={maxValue}
             />
@@ -207,7 +232,7 @@ const PriceRangeSlider = React.memo(({
 });
 PriceRangeSlider.displayName = 'PriceRangeSlider';
 
-// Optimized Pagination Component
+// Keep your existing PaginationControls - they work perfectly
 const PaginationControls = React.memo(({ 
   currentPage, 
   totalPages, 
@@ -244,17 +269,15 @@ const PaginationControls = React.memo(({
 
   return (
     <div className="flex items-center justify-center space-x-2 mt-12">
-      {/* Previous Button */}
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1 || loading}
-        className="flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
       >
         <ChevronLeft size={16} className="mr-1" />
         Previous
       </button>
 
-      {/* Page Numbers */}
       <div className="flex space-x-1">
         {getVisiblePages.map((page, index) => (
           <React.Fragment key={index}>
@@ -264,11 +287,11 @@ const PaginationControls = React.memo(({
               <button
                 onClick={() => onPageChange(page)}
                 disabled={loading}
-                className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                   currentPage === page
-                    ? 'bg-purple-600 text-white'
-                    : 'text-gray-700 bg-white border border-gray-300 hover:bg-purple-50 hover:text-purple-700'
-                } disabled:opacity-50`}
+                    ? 'bg-purple-600 text-white shadow-md transform scale-105'
+                    : 'text-gray-700 bg-white border border-gray-300 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300'
+                } disabled:opacity-50 relative`}
               >
                 {page}
               </button>
@@ -277,11 +300,10 @@ const PaginationControls = React.memo(({
         ))}
       </div>
 
-      {/* Next Button */}
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages || loading}
-        className="flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
       >
         Next
         <ChevronRight size={16} className="ml-1" />
@@ -291,13 +313,13 @@ const PaginationControls = React.memo(({
 });
 PaginationControls.displayName = 'PaginationControls';
 
-// Enhanced Product Card Component with better image optimization
-const ProductCard = React.memo(({ product, onProductClick, onAddToCart, onToggleFavorite, isFavorite }) => {
+// Enhanced Product Card
+const ProductCard = React.memo(({ product, onProductClick, onAddToCart, onToggleFavorite, isFavorite, index = 0 }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const cardRef = useRef(null);
 
-  // Enhanced image validation
   const hasValidImage = useMemo(() => {
     return product?.images && 
            product.images.length > 0 && 
@@ -305,35 +327,10 @@ const ProductCard = React.memo(({ product, onProductClick, onAddToCart, onToggle
            product.images[0].url.trim() !== '';
   }, [product?.images]);
 
-  // Optimized blur data URL
   const blurDataURL = useMemo(() => 
     "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PC9zdmc+", 
     []
   );
-
-  // Intersection Observer for lazy loading
-  useEffect(() => {
-    if (!cardRef.current) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            // Prefetch next page when user scrolls near bottom
-            const rect = entry.boundingClientRect;
-            const windowHeight = window.innerHeight;
-            if (rect.bottom <= windowHeight * 1.5) {
-              // Trigger prefetch logic here if needed
-            }
-          }
-        });
-      },
-      { threshold: 0.1, rootMargin: '50px' }
-    );
-
-    observer.observe(cardRef.current);
-    return () => observer.disconnect();
-  }, []);
 
   return (
     <motion.div
@@ -341,34 +338,46 @@ const ProductCard = React.memo(({ product, onProductClick, onAddToCart, onToggle
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      whileHover={{ y: -4, scale: 1.01 }}
+      whileHover={{ 
+        y: -6, 
+        scale: 1.02,
+        boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+      }}
       transition={{ duration: 0.2, ease: "easeOut" }}
-      className="bg-white rounded-sm shadow-lg overflow-hidden cursor-pointer group hover:shadow-xl transition-all duration-200 relative max-w-sm mx-auto w-full"
+      className="bg-white rounded-sm shadow-lg overflow-hidden cursor-pointer group hover:shadow-2xl transition-all duration-300 relative max-w-sm mx-auto w-full"
       onClick={() => onProductClick(product)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Favorite Button */}
       <button
         onClick={(e) => onToggleFavorite(e, product)}
-        className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all duration-200"
+        className={`absolute top-4 right-4 z-10 p-2 rounded-full backdrop-blur-md shadow-lg transition-all duration-300 transform ${
+          isHovered ? 'scale-110' : 'scale-100'
+        } ${
+          isFavorite 
+            ? 'bg-purple-500 hover:bg-purple-600/90' 
+            : 'bg-white/90 hover:bg-white hover:shadow-xl'
+        }`}
         aria-label={`${isFavorite ? 'Remove from' : 'Add to'} favorites`}
       >
         <Heart
           size={20}
           className={`${
             isFavorite 
-              ? 'text-red-500 fill-red-500' 
+              ? 'text-white fill-white' 
               : 'text-gray-400 hover:text-purple-500'
-          } transition-colors`}
+          } transition-all duration-200`}
         />
       </button>
 
-      {/* Enhanced Product Image */}
+      {/* Product Image */}
       <div className="relative w-full h-90 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
         {hasValidImage && !imageError ? (
           <>
             {!imageLoaded && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="animate-pulse bg-gray-200 w-full h-full" />
+                <div className="bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer w-full h-full" />
               </div>
             )}
             <Image
@@ -376,14 +385,14 @@ const ProductCard = React.memo(({ product, onProductClick, onAddToCart, onToggle
               alt={product.images[0]?.alt || product?.name || 'Product image'}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className={`object-cover group-hover:scale-105 transition-transform duration-300 ${
-                imageLoaded ? 'opacity-100' : 'opacity-0'
-              }`}
-              priority={false}
+              className={`object-cover transition-all duration-500 transform ${
+                isHovered ? 'scale-110' : 'scale-100'
+              } ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+              priority={index < 3}
+              loading={index < 6 ? "eager" : "lazy"}
               placeholder="blur"
               blurDataURL={blurDataURL}
-              loading="lazy"
-              quality={80}
+              quality={85}
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageError(true)}
             />
@@ -396,25 +405,36 @@ const ProductCard = React.memo(({ product, onProductClick, onAddToCart, onToggle
       </div>
 
       {/* Product Info */}
-      <div className="p-6">
-        <h3 className="font-semibold text-gray-900 text-md mb-2 line-clamp-2 group-hover:text-purple-600 transition-colors">
+      <div className="p-6 relative">
+        <h3 className={`font-semibold text-gray-900 text-md mb-2 line-clamp-2 transition-all duration-200 ${
+          isHovered ? 'text-purple-600' : ''
+        }`}>
           {product?.name || 'Unnamed Product'}
         </h3>
         
         {product?.brand && (
-          <p className="text-gray-600 text-sm mb-3 transition-colors duration-300 group-hover:text-purple-600">
+          <p className={`text-gray-600 text-sm mb-3 transition-colors duration-300 ${
+            isHovered ? 'text-purple-600' : ''
+          }`}>
             {product.brand}
           </p>
         )}
 
-        <div className="text-xl font-semibold text-purple-600 mb-4">
-          BDT {(product?.price || 0).toLocaleString()}
-        </div>
+        <div className="flex items-center gap-2">
+  <div className="text-xl font-semibold text-purple-600">
+    BDT {(product?.price || 0).toLocaleString()}
+  </div>
+  {product?.comparePrice && product.comparePrice > product.price && (
+    <div className="text-sm text-gray-400 line-through">
+      BDT {product.comparePrice.toLocaleString()}
+    </div>
+  )}
+</div>
+
       </div>
     </motion.div>
   );
 }, (prevProps, nextProps) => {
-  // Custom comparison for better memoization
   return (
     prevProps.product?._id === nextProps.product?._id &&
     prevProps.isFavorite === nextProps.isFavorite &&
@@ -424,7 +444,7 @@ const ProductCard = React.memo(({ product, onProductClick, onAddToCart, onToggle
 });
 ProductCard.displayName = 'ProductCard';
 
-// Main Products Page Component with performance optimizations
+// Main component - using your working logic with enhancements
 function ProductsPageContent() {
   const [products, setProducts] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
@@ -433,39 +453,40 @@ function ProductsPageContent() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [priceRange, setPriceRange] = useState([DEFAULT_MIN_PRICE, FALLBACK_MAX_PRICE]);
   const [showFilters, setShowFilters] = useState(false);
   const [dynamicMinPrice, setDynamicMinPrice] = useState(DEFAULT_MIN_PRICE);
   const [dynamicMaxPrice, setDynamicMaxPrice] = useState(FALLBACK_MAX_PRICE);
   const [priceRangeLoaded, setPriceRangeLoaded] = useState(false);
   const [initialized, setInitialized] = useState(false);
-  
-  // Refs for performance optimization
+
+  // Enhanced state with deferred values
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const deferredPriceRange = useDeferredValue(priceRange);
+
   const abortControllerRef = useRef(null);
   const searchTimeoutRef = useRef(null);
   const prefetchCache = useRef(new Map());
-  
+  const urlUpdateTimeoutRef = useRef(null);
+
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { addToCart } = useCart();
   const { toggleFavorite, isFavorite } = useFavorites();
 
-  // Enhanced fetch with request cancellation and caching
+  // Enhanced fetchWithCache
   const fetchWithCache = useCallback(async (url, options = {}) => {
-    // Cancel previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     
     abortControllerRef.current = new AbortController();
     
-    // Check cache first
     const cacheKey = url + JSON.stringify(options);
     if (prefetchCache.current.has(cacheKey)) {
       const cached = prefetchCache.current.get(cacheKey);
-      if (Date.now() - cached.timestamp < 60000) { // 1 minute cache
+      if (Date.now() - cached.timestamp < 60000) {
         return cached.data;
       }
     }
@@ -475,36 +496,33 @@ function ProductsPageContent() {
         ...options,
         signal: abortControllerRef.current.signal,
       });
-
+      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
+      
       const data = await response.json();
       
-      // Cache the result
       prefetchCache.current.set(cacheKey, {
         data,
         timestamp: Date.now()
       });
-
-      // Limit cache size
+      
       if (prefetchCache.current.size > 50) {
         const firstKey = prefetchCache.current.keys().next().value;
         prefetchCache.current.delete(firstKey);
       }
-
+      
       return data;
     } catch (error) {
       if (error.name === 'AbortError') {
-        console.log('Request aborted');
         return null;
       }
       throw error;
     }
   }, []);
 
-  // Calculate dynamic price range with memoization
+  // ✅ FIXED: Enhanced calculatePriceRange to prevent unnecessary updates
   const calculatePriceRange = useCallback((products) => {
     if (products && products.length > 0) {
       const prices = products.map(product => product?.price || 0).filter(price => price > 0);
@@ -513,11 +531,18 @@ function ProductsPageContent() {
         const minPrice = Math.min(...prices);
         const maxPrice = Math.max(...prices);
         
-        setDynamicMinPrice(minPrice);
-        setDynamicMaxPrice(maxPrice);
-        
-        if (priceRange[0] === DEFAULT_MIN_PRICE && priceRange[1] === FALLBACK_MAX_PRICE) {
-          setPriceRange([minPrice, maxPrice]);
+        // Only update if prices actually changed
+        if (minPrice !== dynamicMinPrice || maxPrice !== dynamicMaxPrice) {
+          setDynamicMinPrice(minPrice);
+          setDynamicMaxPrice(maxPrice);
+          
+          // Only set price range if it's still at defaults AND no URL params exist
+          if (priceRange[0] === DEFAULT_MIN_PRICE && 
+              priceRange[1] === FALLBACK_MAX_PRICE && 
+              !searchParams.has('minPrice') && 
+              !searchParams.has('maxPrice')) {
+            setPriceRange([minPrice, maxPrice]);
+          }
         }
         
         setPriceRangeLoaded(true);
@@ -525,13 +550,14 @@ function ProductsPageContent() {
       }
     }
     
-    setDynamicMinPrice(DEFAULT_MIN_PRICE);
-    setDynamicMaxPrice(FALLBACK_MAX_PRICE);
+    if (dynamicMinPrice !== DEFAULT_MIN_PRICE || dynamicMaxPrice !== FALLBACK_MAX_PRICE) {
+      setDynamicMinPrice(DEFAULT_MIN_PRICE);
+      setDynamicMaxPrice(FALLBACK_MAX_PRICE);
+    }
     setPriceRangeLoaded(true);
     return { minPrice: DEFAULT_MIN_PRICE, maxPrice: FALLBACK_MAX_PRICE };
-  }, [priceRange]);
+  }, [priceRange, dynamicMinPrice, dynamicMaxPrice, searchParams]);
 
-  // Optimized fetch for price range calculation
   const fetchAllProductsForPriceRange = useCallback(async () => {
     try {
       const data = await fetchWithCache('/api/products?status=active&limit=1000&fields=price');
@@ -547,7 +573,7 @@ function ProductsPageContent() {
     }
   }, [fetchWithCache, calculatePriceRange]);
 
-  // Initialize from URL params
+  // ✅ FIXED: Enhanced initialization to prevent double loading
   useEffect(() => {
     if (initialized) return;
     
@@ -556,13 +582,24 @@ function ProductsPageContent() {
     const minPrice = parseInt(searchParams.get('minPrice') || DEFAULT_MIN_PRICE.toString()) || DEFAULT_MIN_PRICE;
     const maxPrice = parseInt(searchParams.get('maxPrice') || FALLBACK_MAX_PRICE.toString()) || FALLBACK_MAX_PRICE;
     
+    // Check if URL already has price params - if so, don't fetch price range
+    const hasUrlPriceParams = searchParams.has('minPrice') || searchParams.has('maxPrice');
+    
     setCurrentPage(page);
     setSearchQuery(search);
-    setDebouncedSearch(search);
     setPriceRange([minPrice, maxPrice]);
-    setInitialized(true);
     
-    fetchAllProductsForPriceRange();
+    if (hasUrlPriceParams) {
+      // If URL has price params, use them and mark as loaded
+      setDynamicMinPrice(minPrice);
+      setDynamicMaxPrice(maxPrice);
+      setPriceRangeLoaded(true);
+      setInitialized(true);
+    } else {
+      // Only fetch price range if URL doesn't have price params
+      setInitialized(true);
+      fetchAllProductsForPriceRange();
+    }
   }, [searchParams, fetchAllProductsForPriceRange, initialized]);
 
   // Enhanced debounced search
@@ -572,61 +609,76 @@ function ProductsPageContent() {
     }
     
     searchTimeoutRef.current = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-      if (currentPage !== 1) {
-        setCurrentPage(1);
+      if (currentPage !== 1 && deferredSearchQuery?.trim()) {
+        startTransition(() => {
+          setCurrentPage(1);
+        });
       }
-    }, 250); // Reduced debounce time
+    }, 300);
 
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchQuery, currentPage]);
+  }, [searchQuery, currentPage, deferredSearchQuery]);
 
-  // URL update effect
+  // ✅ FIXED: Optimized URL update to prevent double reloads
   useEffect(() => {
     if (!priceRangeLoaded || !initialized) return;
     
-    const params = new URLSearchParams();
-    
-    if (debouncedSearch?.trim()) {
-      params.set('search', debouncedSearch);
+    // Clear any pending URL updates
+    if (urlUpdateTimeoutRef.current) {
+      clearTimeout(urlUpdateTimeoutRef.current);
     }
     
-    if (priceRange && priceRange[0] !== dynamicMinPrice) {
-      params.set('minPrice', (priceRange[0] || DEFAULT_MIN_PRICE).toString());
-    }
-    
-    if (priceRange && priceRange[1] !== dynamicMaxPrice) {
-      params.set('maxPrice', (priceRange[1] || dynamicMaxPrice).toString());
-    }
-    
-    if (currentPage > 1) {
-      params.set('page', currentPage.toString());
-    }
-    
-    const newUrl = `${pathname}${params.toString() ? `?${params.toString()}` : ''}`;
-    const currentUrl = window.location.pathname + window.location.search;
-    
-    if (currentUrl !== newUrl) {
-      router.replace(newUrl, { scroll: false });
-    }
-  }, [debouncedSearch, priceRange, currentPage, pathname, router, dynamicMinPrice, dynamicMaxPrice, priceRangeLoaded, initialized]);
+    urlUpdateTimeoutRef.current = setTimeout(() => {
+      const params = new URLSearchParams();
+      
+      if (deferredSearchQuery?.trim()) {
+        params.set('search', deferredSearchQuery);
+      }
+      
+      // Only update URL if price range has actually changed from user interaction
+      if (deferredPriceRange && deferredPriceRange[0] !== dynamicMinPrice) {
+        params.set('minPrice', (deferredPriceRange[0] || DEFAULT_MIN_PRICE).toString());
+      }
+      
+      if (deferredPriceRange && deferredPriceRange[1] !== dynamicMaxPrice) {
+        params.set('maxPrice', (deferredPriceRange[1] || dynamicMaxPrice).toString());
+      }
+      
+      if (currentPage > 1) {
+        params.set('page', currentPage.toString());
+      }
+      
+      const newUrl = `${pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+      const currentUrl = window.location.pathname + window.location.search;
+      
+      // Only update URL if there's actually a meaningful change
+      if (currentUrl !== newUrl) {
+        router.replace(newUrl, { scroll: false });
+      }
+    }, 100); // Batch URL updates
 
-  // Enhanced fetch products with better performance
+    return () => {
+      if (urlUpdateTimeoutRef.current) {
+        clearTimeout(urlUpdateTimeoutRef.current);
+      }
+    };
+  }, [deferredSearchQuery, deferredPriceRange, currentPage, pathname, router, dynamicMinPrice, dynamicMaxPrice, priceRangeLoaded, initialized]);
+
+  // Enhanced fetch products
   const fetchProducts = useCallback(async () => {
     if (!priceRangeLoaded) return;
     
     setLoading(true);
-
     try {
       const queryParams = new URLSearchParams({
         status: 'active',
         page: currentPage.toString(),
         limit: PRODUCTS_PER_PAGE.toString(),
-        ...(debouncedSearch && { search: debouncedSearch })
+        ...(deferredSearchQuery?.trim() && { search: deferredSearchQuery.trim() })
       });
 
       const data = await fetchWithCache(`/api/products?${queryParams}`);
@@ -635,60 +687,38 @@ function ProductsPageContent() {
         let loadedProducts = data?.products || [];
         
         // Apply client-side price filtering
-        if (priceRange && (priceRange[0] !== dynamicMinPrice || priceRange[1] !== dynamicMaxPrice)) {
+        if (deferredPriceRange && (deferredPriceRange[0] !== dynamicMinPrice || deferredPriceRange[1] !== dynamicMaxPrice)) {
           loadedProducts = loadedProducts.filter(product => {
             const productPrice = product?.price || 0;
-            return productPrice >= priceRange[0] && productPrice <= priceRange[1];
+            return productPrice >= deferredPriceRange[0] && productPrice <= deferredPriceRange[1];
           });
         }
 
         setProducts(loadedProducts);
-        setTotalPages(data?.pagination?.totalPages || 1);
-        setTotalProducts(loadedProducts.length);
+        setTotalPages(data?.pagination?.totalPages || (loadedProducts.length > 0 ? 1 : 0));
+        setTotalProducts(data?.pagination?.totalProducts || loadedProducts.length);
       }
     } catch (error) {
-      if (error) {
+      if (error && error.name !== 'AbortError') {
         console.error('❌ Error fetching products:', error);
-        setProducts([]);
-        setTotalPages(1);
-        setTotalProducts(0);
+        if (products.length === 0) {
+          setProducts([]);
+          setTotalPages(0);
+          setTotalProducts(0);
+        }
       }
     } finally {
       setLoading(false);
     }
-  }, [currentPage, debouncedSearch, priceRange, dynamicMinPrice, dynamicMaxPrice, priceRangeLoaded, fetchWithCache]);
+  }, [currentPage, deferredSearchQuery, deferredPriceRange, dynamicMinPrice, dynamicMaxPrice, priceRangeLoaded, fetchWithCache, products.length]);
 
-  // Fetch products effect
   useEffect(() => {
     if (priceRangeLoaded && initialized) {
       fetchProducts();
     }
   }, [fetchProducts, priceRangeLoaded, initialized]);
 
-  // Prefetch next page for instant navigation
-  const prefetchNextPage = useCallback(() => {
-    if (currentPage < totalPages && !loading) {
-      const nextPageParams = new URLSearchParams({
-        status: 'active',
-        page: (currentPage + 1).toString(),
-        limit: PRODUCTS_PER_PAGE.toString(),
-        ...(debouncedSearch && { search: debouncedSearch })
-      });
-      
-      // Prefetch in background
-      fetchWithCache(`/api/products?${nextPageParams}`).catch(() => {
-        // Silently fail for prefetch
-      });
-    }
-  }, [currentPage, totalPages, loading, debouncedSearch, fetchWithCache]);
-
-  // Trigger prefetch when user is near the end of current page
-  useEffect(() => {
-    const timer = setTimeout(prefetchNextPage, 1000);
-    return () => clearTimeout(timer);
-  }, [prefetchNextPage]);
-
-  // Event handlers with better performance
+  // Event handlers
   const handleProductClick = useCallback((product) => {
     if (product?._id) {
       router.push(`/products/${product._id}`);
@@ -711,37 +741,51 @@ function ProductsPageContent() {
 
   const handlePageChange = useCallback((page) => {
     if (page !== currentPage && page >= 1 && page <= totalPages && !loading) {
-      setCurrentPage(page);
+      startTransition(() => {
+        setCurrentPage(page);
+      });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [currentPage, totalPages, loading]);
 
   const handleSearchChange = useCallback((e) => {
-    setSearchQuery(e.target.value || '');
+    const value = e.target.value;
+    setSearchQuery(value);
   }, []);
+
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery('');
+    if (currentPage !== 1) {
+      startTransition(() => {
+        setCurrentPage(1);
+      });
+    }
+  }, [currentPage]);
 
   const handlePriceRangeChange = useCallback((newRange) => {
     if (newRange && Array.isArray(newRange) && newRange.length === 2) {
-      setPriceRange(newRange);
-      if (currentPage !== 1) {
-        setCurrentPage(1);
-      }
+      startTransition(() => {
+        setPriceRange(newRange);
+        if (currentPage !== 1) {
+          setCurrentPage(1);
+        }
+      });
     }
   }, [currentPage]);
 
   const handleClearFilters = useCallback(() => {
-    setPriceRange([dynamicMinPrice, dynamicMaxPrice]);
-    setSearchQuery('');
-    setDebouncedSearch('');
-    setCurrentPage(1);
+    startTransition(() => {
+      setPriceRange([dynamicMinPrice, dynamicMaxPrice]);
+      setSearchQuery('');
+      setCurrentPage(1);
+    });
   }, [dynamicMinPrice, dynamicMaxPrice]);
 
   const hasActiveFilters = useMemo(() => {
-    return (debouncedSearch?.trim() || '') !== '' || 
-           (priceRange && (priceRange[0] !== dynamicMinPrice || priceRange[1] !== dynamicMaxPrice));
-  }, [debouncedSearch, priceRange, dynamicMinPrice, dynamicMaxPrice]);
+    return (deferredSearchQuery?.trim() || '') !== '' || 
+           (deferredPriceRange && (deferredPriceRange[0] !== dynamicMinPrice || deferredPriceRange[1] !== dynamicMaxPrice));
+  }, [deferredSearchQuery, deferredPriceRange, dynamicMinPrice, dynamicMaxPrice]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -750,10 +794,13 @@ function ProductsPageContent() {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
+      if (urlUpdateTimeoutRef.current) {
+        clearTimeout(urlUpdateTimeoutRef.current);
+      }
     };
   }, []);
 
-  if (loading && currentPage === 1 && products.length === 0) {
+  if (loading && currentPage === 1 && products.length === 0 && !searchQuery.trim()) {
     return <Loading />;
   }
 
@@ -765,36 +812,52 @@ function ProductsPageContent() {
         <div className="mb-8">
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
             
-            {/* Search and Filter Controls */}
             <div className="flex flex-col sm:flex-row gap-4 lg:ml-auto">
-              {/* Search */}
-              <div className="relative">
-                <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              {/* Enhanced Search */}
+              <div className="relative group">
+                <Search size={20} className={`absolute left-3 top-1/2 transform -translate-y-1/2 transition-colors ${
+                  searchQuery ? 'text-purple-500' : 'text-gray-400'
+                }`} />
                 <input
                   type="text"
                   placeholder="Search products..."
                   value={searchQuery}
                   onChange={handleSearchChange}
-                  className="pl-10 pr-4 py-2 w-80 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+                  className="pl-10 pr-10 py-2 w-80 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all duration-200 group-hover:shadow-md"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={handleClearSearch}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    type="button"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+                {/* Search status indicator */}
+                {deferredSearchQuery && deferredSearchQuery !== searchQuery && (
+                  <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
+                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                  </div>
+                )}
               </div>
               
-              {/* Filter Toggle Button */}
+              {/* Filter Toggle */}
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center px-4 py-2 border rounded-lg transition-all ${
+                className={`flex items-center px-4 py-2 border rounded-lg transition-all duration-200 transform hover:scale-105 ${
                   showFilters || hasActiveFilters
-                    ? 'bg-purple-600 text-white border-purple-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    ? 'bg-purple-600 text-white border-purple-600 shadow-lg'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:shadow-md'
                 }`}
               >
                 <Filter size={20} className="mr-2" />
                 Filters
                 {hasActiveFilters && (
-                  <span className="ml-2 bg-white text-purple-600 px-2 py-0.5 rounded-full text-xs font-medium">
+                  <span className="ml-2 bg-white text-purple-600 px-2 py-0.5 rounded-full text-xs font-medium animate-pulse">
                     {[
-                      (debouncedSearch?.trim() || '') !== '' && 'Search', 
-                      priceRange && (priceRange[0] !== dynamicMinPrice || priceRange[1] !== dynamicMaxPrice) && 'Price'
+                      (deferredSearchQuery?.trim() || '') !== '' && 'Search', 
+                      deferredPriceRange && (deferredPriceRange[0] !== dynamicMinPrice || deferredPriceRange[1] !== dynamicMaxPrice) && 'Price'
                     ].filter(Boolean).length}
                   </span>
                 )}
@@ -802,23 +865,26 @@ function ProductsPageContent() {
             </div>
           </div>
 
-          {/* Filter Panel */}
+          {/* Enhanced Filter Panel */}
           <AnimatePresence>
             {showFilters && (
               <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden bg-white rounded-lg border border-gray-200 shadow-sm mb-6"
+                initial={{ height: 0, opacity: 0, scale: 0.95 }}
+                animate={{ height: 'auto', opacity: 1, scale: 1 }}
+                exit={{ height: 0, opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="overflow-hidden bg-white rounded-xl border border-gray-200 shadow-xl mb-6 backdrop-blur-sm"
               >
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                      <Filter size={20} className="mr-2 text-purple-500" />
+                      Advanced Filters
+                    </h3>
                     {hasActiveFilters && (
                       <button
                         onClick={handleClearFilters}
-                        className="flex items-center px-3 py-1 text-sm text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-md transition-colors"
+                        className="flex items-center px-3 py-1 text-sm text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-md transition-all duration-200 transform hover:scale-105"
                       >
                         <X size={16} className="mr-1" />
                         Clear All
@@ -827,29 +893,42 @@ function ProductsPageContent() {
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Dynamic Price Range Filter */}
                     <div>
                       <PriceRangeSlider
-                        minPrice={priceRange?.[0] || dynamicMinPrice}
-                        maxPrice={priceRange?.[1] || dynamicMaxPrice}
+                        minPrice={deferredPriceRange?.[0] || dynamicMinPrice}
+                        maxPrice={deferredPriceRange?.[1] || dynamicMaxPrice}
                         onRangeChange={handlePriceRangeChange}
                         minValue={dynamicMinPrice}
                         maxValue={dynamicMaxPrice}
                       />
                     </div>
                     
-                    {/* Additional filters info */}
                     <div className="flex items-end">
-                      <div className="text-sm text-gray-500">
-                        <p>Showing {totalProducts || 0} products</p>
+                      <div className="text-sm text-gray-500 space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                          <span>Showing {totalProducts || 0} products</span>
+                        </div>
                         {hasActiveFilters && (
-                          <p className="mt-1 text-purple-600">Filters applied</p>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                            <span className="text-purple-600">Filters applied</span>
+                          </div>
+                        )}
+                        {deferredSearchQuery?.trim() && (
+                          <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                            <span className="text-blue-600">Searching: "{deferredSearchQuery.trim()}"</span>
+                          </div>
                         )}
                         {priceRangeLoaded && (
-                          <p className="mt-1 text-gray-400">
-                            Products range: BDT {dynamicMinPrice.toLocaleString()} - BDT {dynamicMaxPrice.toLocaleString()}
-                          </p>
+                          <div className="text-gray-400">
+                            Range: BDT {dynamicMinPrice.toLocaleString()} - BDT {dynamicMaxPrice.toLocaleString()}
+                          </div>
                         )}
+                        <div className="text-xs text-gray-400">
+                          Page {currentPage} of {totalPages || 1}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -862,25 +941,26 @@ function ProductsPageContent() {
         {/* Products Grid */}
         <div className="relative">
           {loading && (
-            <div className="absolute top-0 left-0 right-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center py-4">
+            <div className="absolute top-0 left-0 right-0 bg-white/90 backdrop-blur-sm z-10 flex items-center justify-center py-4 rounded-lg shadow-lg">
               <Loader2 size={24} className="animate-spin text-purple-600" />
-              <span className="ml-2 text-purple-600">Loading...</span>
+              <span className="ml-2 text-purple-600 font-medium">
+                {deferredSearchQuery?.trim() ? `Searching for "${deferredSearchQuery.trim()}"...` : 'Loading products...'}
+              </span>
             </div>
           )}
           
           <AnimatePresence mode="wait">
             <motion.div
-              key={`${currentPage}-${debouncedSearch}-${priceRange?.[0]}-${priceRange?.[1]}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
+              key={`${currentPage}-${deferredSearchQuery}-${deferredPriceRange?.[0]}-${deferredPriceRange?.[1]}`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
               className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8"
             >
               {loading && products.length === 0 ? (
-                // Show skeletons while loading
                 Array.from({ length: PRODUCTS_PER_PAGE }).map((_, i) => (
-                  <ProductSkeleton key={i} />
+                  <ProductSkeleton key={`skeleton-${i}`} />
                 ))
               ) : products.length === 0 ? (
                 <div className="col-span-full text-center py-20">
@@ -888,30 +968,33 @@ function ProductsPageContent() {
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     {hasActiveFilters ? 'No products found' : 'No products available'}
                   </h3>
-                  <p className="text-gray-600">
-                    {hasActiveFilters 
-                      ? 'Try adjusting your filters or search terms' 
-                      : 'Please check back later'
+                  <p className="text-gray-600 mb-4">
+                    {deferredSearchQuery?.trim() 
+                      ? `No results found for "${deferredSearchQuery.trim()}". Try different keywords or adjust your filters.`
+                      : hasActiveFilters 
+                        ? 'Try adjusting your filters or search terms' 
+                        : 'Please check back later'
                     }
                   </p>
                   {hasActiveFilters && (
                     <button
                       onClick={handleClearFilters}
-                      className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                      className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
                     >
-                      Clear Filters
+                      Clear All Filters
                     </button>
                   )}
                 </div>
               ) : (
-                products.map((product) => (
+                products.map((product, index) => (
                   <ProductCard
-                    key={product?._id || Math.random()}
+                    key={product?._id || `product-${index}`}
                     product={product}
                     onProductClick={handleProductClick}
                     onAddToCart={handleAddToCart}
                     onToggleFavorite={handleToggleFavorite}
                     isFavorite={isFavorite(product?._id)}
+                    index={index + (currentPage - 1) * PRODUCTS_PER_PAGE}
                   />
                 ))
               )}
@@ -930,7 +1013,7 @@ function ProductsPageContent() {
         )}
       </div>
 
-      {/* Custom CSS for range slider */}
+      {/* Enhanced Custom CSS */}
       <style jsx>{`
         .slider-thumb {
           -webkit-appearance: none;
@@ -939,32 +1022,59 @@ function ProductsPageContent() {
         
         .slider-thumb::-webkit-slider-thumb {
           -webkit-appearance: none;
-          height: 20px;
-          width: 20px;
-          background: #7c3aed;
+          height: 24px;
+          width: 24px;
+          background: linear-gradient(135deg, #7c3aed, #a855f7);
           border-radius: 50%;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          border: 3px solid white;
+          box-shadow: 0 4px 8px rgba(124, 58, 237, 0.3), 0 2px 4px rgba(0,0,0,0.1);
           cursor: pointer;
           pointer-events: auto;
+          transition: all 0.2s ease;
+          transform: scale(1);
+        }
+        
+        .slider-thumb::-webkit-slider-thumb:hover {
+          transform: scale(1.1);
+          box-shadow: 0 6px 12px rgba(124, 58, 237, 0.4), 0 4px 8px rgba(0,0,0,0.15);
         }
         
         .slider-thumb::-moz-range-thumb {
-          height: 20px;
-          width: 20px;
-          background: #7c3aed;
+          height: 24px;
+          width: 24px;
+          background: linear-gradient(135deg, #7c3aed, #a855f7);
           border-radius: 50%;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          border: 3px solid white;
+          box-shadow: 0 4px 8px rgba(124, 58, 237, 0.3), 0 2px 4px rgba(0,0,0,0.1);
           cursor: pointer;
           pointer-events: auto;
+          transition: all 0.2s ease;
+        }
+
+        @keyframes shimmer {
+          0% {
+            background-position: -200% 0;
+          }
+          100% {
+            background-position: 200% 0;
+          }
+        }
+
+        .animate-shimmer {
+          animation: shimmer 2s infinite linear;
+        }
+
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         }
       `}</style>
     </div>
   );
 }
 
-// Main export component with Suspense boundary
 export default function ProductsPage() {
   return (
     <Suspense fallback={
