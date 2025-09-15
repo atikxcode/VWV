@@ -5,6 +5,7 @@ import { Swiper, SwiperSlide } from 'swiper/react'
 import { Autoplay } from 'swiper/modules'
 import 'swiper/css'
 import 'swiper/css/autoplay'
+import { useRouter } from 'next/navigation'
 
 import BlurText from './TextAnimation'
 
@@ -63,7 +64,7 @@ const handleAnimationComplete = () => {
 }
 
 // Optimized Slide Component
-const OptimizedSlide = React.memo(({ slide, index, isActive, isMobile }) => {
+const OptimizedSlide = React.memo(({ slide, index, isActive, isMobile, router }) => {
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
   const slideRef = useRef(null)
@@ -84,6 +85,10 @@ const OptimizedSlide = React.memo(({ slide, index, isActive, isMobile }) => {
       ? `${baseClasses} items-start justify-center px-6 md:px-10`
       : `${baseClasses} items-center justify-center text-center px-4`
   }, [slide.alignment])
+
+  const handleButtonClick = useCallback(() => {
+    router.push('/products')
+  }, [router])
 
   return (
     <div 
@@ -152,6 +157,7 @@ const OptimizedSlide = React.memo(({ slide, index, isActive, isMobile }) => {
           />
 
           <button 
+            onClick={handleButtonClick}
             className="mt-4 md:mt-8 bg-purple-400 hover:bg-purple-500 text-white px-6 md:px-8 py-2 md:py-3 text-xs md:text-sm uppercase tracking-widest transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-300"
             aria-label={`${slide.buttonText} - ${slide.title}`}
           >
@@ -173,6 +179,7 @@ const OptimizedSlide = React.memo(({ slide, index, isActive, isMobile }) => {
 OptimizedSlide.displayName = 'OptimizedSlide'
 
 const Slider = () => {
+  const router = useRouter()
   const [isMobile, setIsMobile] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const [isClient, setIsClient] = useState(false)
@@ -265,6 +272,7 @@ const Slider = () => {
               index={index} 
               isActive={activeIndex === index}
               isMobile={isMobile}
+              router={router}
             />
           </SwiperSlide>
         ))}
