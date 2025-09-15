@@ -277,7 +277,7 @@ const ProductCard = React.memo(({ product, onProductClick, onAddToCart, onToggle
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       whileHover={{ y: -8, scale: 1.02 }}
-      className="bg-white rounded-2xl shadow-lg overflow-hidden cursor-pointer group hover:shadow-2xl transition-all duration-300 relative max-w-sm mx-auto w-full"
+      className="bg-white rounded-sm shadow-lg overflow-hidden cursor-pointer group hover:shadow-2xl transition-all duration-300 relative max-w-sm mx-auto w-full"
       onClick={() => onProductClick(product)}
     >
       {/* Favorite Button */}
@@ -291,13 +291,13 @@ const ProductCard = React.memo(({ product, onProductClick, onAddToCart, onToggle
           className={`${
             isFavorite 
               ? 'text-red-500 fill-red-500' 
-              : 'text-gray-400 hover:text-red-500'
+              : 'text-gray-400 hover:text-purple-500'
           } transition-colors`}
         />
       </button>
 
       {/* Optimized Product Image with proper validation */}
-      <div className="relative w-full h-80 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
+      <div className="relative w-full h-90 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
         {hasValidImage && !imageError ? (
           <>
             {!imageLoaded && (
@@ -340,18 +340,20 @@ const ProductCard = React.memo(({ product, onProductClick, onAddToCart, onToggle
           </p>
         )}
 
+        
+
         <div className="text-xl font-semibold text-purple-600 mb-4">
           BDT {(product?.price || 0).toLocaleString()}
         </div>
 
         {/* Add to Cart Button */}
-        <button
+        {/* <button
           onClick={(e) => onAddToCart(e, product)}
           className="w-full bg-purple-600 text-white py-3 px-4 rounded-lg hover:bg-purple-700 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 font-semibold"
         >
           <ShoppingCart size={18} />
           Add to Cart
-        </button>
+        </button> */}
       </div>
     </motion.div>
   );

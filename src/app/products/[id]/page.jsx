@@ -12,10 +12,13 @@ import {
   Minus,
   Heart,
   ShoppingCart,
-  ChevronDown
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useCart } from '../../../../components/hooks/useCart';
 import { useFavorites } from '../../../../components/hooks/useFavorites';
+import Loading from '../../../../components/Loading';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -24,6 +27,7 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [imageLoadErrors, setImageLoadErrors] = useState({});
 
   // Branch specification states
   const [selectedNicotineStrength, setSelectedNicotineStrength] = useState('');
@@ -71,7 +75,15 @@ export default function ProductDetailPage() {
     }
   };
 
-  // Helper function to get all branches from stock
+  // Handle image load errors
+  const handleImageError = (imageIndex) => {
+    setImageLoadErrors(prev => ({
+      ...prev,
+      [imageIndex]: true
+    }));
+  };
+
+  // Helper functions (keeping all existing helper functions)
   const getBranches = () => {
     if (!product?.stock) {
       return [];
@@ -84,7 +96,6 @@ export default function ProductDetailPage() {
     return branches;
   };
 
-  // Helper function to get branch stock availability (raw stock only)
   const getBranchStockStatus = (branchName) => {
     const stockKey = `${branchName}_stock`;
     const stockValue = product?.stock?.[stockKey] || 0;
@@ -92,27 +103,22 @@ export default function ProductDetailPage() {
     return stockValue > 0;
   };
 
-  // Helper function to check if branch has selected specification
   const branchHasSpecification = (branchName, specType, specValue) => {
     if (!product?.branchSpecifications?.[branchName]?.[specType]) return false;
     return product.branchSpecifications[branchName][specType].includes(specValue);
   };
 
-  // Helper function to check if any specifications are selected
   const hasAnySelections = () => {
     return selectedNicotineStrength || selectedVgPgRatio || selectedColor;
   };
 
-  // Helper function to get branch display status based on selections
   const getBranchDisplayStatus = (branchName) => {
     const hasStock = getBranchStockStatus(branchName);
     
-    // If no selections made, show raw stock status only
     if (!hasAnySelections()) {
       return hasStock;
     }
 
-    // Check if branch has all selected specifications
     let hasAllSpecs = true;
     
     if (selectedNicotineStrength && !branchHasSpecification(branchName, 'nicotineStrength', selectedNicotineStrength)) {
@@ -130,7 +136,6 @@ export default function ProductDetailPage() {
     return hasStock && hasAllSpecs;
   };
 
-  // Helper function to get unique values across all branches for a specification
   const getUniqueSpecificationValues = (specType) => {
     if (!product?.branchSpecifications) return [];
     
@@ -144,14 +149,12 @@ export default function ProductDetailPage() {
     return Array.from(allValues);
   };
 
-  // Helper function to check if all branches have identical single value
   const shouldShowAsText = (specType) => {
     if (!product?.branchSpecifications) return false;
     
     const branches = Object.values(product.branchSpecifications);
     if (branches.length === 0) return false;
 
-    // Check if all branches have exactly 1 item and all items are identical
     let firstValue = null;
     
     for (const branchSpec of branches) {
@@ -169,19 +172,16 @@ export default function ProductDetailPage() {
     return firstValue !== null;
   };
 
-  // 🔧 FIXED: Helper function to get the single value for text display
   const getSingleSpecificationValue = (specType) => {
     if (!product?.branchSpecifications) return '';
     const firstBranch = Object.values(product.branchSpecifications)[0];
     return firstBranch?.[specType]?.[0] || '';
   };
 
-  // Helper function to check if product has branch specifications
   const hasBranchSpecifications = () => {
     return product?.branchSpecifications && Object.keys(product.branchSpecifications).length > 0;
   };
 
-  // Helper function to check if product has any specifications at all
   const hasAnySpecifications = () => {
     const nicotineOptions = getUniqueSpecificationValues('nicotineStrength');
     const vgPgOptions = getUniqueSpecificationValues('vgPgRatio');
@@ -190,11 +190,22 @@ export default function ProductDetailPage() {
     return nicotineOptions.length > 0 || vgPgOptions.length > 0 || colorOptions.length > 0;
   };
 
+  // Navigation functions for image carousel
+  const goToPrevious = () => {
+    setCurrentImageIndex((prevIndex) => 
+      prevIndex === 0 ? product.images.length - 1 : prevIndex - 1
+    );
+  };
+
+  const goToNext = () => {
+    setCurrentImageIndex((prevIndex) => 
+      prevIndex === product.images.length - 1 ? 0 : prevIndex + 1
+    );
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-500"></div>
-      </div>
+      <Loading />
     );
   }
 
@@ -220,9 +231,12 @@ export default function ProductDetailPage() {
   const vgPgOptions = getUniqueSpecificationValues('vgPgRatio');
   const colorOptions = getUniqueSpecificationValues('colors');
 
+  // Check if we have multiple images
+  const hasMultipleImages = product.images && product.images.length > 1;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
-      {/* Clean Header - No Cart/Favorites Icons */}
+      {/* Clean Header */}
       <header className="bg-white shadow-lg sticky top-0 z-30 mb-10">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex justify-between items-center">
@@ -240,23 +254,56 @@ export default function ProductDetailPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Product Images */}
-          <div className="space-y-4">
+          {/* Product Images Section */}
+          <div className="space-y-6">
+            {/* Main Image with Navigation - FIXED */}
             <motion.div 
-              className="relative w-full h-96 bg-white rounded-2xl shadow-lg overflow-hidden"
+              className="relative w-full h-[40rem] bg-gray-50 rounded-2xl shadow-lg overflow-hidden group"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
             >
-              {product.images && product.images.length > 0 ? (
-                <Image
-                  src={product.images[currentImageIndex]?.url || product.images[0].url}
-                  alt={product.images[currentImageIndex]?.alt || product.name}
-                  fill
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                  className="object-cover"
-                  priority
-                />
+              {product.images && product.images.length > 0 && !imageLoadErrors[currentImageIndex] ? (
+                <>
+                  <Image
+                    src={product.images[currentImageIndex]?.url || product.images[0].url}
+                    alt={product.images[currentImageIndex]?.alt || product.name}
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    className="object-cover"
+                    priority
+                    onError={() => handleImageError(currentImageIndex)}
+                    unoptimized={true}
+                  />
+                  
+                  {/* Navigation Arrows - Only show if multiple images */}
+                  {hasMultipleImages && (
+                    <>
+                      <button
+                        onClick={goToPrevious}
+                        className="absolute left-4 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-purple-400 bg-opacity-50 hover:bg-opacity-70 text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 backdrop-blur-sm z-10"
+                        aria-label="Previous image"
+                      >
+                        <ChevronLeft size={24} />
+                      </button>
+                      
+                      <button
+                        onClick={goToNext}
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-purple-400 bg-opacity-50 hover:bg-opacity-70 text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 backdrop-blur-sm z-10"
+                        aria-label="Next image"
+                      >
+                        <ChevronRight size={24} />
+                      </button>
+                    </>
+                  )}
+
+                  {/* Image Counter - Only show if multiple images */}
+                  {hasMultipleImages && (
+                    <div className="absolute bottom-4 right-4 bg-purple-400 bg-opacity-60 text-white px-3 py-1 rounded-full text-sm backdrop-blur-sm z-10">
+                      {currentImageIndex + 1} / {product.images.length}
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gray-100">
                   <Package size={64} className="text-gray-400" />
@@ -264,31 +311,92 @@ export default function ProductDetailPage() {
               )}
             </motion.div>
 
-            {/* Image Thumbnails */}
-            {product.images && product.images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto">
-                {product.images.map((image, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentImageIndex(index)}
-                    className={`relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 ${
-                      currentImageIndex === index ? 'ring-2 ring-purple-500' : ''
-                    }`}
-                  >
-                    <Image
-                      src={image.url}
-                      alt={image.alt || `${product.name} image ${index + 1}`}
-                      fill
-                      sizes="80px"
-                      className="object-cover"
+            {/* Beautiful Image Carousel - Only show if multiple images - FIXED */}
+            {hasMultipleImages && (
+              <motion.div 
+                className="space-y-4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <h4 className="text-lg font-semibold text-gray-800">Product Gallery</h4>
+                  <span className="text-sm text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
+                    {product.images.length} images
+                  </span>
+                </div>
+
+                {/* Scrollable Thumbnail Carousel - FIXED */}
+                <div className=" pb-4">
+                  <div className="flex gap-3 min-w-max">
+                    {product.images.map((image, index) => (
+                      <motion.button
+                        key={index}
+                        onClick={() => setCurrentImageIndex(index)}
+                        className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden transition-all duration-300 border-2 bg-gray-50 ${
+                          currentImageIndex === index 
+                            ? 'border-purple-500 shadow-lg transform scale-110' 
+                            : 'border-gray-200 hover:border-purple-300 hover:shadow-md hover:scale-105'
+                        }`}
+                        whileHover={{ scale: currentImageIndex === index ? 1.1 : 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        {!imageLoadErrors[index] ? (
+                          <Image
+                            src={image.url}
+                            alt={image.alt || `${product.name} view ${index + 1}`}
+                            fill
+                            sizes="80px"
+                            className="object-cover p-1"
+                            onError={() => handleImageError(index)}
+                            unoptimized={true}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                            <Package size={24} className="text-gray-400" />
+                          </div>
+                        )}
+                        
+                        {/* Active Overlay */}
+                        {currentImageIndex === index && (
+                          <div className="absolute inset-0  bg-opacity-10 flex items-center justify-center">
+                            <div className=" rounded-full shadow-lg"></div>
+                          </div>
+                        )}
+                        
+                        {/* Hover Overlay */}
+                        <div className="absolute inset-0  bg-opacity-0 hover:bg-opacity-5 transition-all duration-200"></div>
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Navigation Dots */}
+                <div className="flex justify-center gap-2 pt-2">
+                  {product.images.slice(0, Math.min(product.images.length, 10)).map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentImageIndex(index)}
+                      className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                        currentImageIndex === index 
+                          ? 'bg-purple-600 w-6' 
+                          : 'bg-gray-300 hover:bg-purple-400'
+                      }`}
+                      aria-label={`Go to image ${index + 1}`}
                     />
-                  </button>
-                ))}
-              </div>
+                  ))}
+                  {product.images.length > 10 && (
+                    <span className="text-xs text-gray-500 ml-2">
+                      +{product.images.length - 10} more
+                    </span>
+                  )}
+                </div>
+              </motion.div>
             )}
           </div>
 
-          {/* Product Details */}
+          {/* Product Details - Rest of the component remains the same */}
           <motion.div 
             className="space-y-6"
             initial={{ opacity: 0, x: 50 }}
@@ -365,7 +473,7 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Branch Specifications - Only show if there are actual specifications */}
+            {/* Branch Specifications */}
             {hasBranchSpecifications() && hasAnySpecifications() && (
               <div className="bg-white rounded-lg shadow p-4">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Product Options</h3>
@@ -473,7 +581,7 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Outlet Wise Stock Status - Always show if branches exist */}
+            {/* Outlet Wise Stock Status */}
             {branches.length > 0 && (
               <div className="bg-white rounded-lg shadow p-4">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Outlet Wise Stock:</h3>
@@ -483,14 +591,14 @@ export default function ProductDetailPage() {
                     
                     return (
                       <div key={branch} className="flex items-center gap-3">
-                        <Store size={18} className={isAvailable ? "text-green-600" : "text-red-600"} />
+                        <Store size={18} className={isAvailable ? "text-purple-600" : "text-red-600"} />
                         <span className="font-medium text-gray-900 uppercase">
                           {branch.toUpperCase()}:
                         </span>
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                           isAvailable 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
+                            ? 'bg-purple-400 text-white' 
+                            : 'bg-red-400 text-black'
                         }`}>
                           {isAvailable ? 'In Stock' : 'Out of Stock'}
                         </span>
@@ -580,6 +688,17 @@ export default function ProductDetailPage() {
           </motion.div>
         </div>
       </div>
+
+      {/* Custom CSS for hiding scrollbars */}
+      <style jsx global>{`
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 }

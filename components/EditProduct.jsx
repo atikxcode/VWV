@@ -359,7 +359,7 @@ const ImageGallery = ({
                             alt={image.alt}
                             className="w-full h-full object-cover"
                           />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all">
+                          <div className="absolute inset-0  bg-opacity-0 group-hover:bg-opacity-40 transition-all">
                             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                               <button
                                 type="button"
