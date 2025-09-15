@@ -235,9 +235,9 @@ export default function ProductDetailPage() {
   const hasMultipleImages = product.images && product.images.length > 1;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen ">
       {/* Clean Header */}
-      <header className="bg-white shadow-lg sticky top-0 z-30 mb-10">
+      <header className="bg-purple-50 shadow-lg sticky top-0 z-30 mb-10">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex justify-between items-center">
             <button

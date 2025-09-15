@@ -805,7 +805,7 @@ function ProductsPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen ">
       <div className="max-w-7xl mx-auto px-4 py-8">
         
         {/* Header Section */}
