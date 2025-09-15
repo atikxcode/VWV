@@ -15,6 +15,7 @@ import {
   Filter,
   X
 } from 'lucide-react';
+import { Suspense } from 'react';
 import { useCart } from '../../../components/hooks/useCart';
 import { useFavorites } from '../../../components/hooks/useFavorites';
 import Loading from '../../../components/Loading';
@@ -358,10 +359,10 @@ const ProductCard = React.memo(({ product, onProductClick, onAddToCart, onToggle
 
 ProductCard.displayName = 'ProductCard';
 
-// Main Products Page Component with Dynamic Price Range from Available Products
-export default function ProductsPage() {
+// FIXED: Main Products Page Component - Simplified with direct useSearchParams
+function ProductsPageContent() {
   const [products, setProducts] = useState([]);
-  const [allProducts, setAllProducts] = useState([]); // Store all products for price calculation
+  const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -370,15 +371,14 @@ export default function ProductsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [priceRange, setPriceRange] = useState([DEFAULT_MIN_PRICE, FALLBACK_MAX_PRICE]);
   const [showFilters, setShowFilters] = useState(false);
-  
-  // Dynamic price bounds calculated from actual products
   const [dynamicMinPrice, setDynamicMinPrice] = useState(DEFAULT_MIN_PRICE);
   const [dynamicMaxPrice, setDynamicMaxPrice] = useState(FALLBACK_MAX_PRICE);
   const [priceRangeLoaded, setPriceRangeLoaded] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // Direct usage - wrapped in Suspense at parent level
   const { addToCart } = useCart();
   const { toggleFavorite, isFavorite } = useFavorites();
 
@@ -423,7 +423,7 @@ export default function ProductsPage() {
     try {
       console.log('🔍 Fetching all products for price range calculation...');
       
-      const response = await fetch('/api/products?status=active&limit=1000'); // Get more products for price calculation
+      const response = await fetch('/api/products?status=active&limit=1000');
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -445,8 +445,10 @@ export default function ProductsPage() {
     }
   }, [calculatePriceRange]);
 
-  // Initialize from URL params and fetch price range on mount
+  // Initialize from URL params and fetch price range on mount (FIXED: Run only once)
   useEffect(() => {
+    if (initialized) return; // Prevent multiple initializations
+    
     const page = parseInt(searchParams.get('page') || '1') || 1;
     const search = searchParams.get('search') || '';
     const minPrice = parseInt(searchParams.get('minPrice') || DEFAULT_MIN_PRICE.toString()) || DEFAULT_MIN_PRICE;
@@ -456,12 +458,13 @@ export default function ProductsPage() {
     setSearchQuery(search);
     setDebouncedSearch(search);
     setPriceRange([minPrice, maxPrice]);
+    setInitialized(true);
     
     // Fetch all products for price range calculation
     fetchAllProductsForPriceRange();
-  }, []); // Run only once on mount
+  }, [searchParams, fetchAllProductsForPriceRange, initialized]);
 
-  // Debounced search effect - separated from URL updates
+  // Debounced search effect
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
@@ -471,11 +474,11 @@ export default function ProductsPage() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]); // Only depend on searchQuery
+  }, [searchQuery, currentPage]);
 
-  // Update URL when search, price range, or page changes
+  // Update URL when search, price range, or page changes (FIXED: Prevent circular updates)
   useEffect(() => {
-    if (!priceRangeLoaded) return; // Don't update URL until price range is loaded
+    if (!priceRangeLoaded || !initialized) return;
     
     const params = new URLSearchParams();
     
@@ -496,21 +499,21 @@ export default function ProductsPage() {
     }
     
     const newUrl = `${pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+    const currentUrl = window.location.pathname + window.location.search;
     
-    // Only update URL if it's different from current URL
-    if (window.location.pathname + window.location.search !== newUrl) {
+    // Only update URL if it's different and we're not in the middle of initialization
+    if (currentUrl !== newUrl) {
       router.replace(newUrl, { scroll: false });
     }
-  }, [debouncedSearch, priceRange, currentPage, pathname, router, dynamicMinPrice, dynamicMaxPrice, priceRangeLoaded]);
+  }, [debouncedSearch, priceRange, currentPage, pathname, router, dynamicMinPrice, dynamicMaxPrice, priceRangeLoaded, initialized]);
 
-  // Fetch products function with client-side filtering using actual products
+  // Fetch products function
   const fetchProducts = useCallback(async () => {
-    if (!priceRangeLoaded) return; // Wait for price range to be calculated
+    if (!priceRangeLoaded) return;
     
     setLoading(true);
 
     try {
-      // Get products with search but without price filtering
       const queryParams = new URLSearchParams({
         status: 'active',
         page: currentPage.toString(),
@@ -541,7 +544,7 @@ export default function ProductsPage() {
 
       let loadedProducts = data?.products || [];
       
-      // Apply client-side price filtering using dynamic range
+      // Apply client-side price filtering
       if (priceRange && (priceRange[0] !== dynamicMinPrice || priceRange[1] !== dynamicMaxPrice)) {
         loadedProducts = loadedProducts.filter(product => {
           const productPrice = product?.price || 0;
@@ -558,7 +561,7 @@ export default function ProductsPage() {
 
       setProducts(loadedProducts);
       setTotalPages(data?.pagination?.totalPages || 1);
-      setTotalProducts(loadedProducts.length); // Show filtered count
+      setTotalProducts(loadedProducts.length);
 
     } catch (error) {
       console.error('❌ Error fetching products:', error);
@@ -572,12 +575,12 @@ export default function ProductsPage() {
 
   // Fetch products when dependencies change
   useEffect(() => {
-    if (priceRangeLoaded) {
+    if (priceRangeLoaded && initialized) {
       fetchProducts();
     }
-  }, [fetchProducts, priceRangeLoaded]);
+  }, [fetchProducts, priceRangeLoaded, initialized]);
 
-  // Handlers with safe property access
+  // Event handlers
   const handleProductClick = useCallback((product) => {
     if (product?._id) {
       console.log('🔍 Navigating to product:', product.name, product._id);
@@ -836,5 +839,18 @@ export default function ProductsPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+// Main export component with Suspense boundary
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <Loading />
+      </div>
+    }>
+      <ProductsPageContent />
+    </Suspense>
   );
 }
