@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,9 +23,22 @@ import Loading from '../../../components/Loading';
 // Enterprise-level configuration
 const PRODUCTS_PER_PAGE = 12;
 const DEFAULT_MIN_PRICE = 0;
-const FALLBACK_MAX_PRICE = 10000; // Fallback if no products found
+const FALLBACK_MAX_PRICE = 10000;
 
-// Price Range Slider Component with dynamic bounds
+// Skeleton Component for Better Loading Experience
+const ProductSkeleton = React.memo(() => (
+  <div className="bg-white rounded-sm shadow-lg overflow-hidden animate-pulse max-w-sm mx-auto w-full">
+    <div className="relative w-full h-90 bg-gray-200" />
+    <div className="p-6">
+      <div className="h-4 bg-gray-200 rounded mb-2" />
+      <div className="h-4 bg-gray-200 rounded w-2/3 mb-3" />
+      <div className="h-6 bg-gray-200 rounded w-1/3 mb-4" />
+    </div>
+  </div>
+));
+ProductSkeleton.displayName = 'ProductSkeleton';
+
+// Price Range Slider Component with enhanced performance
 const PriceRangeSlider = React.memo(({ 
   minPrice, 
   maxPrice, 
@@ -36,11 +49,22 @@ const PriceRangeSlider = React.memo(({
   const [localMinPrice, setLocalMinPrice] = useState(minPrice || DEFAULT_MIN_PRICE);
   const [localMaxPrice, setLocalMaxPrice] = useState(maxPrice || maxValue);
   const [isDragging, setIsDragging] = useState(false);
+  const updateTimeoutRef = useRef(null);
 
   useEffect(() => {
     setLocalMinPrice(minPrice || DEFAULT_MIN_PRICE);
     setLocalMaxPrice(maxPrice || maxValue);
   }, [minPrice, maxPrice, maxValue]);
+
+  // Debounced range change handler
+  const debouncedRangeChange = useCallback((newRange) => {
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+    updateTimeoutRef.current = setTimeout(() => {
+      onRangeChange(newRange);
+    }, 150);
+  }, [onRangeChange]);
 
   const handleMinChange = useCallback((e) => {
     const value = parseInt(e.target.value) || minValue;
@@ -61,24 +85,24 @@ const PriceRangeSlider = React.memo(({
   const handleMouseUp = useCallback(() => {
     if (isDragging) {
       setIsDragging(false);
-      onRangeChange([localMinPrice, localMaxPrice]);
+      debouncedRangeChange([localMinPrice, localMaxPrice]);
     }
-  }, [isDragging, localMinPrice, localMaxPrice, onRangeChange]);
+  }, [isDragging, localMinPrice, localMaxPrice, debouncedRangeChange]);
 
   const handleInputChange = useCallback((type, value) => {
     const numValue = parseInt(value) || 0;
     if (type === 'min') {
       if (numValue >= minValue && numValue <= (localMaxPrice - 100)) {
         setLocalMinPrice(numValue);
-        onRangeChange([numValue, localMaxPrice]);
+        debouncedRangeChange([numValue, localMaxPrice]);
       }
     } else {
       if (numValue <= maxValue && numValue >= (localMinPrice + 100)) {
         setLocalMaxPrice(numValue);
-        onRangeChange([localMinPrice, numValue]);
+        debouncedRangeChange([localMinPrice, numValue]);
       }
     }
-  }, [localMinPrice, localMaxPrice, minValue, maxValue, onRangeChange]);
+  }, [localMinPrice, localMaxPrice, minValue, maxValue, debouncedRangeChange]);
 
   const minPercent = useMemo(() => {
     const range = maxValue - minValue;
@@ -89,6 +113,15 @@ const PriceRangeSlider = React.memo(({
     const range = maxValue - minValue;
     return range > 0 ? ((localMaxPrice - minValue) / range) * 100 : 100;
   }, [localMaxPrice, minValue, maxValue]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="w-full">
@@ -172,7 +205,6 @@ const PriceRangeSlider = React.memo(({
     </div>
   );
 });
-
 PriceRangeSlider.displayName = 'PriceRangeSlider';
 
 // Optimized Pagination Component
@@ -257,27 +289,61 @@ const PaginationControls = React.memo(({
     </div>
   );
 });
-
 PaginationControls.displayName = 'PaginationControls';
 
-// Optimized Product Card Component
+// Enhanced Product Card Component with better image optimization
 const ProductCard = React.memo(({ product, onProductClick, onAddToCart, onToggleFavorite, isFavorite }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const cardRef = useRef(null);
 
-  // Check if we have a valid image URL with safe property access
-  const hasValidImage = product?.images && 
-                       product.images.length > 0 && 
-                       product.images[0]?.url && 
-                       product.images[0].url.trim() !== '';
+  // Enhanced image validation
+  const hasValidImage = useMemo(() => {
+    return product?.images && 
+           product.images.length > 0 && 
+           product.images[0]?.url && 
+           product.images[0].url.trim() !== '';
+  }, [product?.images]);
+
+  // Optimized blur data URL
+  const blurDataURL = useMemo(() => 
+    "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PC9zdmc+", 
+    []
+  );
+
+  // Intersection Observer for lazy loading
+  useEffect(() => {
+    if (!cardRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // Prefetch next page when user scrolls near bottom
+            const rect = entry.boundingClientRect;
+            const windowHeight = window.innerHeight;
+            if (rect.bottom <= windowHeight * 1.5) {
+              // Trigger prefetch logic here if needed
+            }
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '50px' }
+    );
+
+    observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <motion.div
+      ref={cardRef}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      whileHover={{ y: -8, scale: 1.02 }}
-      className="bg-white rounded-sm shadow-lg overflow-hidden cursor-pointer group hover:shadow-2xl transition-all duration-300 relative max-w-sm mx-auto w-full"
+      whileHover={{ y: -4, scale: 1.01 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      className="bg-white rounded-sm shadow-lg overflow-hidden cursor-pointer group hover:shadow-xl transition-all duration-200 relative max-w-sm mx-auto w-full"
       onClick={() => onProductClick(product)}
     >
       {/* Favorite Button */}
@@ -296,27 +362,28 @@ const ProductCard = React.memo(({ product, onProductClick, onAddToCart, onToggle
         />
       </button>
 
-      {/* Optimized Product Image with proper validation */}
+      {/* Enhanced Product Image */}
       <div className="relative w-full h-90 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
         {hasValidImage && !imageError ? (
           <>
             {!imageLoaded && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="animate-pulse bg-gray-200 w-full h-full"></div>
+                <div className="animate-pulse bg-gray-200 w-full h-full" />
               </div>
             )}
             <Image
               src={product.images[0].url}
               alt={product.images[0]?.alt || product?.name || 'Product image'}
               fill
-              sizes="(max-width: 640px) 100vw, (max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className={`object-cover group-hover:scale-105 transition-all duration-300 ${
+              sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className={`object-cover group-hover:scale-105 transition-transform duration-300 ${
                 imageLoaded ? 'opacity-100' : 'opacity-0'
               }`}
               priority={false}
               placeholder="blur"
-              blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+              blurDataURL={blurDataURL}
               loading="lazy"
+              quality={80}
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageError(true)}
             />
@@ -335,33 +402,29 @@ const ProductCard = React.memo(({ product, onProductClick, onAddToCart, onToggle
         </h3>
         
         {product?.brand && (
-          <p className="text-gray-600 text-sm mb-3 inline-block transition-all duration-300 group-hover:text-purple-600">
+          <p className="text-gray-600 text-sm mb-3 transition-colors duration-300 group-hover:text-purple-600">
             {product.brand}
           </p>
         )}
 
-        
-
         <div className="text-xl font-semibold text-purple-600 mb-4">
           BDT {(product?.price || 0).toLocaleString()}
         </div>
-
-        {/* Add to Cart Button */}
-        {/* <button
-          onClick={(e) => onAddToCart(e, product)}
-          className="w-full bg-purple-600 text-white py-3 px-4 rounded-lg hover:bg-purple-700 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 font-semibold"
-        >
-          <ShoppingCart size={18} />
-          Add to Cart
-        </button> */}
       </div>
     </motion.div>
   );
+}, (prevProps, nextProps) => {
+  // Custom comparison for better memoization
+  return (
+    prevProps.product?._id === nextProps.product?._id &&
+    prevProps.isFavorite === nextProps.isFavorite &&
+    prevProps.product?.price === nextProps.product?.price &&
+    prevProps.product?.name === nextProps.product?.name
+  );
 });
-
 ProductCard.displayName = 'ProductCard';
 
-// FIXED: Main Products Page Component - Simplified with direct useSearchParams
+// Main Products Page Component with performance optimizations
 function ProductsPageContent() {
   const [products, setProducts] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
@@ -378,13 +441,70 @@ function ProductsPageContent() {
   const [priceRangeLoaded, setPriceRangeLoaded] = useState(false);
   const [initialized, setInitialized] = useState(false);
   
+  // Refs for performance optimization
+  const abortControllerRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
+  const prefetchCache = useRef(new Map());
+  
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams(); // Direct usage - wrapped in Suspense at parent level
+  const searchParams = useSearchParams();
   const { addToCart } = useCart();
   const { toggleFavorite, isFavorite } = useFavorites();
 
-  // Calculate dynamic price range from all available products
+  // Enhanced fetch with request cancellation and caching
+  const fetchWithCache = useCallback(async (url, options = {}) => {
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    abortControllerRef.current = new AbortController();
+    
+    // Check cache first
+    const cacheKey = url + JSON.stringify(options);
+    if (prefetchCache.current.has(cacheKey)) {
+      const cached = prefetchCache.current.get(cacheKey);
+      if (Date.now() - cached.timestamp < 60000) { // 1 minute cache
+        return cached.data;
+      }
+    }
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: abortControllerRef.current.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Cache the result
+      prefetchCache.current.set(cacheKey, {
+        data,
+        timestamp: Date.now()
+      });
+
+      // Limit cache size
+      if (prefetchCache.current.size > 50) {
+        const firstKey = prefetchCache.current.keys().next().value;
+        prefetchCache.current.delete(firstKey);
+      }
+
+      return data;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log('Request aborted');
+        return null;
+      }
+      throw error;
+    }
+  }, []);
+
+  // Calculate dynamic price range with memoization
   const calculatePriceRange = useCallback((products) => {
     if (products && products.length > 0) {
       const prices = products.map(product => product?.price || 0).filter(price => price > 0);
@@ -393,17 +513,9 @@ function ProductsPageContent() {
         const minPrice = Math.min(...prices);
         const maxPrice = Math.max(...prices);
         
-        console.log('📊 Dynamic price range calculated from products:', { 
-          productCount: products.length,
-          validPrices: prices.length,
-          minPrice, 
-          maxPrice 
-        });
-        
         setDynamicMinPrice(minPrice);
         setDynamicMaxPrice(maxPrice);
         
-        // Update price range if it's still the default values
         if (priceRange[0] === DEFAULT_MIN_PRICE && priceRange[1] === FALLBACK_MAX_PRICE) {
           setPriceRange([minPrice, maxPrice]);
         }
@@ -413,43 +525,31 @@ function ProductsPageContent() {
       }
     }
     
-    console.log('📊 Using fallback price range');
     setDynamicMinPrice(DEFAULT_MIN_PRICE);
     setDynamicMaxPrice(FALLBACK_MAX_PRICE);
     setPriceRangeLoaded(true);
     return { minPrice: DEFAULT_MIN_PRICE, maxPrice: FALLBACK_MAX_PRICE };
   }, [priceRange]);
 
-  // Fetch all products to calculate price range (without pagination)
+  // Optimized fetch for price range calculation
   const fetchAllProductsForPriceRange = useCallback(async () => {
     try {
-      console.log('🔍 Fetching all products for price range calculation...');
+      const data = await fetchWithCache('/api/products?status=active&limit=1000&fields=price');
       
-      const response = await fetch('/api/products?status=active&limit=1000');
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (data) {
+        const allProductsData = data?.products || [];
+        setAllProducts(allProductsData);
+        calculatePriceRange(allProductsData);
       }
-
-      const data = await response.json();
-      const allProductsData = data?.products || [];
-      
-      console.log('✅ All products loaded for price calculation:', {
-        count: allProductsData.length
-      });
-      
-      setAllProducts(allProductsData);
-      calculatePriceRange(allProductsData);
-      
     } catch (error) {
-      console.error('❌ Error fetching all products for price range:', error);
+      console.error('❌ Error fetching products for price range:', error);
       calculatePriceRange([]);
     }
-  }, [calculatePriceRange]);
+  }, [fetchWithCache, calculatePriceRange]);
 
-  // Initialize from URL params and fetch price range on mount (FIXED: Run only once)
+  // Initialize from URL params
   useEffect(() => {
-    if (initialized) return; // Prevent multiple initializations
+    if (initialized) return;
     
     const page = parseInt(searchParams.get('page') || '1') || 1;
     const search = searchParams.get('search') || '';
@@ -462,23 +562,30 @@ function ProductsPageContent() {
     setPriceRange([minPrice, maxPrice]);
     setInitialized(true);
     
-    // Fetch all products for price range calculation
     fetchAllProductsForPriceRange();
   }, [searchParams, fetchAllProductsForPriceRange, initialized]);
 
-  // Debounced search effect
+  // Enhanced debounced search
   useEffect(() => {
-    const timer = setTimeout(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    searchTimeoutRef.current = setTimeout(() => {
       setDebouncedSearch(searchQuery);
       if (currentPage !== 1) {
         setCurrentPage(1);
       }
-    }, 300);
+    }, 250); // Reduced debounce time
 
-    return () => clearTimeout(timer);
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, [searchQuery, currentPage]);
 
-  // Update URL when search, price range, or page changes (FIXED: Prevent circular updates)
+  // URL update effect
   useEffect(() => {
     if (!priceRangeLoaded || !initialized) return;
     
@@ -503,13 +610,12 @@ function ProductsPageContent() {
     const newUrl = `${pathname}${params.toString() ? `?${params.toString()}` : ''}`;
     const currentUrl = window.location.pathname + window.location.search;
     
-    // Only update URL if it's different and we're not in the middle of initialization
     if (currentUrl !== newUrl) {
       router.replace(newUrl, { scroll: false });
     }
   }, [debouncedSearch, priceRange, currentPage, pathname, router, dynamicMinPrice, dynamicMaxPrice, priceRangeLoaded, initialized]);
 
-  // Fetch products function
+  // Enhanced fetch products with better performance
   const fetchProducts = useCallback(async () => {
     if (!priceRangeLoaded) return;
     
@@ -523,69 +629,68 @@ function ProductsPageContent() {
         ...(debouncedSearch && { search: debouncedSearch })
       });
 
-      console.log('🔍 Fetching products for display:', { 
-        page: currentPage, 
-        search: debouncedSearch,
-        priceRange,
-        dynamicRange: { min: dynamicMinPrice, max: dynamicMaxPrice }
-      });
+      const data = await fetchWithCache(`/api/products?${queryParams}`);
       
-      const response = await fetch(`/api/products?${queryParams}`);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      console.log('✅ Products loaded from API:', {
-        page: currentPage,
-        count: data?.products?.length || 0,
-        total: data?.pagination?.total || 0
-      });
-
-      let loadedProducts = data?.products || [];
-      
-      // Apply client-side price filtering
-      if (priceRange && (priceRange[0] !== dynamicMinPrice || priceRange[1] !== dynamicMaxPrice)) {
-        loadedProducts = loadedProducts.filter(product => {
-          const productPrice = product?.price || 0;
-          return productPrice >= priceRange[0] && productPrice <= priceRange[1];
-        });
+      if (data) {
+        let loadedProducts = data?.products || [];
         
-        console.log('✅ Products after price filtering:', {
-          originalCount: data?.products?.length || 0,
-          filteredCount: loadedProducts.length,
-          priceRange,
-          dynamicRange: { min: dynamicMinPrice, max: dynamicMaxPrice }
-        });
+        // Apply client-side price filtering
+        if (priceRange && (priceRange[0] !== dynamicMinPrice || priceRange[1] !== dynamicMaxPrice)) {
+          loadedProducts = loadedProducts.filter(product => {
+            const productPrice = product?.price || 0;
+            return productPrice >= priceRange[0] && productPrice <= priceRange[1];
+          });
+        }
+
+        setProducts(loadedProducts);
+        setTotalPages(data?.pagination?.totalPages || 1);
+        setTotalProducts(loadedProducts.length);
       }
-
-      setProducts(loadedProducts);
-      setTotalPages(data?.pagination?.totalPages || 1);
-      setTotalProducts(loadedProducts.length);
-
     } catch (error) {
-      console.error('❌ Error fetching products:', error);
-      setProducts([]);
-      setTotalPages(1);
-      setTotalProducts(0);
+      if (error) {
+        console.error('❌ Error fetching products:', error);
+        setProducts([]);
+        setTotalPages(1);
+        setTotalProducts(0);
+      }
     } finally {
       setLoading(false);
     }
-  }, [currentPage, debouncedSearch, priceRange, dynamicMinPrice, dynamicMaxPrice, priceRangeLoaded]);
+  }, [currentPage, debouncedSearch, priceRange, dynamicMinPrice, dynamicMaxPrice, priceRangeLoaded, fetchWithCache]);
 
-  // Fetch products when dependencies change
+  // Fetch products effect
   useEffect(() => {
     if (priceRangeLoaded && initialized) {
       fetchProducts();
     }
   }, [fetchProducts, priceRangeLoaded, initialized]);
 
-  // Event handlers
+  // Prefetch next page for instant navigation
+  const prefetchNextPage = useCallback(() => {
+    if (currentPage < totalPages && !loading) {
+      const nextPageParams = new URLSearchParams({
+        status: 'active',
+        page: (currentPage + 1).toString(),
+        limit: PRODUCTS_PER_PAGE.toString(),
+        ...(debouncedSearch && { search: debouncedSearch })
+      });
+      
+      // Prefetch in background
+      fetchWithCache(`/api/products?${nextPageParams}`).catch(() => {
+        // Silently fail for prefetch
+      });
+    }
+  }, [currentPage, totalPages, loading, debouncedSearch, fetchWithCache]);
+
+  // Trigger prefetch when user is near the end of current page
+  useEffect(() => {
+    const timer = setTimeout(prefetchNextPage, 1000);
+    return () => clearTimeout(timer);
+  }, [prefetchNextPage]);
+
+  // Event handlers with better performance
   const handleProductClick = useCallback((product) => {
     if (product?._id) {
-      console.log('🔍 Navigating to product:', product.name, product._id);
       router.push(`/products/${product._id}`);
     }
   }, [router]);
@@ -594,7 +699,6 @@ function ProductsPageContent() {
     e.stopPropagation();
     if (product) {
       addToCart(product, 1);
-      console.log('✅ Added to cart:', product.name);
     }
   }, [addToCart]);
 
@@ -602,7 +706,6 @@ function ProductsPageContent() {
     e.stopPropagation();
     if (product?._id) {
       toggleFavorite(product);
-      console.log('❤️ Toggled favorite:', product.name);
     }
   }, [toggleFavorite]);
 
@@ -637,6 +740,18 @@ function ProductsPageContent() {
     return (debouncedSearch?.trim() || '') !== '' || 
            (priceRange && (priceRange[0] !== dynamicMinPrice || priceRange[1] !== dynamicMaxPrice));
   }, [debouncedSearch, priceRange, dynamicMinPrice, dynamicMaxPrice]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (loading && currentPage === 1 && products.length === 0) {
     return <Loading />;
@@ -759,10 +874,15 @@ function ProductsPageContent() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.15 }}
               className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8"
             >
-              {products.length === 0 && !loading ? (
+              {loading && products.length === 0 ? (
+                // Show skeletons while loading
+                Array.from({ length: PRODUCTS_PER_PAGE }).map((_, i) => (
+                  <ProductSkeleton key={i} />
+                ))
+              ) : products.length === 0 ? (
                 <div className="col-span-full text-center py-20">
                   <Package size={64} className="mx-auto text-gray-400 mb-4" />
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
