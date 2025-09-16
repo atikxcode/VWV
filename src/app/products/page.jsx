@@ -381,54 +381,55 @@ const ProductGrid = React.memo(({
   deferredSearchQuery
 }) => {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.15, ease: "easeOut" }}
-      className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6"
-    >
-      {loading && products.length === 0 ? (
-        Array.from({ length: PRODUCTS_PER_PAGE }).map((_, i) => (
-          <ProductSkeleton key={`skeleton-${i}`} />
-        ))
-      ) : products.length === 0 ? (
-        <div className="col-span-full text-center py-16">
-          <Package size={56} className="mx-auto text-gray-400 mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            {hasActiveFilters ? 'No products found' : <Loading />}
-          </h3>
-          <p className="text-gray-600 mb-4 max-w-md mx-auto">
-            {deferredSearchQuery?.trim() 
-              ? `No results for "${deferredSearchQuery.trim()}". Try different keywords.`
-              : hasActiveFilters 
-                ? 'Try adjusting your filters or search terms' 
-                : 'Please check back later'
-            }
-          </p>
-          {hasActiveFilters && (
-            <button
-              onClick={handleClearFilters}
-              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
-            >
-              Clear All Filters
-            </button>
-          )}
-        </div>
-      ) : (
-        products.map((product, index) => (
-          <ProductCard
-            key={product?._id || `product-${index}`}
-            product={product}
-            onProductClick={onProductClick}
-            onToggleFavorite={onToggleFavorite}
-            isFavorite={isFavorite(product?._id)}
-            index={index}
-          />
-        ))
+  <motion.div
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  exit={{ opacity: 0, y: -20 }}
+  transition={{ duration: 0.15, ease: "easeOut" }}
+  className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6"
+>
+  {loading && products.length === 0 ? (
+    <div className="col-span-full flex items-center justify-center min-h-[60vh] w-full">
+      <Loading />
+    </div>
+  ) : products.length === 0 ? (
+    <div className="col-span-full text-center py-16">
+      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+        {hasActiveFilters ? 'No products found' : <Loading />}
+      </h3>
+      <p className="text-gray-600 mb-4 max-w-md mx-auto">
+        {deferredSearchQuery?.trim()
+          ? `No results for "${deferredSearchQuery.trim()}". Try different keywords.`
+          : hasActiveFilters
+          ? 'Try adjusting your filters or search terms'
+          : 'Please check back later'
+        }
+      </p>
+      {hasActiveFilters && (
+        <button
+          onClick={handleClearFilters}
+          className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
+        >
+          Clear All Filters
+        </button>
       )}
-    </motion.div>
-  );
+    </div>
+  ) : (
+    products.map((product, index) => (
+      <ProductCard
+        key={product?._id || `product-${index}`}
+        product={product}
+        onProductClick={onProductClick}
+        onToggleFavorite={onToggleFavorite}
+        isFavorite={isFavorite(product?._id)}
+        index={index}
+      />
+    ))
+  )}
+</motion.div>
+
+);
+
 });
 ProductGrid.displayName = 'ProductGrid';
 

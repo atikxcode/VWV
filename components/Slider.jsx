@@ -8,6 +8,7 @@ import 'swiper/css/autoplay'
 import { useRouter } from 'next/navigation'
 
 import BlurText from './TextAnimation'
+import Loading from './Loading'
 
 // Enterprise configuration constants
 const MOBILE_BREAKPOINT = 435
@@ -248,9 +249,9 @@ const Slider = () => {
   // Loading state
   if (!isClient) {
     return (
-      <div className="w-full h-[450px] md:h-[800px] bg-gradient-to-br from-purple-50 to-purple-100 animate-pulse flex items-center justify-center">
-        <div className="text-purple-400 text-lg">Loading...</div>
-      </div>
+       <div className="w-full h-[450px] md:h-[800px] bg-gradient-to-br from-purple-50 to-purple-100 flex items-center justify-center">
+    <Loading />
+  </div>
     )
   }
 
