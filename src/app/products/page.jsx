@@ -38,39 +38,6 @@ const FALLBACK_MAX_PRICE = 10000;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const PREFETCH_DELAY = 100; // milliseconds
 
-// Web Worker for filtering (if supported)
-let filterWorker = null;
-if (typeof Worker !== 'undefined') {
-  try {
-    const workerCode = `
-      self.onmessage = function(e) {
-        const { products, filters } = e.data;
-        const filtered = products.filter(product => {
-          if (filters.search) {
-            const searchLower = filters.search.toLowerCase();
-            if (!product.name?.toLowerCase().includes(searchLower) &&
-                !product.brand?.toLowerCase().includes(searchLower)) {
-              return false;
-            }
-          }
-          if (filters.priceRange) {
-            const price = product.price || 0;
-            if (price < filters.priceRange[0] || price > filters.priceRange[1]) {
-              return false;
-            }
-          }
-          return true;
-        });
-        self.postMessage({ filtered });
-      };
-    `;
-    const blob = new Blob([workerCode], { type: 'application/javascript' });
-    filterWorker = new Worker(URL.createObjectURL(blob));
-  } catch (e) {
-    console.warn('Web Worker not supported, using main thread filtering');
-  }
-}
-
 // Enhanced Performance Hooks
 const usePerformanceObserver = () => {
   useEffect(() => {
@@ -370,7 +337,6 @@ const ProductCard = React.memo(({
             {product.brand}
           </p>
         )}
-
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="text-lg font-bold text-purple-600">
@@ -383,7 +349,6 @@ const ProductCard = React.memo(({
             )}
           </div>
           
-          {/* Quick rating display */}
           {product?.rating && (
             <div className="flex items-center text-xs">
               <Star size={12} className="text-yellow-400 fill-current" />
@@ -431,7 +396,7 @@ const ProductGrid = React.memo(({
         <div className="col-span-full text-center py-16">
           <Package size={56} className="mx-auto text-gray-400 mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            {hasActiveFilters ? 'No products found' : 'No products available'}
+            {hasActiveFilters ? 'No products found' : <Loading />}
           </h3>
           <p className="text-gray-600 mb-4 max-w-md mx-auto">
             {deferredSearchQuery?.trim() 
@@ -500,7 +465,6 @@ const PaginationControls = React.memo(({
     } else if (totalPages > 1) {
       rangeWithDots.push(totalPages);
     }
-
     return rangeWithDots;
   }, [currentPage, totalPages]);
 
@@ -658,40 +622,27 @@ function ProductsPageContent() {
     }
   }, [currentPage, totalPages, fetchWithCache]);
 
-  // Web Worker filtering (if available)
-  const filterProductsWithWorker = useCallback((products, filters) => {
-    return new Promise((resolve) => {
-      if (filterWorker) {
-        const handleMessage = (e) => {
-          resolve(e.data.filtered);
-          filterWorker.removeEventListener('message', handleMessage);
-        };
-        filterWorker.addEventListener('message', handleMessage);
-        filterWorker.postMessage({ products, filters });
-      } else {
-        // Fallback to main thread
-        const filtered = products.filter(product => {
-          if (filters.search) {
-            const searchLower = filters.search.toLowerCase();
-            if (!product.name?.toLowerCase().includes(searchLower) &&
-                !product.brand?.toLowerCase().includes(searchLower)) {
-              return false;
-            }
-          }
-          if (filters.priceRange) {
-            const price = product.price || 0;
-            if (price < filters.priceRange[0] || price > filters.priceRange[1]) {
-              return false;
-            }
-          }
-          return true;
-        });
-        resolve(filtered);
+  // Main thread filtering
+  const filterProducts = useCallback((products, filters) => {
+    return products.filter(product => {
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        if (!product.name?.toLowerCase().includes(searchLower) &&
+            !product.brand?.toLowerCase().includes(searchLower)) {
+          return false;
+        }
       }
+      if (filters.priceRange) {
+        const price = product.price || 0;
+        if (price < filters.priceRange[0] || price > filters.priceRange[1]) {
+          return false;
+        }
+      }
+      return true;
     });
   }, []);
 
-  // Enhanced fetch products with better performance
+  // Enhanced fetch products with main thread filtering
   const fetchProducts = useCallback(async () => {
     if (!priceRangeLoaded) return;
     
@@ -705,26 +656,22 @@ function ProductsPageContent() {
       });
 
       const data = await fetchWithCache(`/api/products?${queryParams}`);
-      
+
       if (data) {
-        let loadedProducts = data?.products || [];
-        
-        // Use Web Worker for filtering if available
-        if (deferredPriceRange && (deferredPriceRange[0] !== dynamicMinPrice || deferredPriceRange[1] !== dynamicMaxPrice)) {
-          loadedProducts = await filterProductsWithWorker(loadedProducts, {
-            priceRange: deferredPriceRange
-          });
-        }
+        let loadedProducts = data.products || [];
+        loadedProducts = filterProducts(loadedProducts, {
+          search: deferredSearchQuery,
+          priceRange: deferredPriceRange,
+        });
 
         setProducts(loadedProducts);
-        setTotalPages(data?.pagination?.totalPages || (loadedProducts.length > 0 ? 1 : 0));
-        setTotalProducts(data?.pagination?.totalProducts || loadedProducts.length);
-        
-        // Prefetch next page
+        setTotalPages(data.pagination?.totalPages || (loadedProducts.length > 0 ? 1 : 0));
+        setTotalProducts(data.pagination?.totalProducts || loadedProducts.length);
+
         prefetchNextPage();
       }
     } catch (error) {
-      if (error && error.name !== 'AbortError') {
+      if (error?.name !== 'AbortError') {
         console.error('❌ Error fetching products:', error);
         setProducts([]);
         setTotalPages(0);
@@ -733,17 +680,17 @@ function ProductsPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, deferredSearchQuery, deferredPriceRange, dynamicMinPrice, dynamicMaxPrice, priceRangeLoaded, fetchWithCache, prefetchNextPage, filterProductsWithWorker]);
+  }, [currentPage, deferredSearchQuery, deferredPriceRange, priceRangeLoaded, fetchWithCache, prefetchNextPage, filterProducts]);
 
-  // Enhanced initialization
+  // Enhanced initialization from URL
   useEffect(() => {
     if (initialized) return;
-    
+
     const page = parseInt(searchParams.get('page') || '1') || 1;
     const search = searchParams.get('search') || '';
     const minPrice = parseInt(searchParams.get('minPrice') || DEFAULT_MIN_PRICE.toString()) || DEFAULT_MIN_PRICE;
     const maxPrice = parseInt(searchParams.get('maxPrice') || FALLBACK_MAX_PRICE.toString()) || FALLBACK_MAX_PRICE;
-    
+
     setCurrentPage(page);
     setSearchQuery(search);
     setPriceRange([minPrice, maxPrice]);
@@ -760,36 +707,36 @@ function ProductsPageContent() {
     }
   }, [fetchProducts, priceRangeLoaded, initialized]);
 
-  // Enhanced URL updates
+  // Update URL on filters/search/page change
   useEffect(() => {
     if (!priceRangeLoaded || !initialized) return;
-    
+
     if (urlUpdateTimeoutRef.current) {
       clearTimeout(urlUpdateTimeoutRef.current);
     }
-    
+
     urlUpdateTimeoutRef.current = setTimeout(() => {
       const params = new URLSearchParams();
-      
+
       if (deferredSearchQuery?.trim()) {
         params.set('search', deferredSearchQuery);
       }
-      
+
       if (deferredPriceRange && deferredPriceRange[0] !== dynamicMinPrice) {
         params.set('minPrice', (deferredPriceRange[0] || DEFAULT_MIN_PRICE).toString());
       }
-      
+
       if (deferredPriceRange && deferredPriceRange[1] !== dynamicMaxPrice) {
         params.set('maxPrice', (deferredPriceRange[1] || dynamicMaxPrice).toString());
       }
-      
+
       if (currentPage > 1) {
         params.set('page', currentPage.toString());
       }
-      
+
       const newUrl = `${pathname}${params.toString() ? `?${params.toString()}` : ''}`;
       const currentUrl = window.location.pathname + window.location.search;
-      
+
       if (currentUrl !== newUrl) {
         router.replace(newUrl, { scroll: false });
       }
@@ -802,10 +749,9 @@ function ProductsPageContent() {
     };
   }, [deferredSearchQuery, deferredPriceRange, currentPage, pathname, router, dynamicMinPrice, dynamicMaxPrice, priceRangeLoaded, initialized]);
 
-  // Event handlers with better performance
+  // Event handlers
   const handleProductClick = useCallback((product) => {
     if (product?._id) {
-      // Prefetch product page
       router.prefetch(`/products/${product._id}`);
       router.push(`/products/${product._id}`);
     }
@@ -892,11 +838,9 @@ function ProductsPageContent() {
   return (
     <div className="min-h-screen">
       <div className="max-w-7xl mx-auto px-4 py-6">
-        
         {/* Header Section */}
         <div className="mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-            
             <div className="flex flex-col sm:flex-row gap-4 lg:ml-auto">
               {/* Enhanced Search */}
               <div className="relative group">
@@ -925,7 +869,7 @@ function ProductsPageContent() {
                   </div>
                 )}
               </div>
-              
+
               {/* Filter Toggle */}
               <button
                 onClick={() => setShowFilters(!showFilters)}
@@ -975,7 +919,7 @@ function ProductsPageContent() {
                       </button>
                     )}
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <PriceRangeSlider
@@ -986,7 +930,7 @@ function ProductsPageContent() {
                         maxValue={dynamicMaxPrice}
                       />
                     </div>
-                    
+
                     <div className="flex items-end">
                       <div className="text-sm text-gray-500 space-y-2">
                         <div className="flex items-center space-x-2">
@@ -1018,7 +962,7 @@ function ProductsPageContent() {
               </span>
             </div>
           )}
-          
+
           <AnimatePresence mode="wait">
             <ProductGrid
               key="product-grid"
