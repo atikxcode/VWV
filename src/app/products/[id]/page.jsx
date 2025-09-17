@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
+import Swal from 'sweetalert2';
 import {
   ArrowLeft,
   Package,
@@ -70,11 +71,43 @@ export default function ProductDetailPage() {
     }
   }, [params.id, router]);
 
-  const handleAddToCart = () => {
-    if (product) {
-      addToCart(product, quantity);
+  // 🆕 UPDATED: handleAddToCart function in your ProductDetailPage component
+const handleAddToCart = () => {
+  if (product) {
+    // Create product options object based on user selections
+    const selectedOptions = {};
+    
+    // Add selected options if they exist
+    if (selectedNicotineStrength) {
+      selectedOptions.nicotineStrength = selectedNicotineStrength;
     }
-  };
+    
+    if (selectedVgPgRatio) {
+      selectedOptions.vgPgRatio = selectedVgPgRatio;
+    }
+    
+    if (selectedColor) {
+      selectedOptions.color = selectedColor;
+    }
+    
+    // Pass product with selected options and quantity to cart
+    addToCart(product, quantity, selectedOptions);
+    
+    Swal.fire({
+      title: 'Added to Cart!',
+      text: `${product.name} added successfully`,
+      icon: 'success',
+      confirmButtonText: 'OK',
+      confirmButtonColor: '#8b5cf6',
+      timer: 2000,
+      showConfirmButton: false,
+      toast: true,
+      position: 'top-end',
+      timerProgressBar: true,
+    });
+  }
+};
+
 
   const handleToggleFavorite = () => {
     if (product) {

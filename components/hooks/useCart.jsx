@@ -36,21 +36,34 @@ export function CartProvider({ children }) {
     }
   }, [cartItems, isHydrated]);
 
-  const addToCart = (product, quantity = 1) => {
-    const existingItem = cartItems.find(item => item.product._id === product._id);
+  // 🆕 UPDATED: Add to cart with selected options support
+  const addToCart = (product, quantity = 1, selectedOptions = {}) => {
+    // Create a unique identifier based on product ID and selected options
+    const optionsString = JSON.stringify(selectedOptions);
+    const uniqueId = `${product._id}_${optionsString}`;
+    
+    const existingItem = cartItems.find(item => 
+      item.product._id === product._id && 
+      JSON.stringify(item.selectedOptions || {}) === optionsString
+    );
+
     if (existingItem) {
+      // Update quantity of existing item with same options
       setCartItems(items =>
         items.map(item =>
-          item.product._id === product._id
+          item.id === existingItem.id
             ? { ...item, quantity: item.quantity + quantity }
             : item
         )
       );
     } else {
+      // Add new item with selected options
       setCartItems(items => [...items, {
-        id: `${Date.now()}-${Math.random()}`,
+        id: uniqueId,
         product,
-        quantity
+        quantity,
+        selectedOptions, // 🆕 Store selected options
+        addedAt: new Date().toISOString()
       }]);
     }
   };
@@ -83,6 +96,26 @@ export function CartProvider({ children }) {
     return cartItems.reduce((sum, item) => sum + item.quantity, 0);
   };
 
+  // 🆕 NEW: Helper function to format product options for display
+  const getProductOptionsText = (selectedOptions) => {
+    if (!selectedOptions || Object.keys(selectedOptions).length === 0) {
+      return '';
+    }
+
+    const options = [];
+    if (selectedOptions.nicotineStrength) {
+      options.push(`${selectedOptions.nicotineStrength} nicotine`);
+    }
+    if (selectedOptions.vgPgRatio) {
+      options.push(`${selectedOptions.vgPgRatio} VG/PG`);
+    }
+    if (selectedOptions.color) {
+      options.push(`${selectedOptions.color} color`);
+    }
+
+    return options.length > 0 ? `(${options.join(', ')})` : '';
+  };
+
   return (
     <CartContext.Provider value={{
       cartItems,
@@ -92,6 +125,7 @@ export function CartProvider({ children }) {
       clearCart,
       getCartTotal,
       getCartItemsCount,
+      getProductOptionsText, // 🆕 Export helper function
       isHydrated,
     }}>
       {children}
