@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { useCart } from '../../../components/hooks/useCart';
 import { useRouter } from 'next/navigation';
+import { AuthContext } from '../../../Provider/AuthProvider';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -26,18 +27,20 @@ import {
   Tag,
   Percent,
   Droplets,
-  Wallet
+  Wallet,
+  Save,
+  RefreshCw
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { cartItems, getCartTotal, clearCart } = useCart();
+  const { user, loading: authLoading } = useContext(AuthContext);
   
-  // Form states
+  // Form states - using single name field
   const [customerInfo, setCustomerInfo] = useState({
-    firstName: '',
-    lastName: '',
+    fullName: '',
     email: '',
     phone: '',
     address: '',
@@ -47,13 +50,11 @@ export default function CheckoutPage() {
   });
 
   const [paymentInfo, setPaymentInfo] = useState({
-    method: 'cod', // Default to Cash on Delivery
-    // Card payment
+    method: 'cod',
     cardNumber: '',
     expiryDate: '',
     cvv: '',
     cardName: '',
-    // Mobile Banking
     bkashNumber: '',
     nagadNumber: '',
     rocketNumber: '',
@@ -65,6 +66,9 @@ export default function CheckoutPage() {
   const [showCvv, setShowCvv] = useState(false);
   const [errors, setErrors] = useState({});
   const [currentStep, setCurrentStep] = useState(1);
+  const [userDataLoaded, setUserDataLoaded] = useState(false);
+  const [saveForFuture, setSaveForFuture] = useState(false);
+  const [isLoadingUserData, setIsLoadingUserData] = useState(false);
 
   // Payment methods configuration
   const paymentMethods = [
@@ -119,6 +123,171 @@ export default function CheckoutPage() {
     }
   ];
 
+  // 🆕 FIXED: Enhanced database fetching with proper authentication headers
+  const loadUserData = async () => {
+    if (isLoadingUserData) return;
+    
+    setIsLoadingUserData(true);
+    let userDataFound = false;
+
+    try {
+      console.log('🔍 Starting user data fetch...');
+      console.log('🔍 Firebase user:', user);
+      console.log('🔍 Auth loading:', authLoading);
+
+      // 1. Check if user is authenticated
+      if (user && user.email) {
+        console.log('✅ Authenticated user found:', user.email);
+        
+        try {
+          // 🆕 ENHANCED: Get Firebase token for API authentication
+          const token = await user.getIdToken();
+          console.log('🔑 Got Firebase token');
+
+          // 2. Make authenticated API call to fetch user data
+          const response = await fetch(`/api/user?email=${encodeURIComponent(user.email)}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`, // Add Firebase token
+            },
+          });
+
+          console.log('📡 API Response status:', response.status);
+          console.log('📡 API Response ok:', response.ok);
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('📦 Raw API response:', data);
+
+            // 🆕 FIXED: Check for user data properly
+            if (data.exists && data.user) {
+              console.log('✅ User data found in database:', data.user);
+              console.log('📝 User name:', data.user.name);
+              console.log('📞 User phone:', data.user.phone);
+              console.log('📧 User email:', data.user.email);
+              
+              // Set the form data with database values
+              setCustomerInfo(prev => ({
+                ...prev,
+                fullName: data.user.name || '',
+                email: data.user.email || user.email,
+                phone: data.user.phone || '',
+              }));
+              
+              userDataFound = true;
+              console.log('✅ Form fields updated with database data');
+
+            } else if (data.user && !data.exists) {
+              // Handle case where API returns user data without exists flag
+              console.log('✅ User data found (fallback):', data.user);
+              setCustomerInfo(prev => ({
+                ...prev,
+                fullName: data.user.name || '',
+                email: data.user.email || user.email,
+                phone: data.user.phone || '',
+              }));
+              userDataFound = true;
+
+            } else {
+              console.log('⚠️ User not found in database');
+            }
+          } else {
+            console.error('❌ API request failed:', response.status, response.statusText);
+            const errorText = await response.text();
+            console.error('❌ Error response:', errorText);
+          }
+        } catch (dbError) {
+          console.error('❌ Database lookup error:', dbError);
+          console.error('❌ Error stack:', dbError.stack);
+        }
+      } else {
+        console.log('⚠️ No authenticated user found');
+      }
+
+      // 3. Fallback to localStorage if no database data
+      if (!userDataFound) {
+        console.log('🔍 Checking localStorage...');
+        const savedData = localStorage.getItem('vwv-checkout-data');
+        if (savedData) {
+          try {
+            const parsedData = JSON.parse(savedData);
+            console.log('🔍 Found saved checkout data:', parsedData);
+            
+            setCustomerInfo(prev => ({
+              ...prev,
+              ...parsedData,
+              email: user?.email || parsedData.email || ''
+            }));
+            
+            userDataFound = true;
+            console.log('✅ Used localStorage data');
+          } catch (parseError) {
+            console.error('❌ Error parsing localStorage data:', parseError);
+            localStorage.removeItem('vwv-checkout-data');
+          }
+        } else {
+          console.log('⚠️ No localStorage data found');
+        }
+      }
+
+      // 4. Minimum fallback - set email if authenticated
+      if (!userDataFound && user?.email) {
+        console.log('🔧 Setting minimum data (email only)');
+        setCustomerInfo(prev => ({
+          ...prev,
+          email: user.email
+        }));
+      }
+
+    } catch (error) {
+      console.error('❌ Critical error loading user data:', error);
+      console.error('❌ Error stack:', error.stack);
+    } finally {
+      setIsLoadingUserData(false);
+      setUserDataLoaded(true);
+      console.log('✅ User data loading completed');
+    }
+  };
+
+  // Save data to localStorage
+  const saveToLocalStorage = () => {
+    if (!customerInfo.fullName && !customerInfo.email && !customerInfo.phone) {
+      return;
+    }
+
+    const dataToSave = {
+      fullName: customerInfo.fullName,
+      email: customerInfo.email,
+      phone: customerInfo.phone,
+      address: customerInfo.address,
+      city: customerInfo.city,
+      postalCode: customerInfo.postalCode,
+      country: customerInfo.country
+    };
+
+    localStorage.setItem('vwv-checkout-data', JSON.stringify(dataToSave));
+    console.log('💾 Checkout data saved to localStorage');
+  };
+
+  // 🆕 ENHANCED: Load user data with proper timing
+  useEffect(() => {
+    console.log('🔄 useEffect triggered - authLoading:', authLoading, 'user:', !!user);
+    
+    // Only load data when auth is complete and user is available
+    if (!authLoading && !userDataLoaded) {
+      console.log('🚀 Triggering user data load...');
+      loadUserData();
+    }
+  }, [user, authLoading, userDataLoaded]);
+
+  // Save to localStorage when enabled
+  useEffect(() => {
+    if (saveForFuture && customerInfo.email) {
+      saveToLocalStorage();
+    }
+  }, [saveForFuture, customerInfo]);
+
   // Redirect if cart is empty
   useEffect(() => {
     if (cartItems.length === 0) {
@@ -139,9 +308,7 @@ export default function CheckoutPage() {
   const validateForm = () => {
     const newErrors = {};
     
-    // Customer Info Validation
-    if (!customerInfo.firstName.trim()) newErrors.firstName = 'First name is required';
-    if (!customerInfo.lastName.trim()) newErrors.lastName = 'Last name is required';
+    if (!customerInfo.fullName.trim()) newErrors.fullName = 'Full name is required';
     if (!customerInfo.email.trim()) newErrors.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(customerInfo.email)) newErrors.email = 'Email is invalid';
     if (!customerInfo.phone.trim()) newErrors.phone = 'Phone number is required';
@@ -149,7 +316,6 @@ export default function CheckoutPage() {
     if (!customerInfo.address.trim()) newErrors.address = 'Address is required';
     if (!customerInfo.city.trim()) newErrors.city = 'City is required';
 
-    // Payment Validation based on method
     if (paymentInfo.method === 'card') {
       if (!paymentInfo.cardNumber.trim()) newErrors.cardNumber = 'Card number is required';
       else if (!/^\d{16}$/.test(paymentInfo.cardNumber.replace(/\s/g, ''))) newErrors.cardNumber = 'Card number must be 16 digits';
@@ -192,15 +358,15 @@ export default function CheckoutPage() {
     setIsProcessing(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      if (saveForFuture) {
+        saveToLocalStorage();
+      }
 
-      // Clear cart after successful order
+      await new Promise(resolve => setTimeout(resolve, 3000));
       clearCart();
 
       const selectedPaymentMethod = paymentMethods.find(method => method.id === paymentInfo.method);
 
-      // Success message and redirect
       await Swal.fire({
         title: 'Order Placed Successfully!',
         html: `
@@ -234,7 +400,7 @@ export default function CheckoutPage() {
     }
   };
 
-  // Format card number with spaces
+  // Format card number
   const formatCardNumber = (value) => {
     const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
     const matches = v.match(/\d{4,16}/g);
@@ -257,6 +423,14 @@ export default function CheckoutPage() {
       return `${v.slice(0, 2)}/${v.slice(2, 4)}`;
     }
     return v;
+  };
+
+  // 🆕 ENHANCED: Manual refresh with reset
+  const handleRefreshUserData = () => {
+    console.log('🔄 Manual refresh triggered');
+    setUserDataLoaded(false);
+    setIsLoadingUserData(false);
+    loadUserData();
   };
 
   if (cartItems.length === 0) {
@@ -290,14 +464,17 @@ export default function CheckoutPage() {
             </button>
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Checkout</h1>
-              <p className="text-gray-600">Complete your order securely</p>
+              <p className="text-gray-600">
+                Complete your order securely
+                {user && <span className="text-purple-600 ml-1">• Logged in as {user.email}</span>}
+              </p>
             </div>
           </div>
           
           {/* Security Badge */}
           <div className="flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-lg">
             <Shield size={20} />
-            <span className="font-medium">256-bit SSL Secure</span>
+            <span className="font-medium">Secure Checkout</span>
           </div>
         </motion.div>
 
@@ -334,38 +511,67 @@ export default function CheckoutPage() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-                <User size={20} className="text-purple-600" />
-                Customer Information
-              </h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                  <User size={20} className="text-purple-600" />
+                  Customer Information
+                  {isLoadingUserData && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 ml-2"></div>
+                  )}
+                </h2>
+                
+                {/* Refresh and Save Controls */}
+                <div className="flex items-center gap-3">
+                  {user && (
+                    <button
+                      onClick={handleRefreshUserData}
+                      disabled={isLoadingUserData}
+                      className="flex items-center gap-1 px-3 py-1 text-sm text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                      title="Refresh user data"
+                    >
+                      <RefreshCw size={14} className={isLoadingUserData ? 'animate-spin' : ''} />
+                      {isLoadingUserData ? 'Loading...' : 'Refresh'}
+                    </button>
+                  )}
+                  
+                  <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={saveForFuture}
+                      onChange={(e) => setSaveForFuture(e.target.checked)}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <Save size={14} />
+                    Save for next time
+                  </label>
+                </div>
+              </div>
+              
+              {/* Debug Info (remove in production) */}
+              {/* {process.env.NODE_ENV === 'development' && user && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                  <p><strong>Debug Info:</strong></p>
+                  <p>User email: {user.email}</p>
+                  <p>Data loaded: {userDataLoaded.toString()}</p>
+                  <p>Loading: {isLoadingUserData.toString()}</p>
+                  <p>Current name: "{customerInfo.fullName}"</p>
+                  <p>Current phone: "{customerInfo.phone}"</p>
+                </div>
+              )} */}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
                   <input
                     type="text"
-                    value={customerInfo.firstName}
-                    onChange={(e) => setCustomerInfo({...customerInfo, firstName: e.target.value})}
+                    value={customerInfo.fullName}
+                    onChange={(e) => setCustomerInfo({...customerInfo, fullName: e.target.value})}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                      errors.firstName ? 'border-red-500' : 'border-gray-300'
+                      errors.fullName ? 'border-red-500' : 'border-gray-300'
                     }`}
-                    placeholder="Enter first name"
+                    placeholder="Enter your full name"
                   />
-                  {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
-                  <input
-                    type="text"
-                    value={customerInfo.lastName}
-                    onChange={(e) => setCustomerInfo({...customerInfo, lastName: e.target.value})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                      errors.lastName ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="Enter last name"
-                  />
-                  {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
+                  {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
                 </div>
                 
                 <div>
@@ -376,10 +582,14 @@ export default function CheckoutPage() {
                     onChange={(e) => setCustomerInfo({...customerInfo, email: e.target.value})}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${
                       errors.email ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    } ${user?.email === customerInfo.email ? 'bg-green-50' : ''}`}
                     placeholder="Enter email address"
+                    readOnly={user?.email === customerInfo.email}
                   />
                   {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+                  {user?.email === customerInfo.email && (
+                    <p className="text-green-600 text-xs mt-1">✓ Using your account email</p>
+                  )}
                 </div>
                 
                 <div>
@@ -476,7 +686,6 @@ export default function CheckoutPage() {
                       <h3 className="font-semibold text-gray-900 mb-1">{method.name}</h3>
                       <p className="text-sm text-gray-600">{method.description}</p>
                       
-                      {/* Selection indicator */}
                       {paymentInfo.method === method.id && (
                         <div className="absolute top-2 right-2">
                           <CheckCircle size={20} className="text-purple-600" />
@@ -489,7 +698,6 @@ export default function CheckoutPage() {
 
               {/* Payment Method Forms */}
               <AnimatePresence mode="wait">
-                {/* Cash on Delivery */}
                 {paymentInfo.method === 'cod' && (
                   <motion.div
                     key="cod"
@@ -509,7 +717,6 @@ export default function CheckoutPage() {
                   </motion.div>
                 )}
 
-                {/* Mobile Banking Forms */}
                 {['bkash', 'nagad', 'rocket', 'upay'].includes(paymentInfo.method) && (
                   <motion.div
                     key={paymentInfo.method}
@@ -550,7 +757,6 @@ export default function CheckoutPage() {
                   </motion.div>
                 )}
 
-                {/* Credit/Debit Card Form */}
                 {paymentInfo.method === 'card' && (
                   <motion.div
                     key="card"
@@ -638,7 +844,6 @@ export default function CheckoutPage() {
                       {errors.cardName && <p className="text-red-500 text-xs mt-1">{errors.cardName}</p>}
                     </div>
                     
-                    {/* Supported Cards */}
                     <div className="flex items-center gap-4 text-sm text-gray-600">
                       <span>Accepted:</span>
                       <div className="flex gap-2">
@@ -708,7 +913,6 @@ export default function CheckoutPage() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
             >
-              {/* Order Summary Header */}
               <div className="p-6 bg-gradient-to-r from-purple-600 to-purple-700 text-white">
                 <h3 className="text-xl font-semibold flex items-center gap-2">
                   <ShoppingCart size={20} />
@@ -716,7 +920,6 @@ export default function CheckoutPage() {
                 </h3>
               </div>
               
-              {/* Items List */}
               <div className="p-6 max-h-64 overflow-y-auto">
                 <div className="space-y-4">
                   {cartItems.map((item) => (
@@ -742,7 +945,6 @@ export default function CheckoutPage() {
                           {item.product.name}
                         </h4>
                         
-                        {/* Selected Options */}
                         {item.selectedOptions && Object.keys(item.selectedOptions).length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {item.selectedOptions.nicotineStrength && (
@@ -778,7 +980,6 @@ export default function CheckoutPage() {
                 </div>
               </div>
               
-              {/* Order Totals */}
               <div className="p-6 border-t border-gray-200">
                 <div className="space-y-3">
                   <div className="flex justify-between text-gray-600">
@@ -795,16 +996,15 @@ export default function CheckoutPage() {
                 </div>
               </div>
               
-              {/* Security & Trust Indicators */}
               <div className="p-6 bg-gray-50 border-t">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Shield size={16} className="text-green-600" />
-                    <span>256-bit SSL encryption</span>
+                    <span>Secure checkout</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Lock size={16} className="text-green-600" />
-                    <span>Secure payment processing</span>
+                    <span>Safe payment processing</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <CheckCircle size={16} className="text-green-600" />
@@ -817,7 +1017,6 @@ export default function CheckoutPage() {
         </div>
       </div>
       
-      {/* Custom Styles */}
       <style jsx global>{`
         .line-clamp-2 {
           display: -webkit-box;
