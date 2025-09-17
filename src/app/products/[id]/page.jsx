@@ -450,13 +450,13 @@ export default function ProductDetailPage() {
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
                 <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Star size={20} className="text-amber-500" />
+                  {/* <Star size={20} className="text-amber-500" /> */}
                   Features
                 </h3>
                 <div className="space-y-2">
                   {product.features.map((feature, index) => (
                     <div key={index} className="flex items-center gap-3 p-2 bg-amber-50 rounded-lg">
-                      <div className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0"></div>
+                      {/* <div className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0"></div> */}
                       <span className="text-gray-800 font-medium">{feature}</span>
                     </div>
                   ))}
@@ -473,13 +473,13 @@ export default function ProductDetailPage() {
                 transition={{ duration: 0.5, delay: 0.5 }}
               >
                 <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Gift size={20} className="text-teal-500" />
+                  {/* <Gift size={20} className="text-teal-500" /> */}
                   Each Set Contains
                 </h3>
                 <div className="space-y-2">
                   {product.eachSetContains.map((item, index) => (
-                    <div key={index} className="flex items-start gap-3 p-3 bg-teal-50 rounded-lg">
-                      <span className="text-teal-600 font-bold text-sm mt-0.5 flex-shrink-0">
+                    <div key={index} className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg">
+                      <span className="text-gray-600 font-bold text-sm mt-0.5 flex-shrink-0">
                         {index + 1}.
                       </span>
                       <span className="text-gray-800 font-medium">{item}</span>
