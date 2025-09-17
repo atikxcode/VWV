@@ -4,7 +4,7 @@ import React from 'react'
 
 const Loading = () => {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-purple-100">
+    <div className="flex items-center justify-center min-h-screen w-full bg-purple-100">
       <motion.div
         animate={{ y: [0, -20, 0] }}
         transition={{ repeat: Infinity, duration: 1 }}
