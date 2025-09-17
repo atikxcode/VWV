@@ -23,7 +23,9 @@ import {
   Search,
   Loader2,
   X,
-  Star
+  Star,
+  Filter,
+  ChevronDown
 } from 'lucide-react';
 import { useCart } from '../../../components/hooks/useCart';
 import { useFavorites } from '../../../components/hooks/useFavorites';
@@ -385,11 +387,23 @@ function ProductsPageContent() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedSubcategory, setSelectedSubcategory] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
+  // Category and subcategory states
+  const [categories, setCategories] = useState({});
+  const [subCategoryOptions, setSubCategoryOptions] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+
+  // Add memoized categories to prevent dependency array instability
+  const memoizedCategories = useMemo(() => categories, [JSON.stringify(categories)]);
+
   const [isPending, startTransition] = useTransition();
   const deferredSearchQuery = useDeferredValue(searchQuery);
+  const deferredCategory = useDeferredValue(selectedCategory);
+  const deferredSubcategory = useDeferredValue(selectedSubcategory);
   const deferredProducts = useDeferredValue(products);
 
   const abortControllerRef = useRef(null);
@@ -405,6 +419,15 @@ function ProductsPageContent() {
 
   usePerformanceObserver();
   useImagePreloader(deferredProducts?.slice(0, 6)?.map(p => p.images?.[0]).filter(Boolean));
+
+  // Get auth headers for API calls
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('auth-token');
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    };
+  };
 
   const fetchWithCache = useCallback(async (url, options = {}) => {
     if (abortControllerRef.current) {
@@ -446,6 +469,45 @@ function ProductsPageContent() {
     }
   }, []);
 
+  // Load categories on component mount
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        setCategoriesLoading(true);
+        const categoriesResponse = await fetch('/api/products?getCategoriesOnly=true', {
+          headers: getAuthHeaders()
+        });
+        
+        if (categoriesResponse.ok) {
+          const categoriesData = await categoriesResponse.json();
+          setCategories(categoriesData.categories || {});
+        } else {
+          console.error('Failed to fetch categories');
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+
+    loadCategories();
+  }, []);
+
+  // Update subcategories when category changes - PROPERLY FIXED
+  useEffect(() => {
+    if (selectedCategory && memoizedCategories && Object.keys(memoizedCategories).length > 0) {
+      const categoryKey = selectedCategory.toUpperCase();
+      if (memoizedCategories[categoryKey]) {
+        setSubCategoryOptions(memoizedCategories[categoryKey]);
+      } else {
+        setSubCategoryOptions([]);
+      }
+    } else {
+      setSubCategoryOptions([]);
+    }
+  }, [selectedCategory, memoizedCategories]);
+
   const prefetchNextPage = useCallback(() => {
     if (currentPage < totalPages) {
       setTimeout(() => {
@@ -455,8 +517,18 @@ function ProductsPageContent() {
     }
   }, [currentPage, totalPages, fetchWithCache]);
 
+  // Updated filtering logic for combined search
   const filterProducts = useCallback((products, filters) => {
     return products.filter(product => {
+      // Category filter
+      if (filters.category && product.category !== filters.category) {
+        return false;
+      }
+      // Subcategory filter  
+      if (filters.subcategory && product.subcategory !== filters.subcategory) {
+        return false;
+      }
+      // Search filter - works within the selected category/subcategory context
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
         if (!product.name?.toLowerCase().includes(searchLower) &&
@@ -475,13 +547,18 @@ function ProductsPageContent() {
         status: 'active',
         page: currentPage.toString(),
         limit: PRODUCTS_PER_PAGE.toString(),
-        ...(deferredSearchQuery?.trim() && { search: deferredSearchQuery.trim() })
+        ...(deferredSearchQuery?.trim() && { search: deferredSearchQuery.trim() }),
+        ...(deferredCategory && { category: deferredCategory }),
+        ...(deferredSubcategory && { subcategory: deferredSubcategory })
       });
       const data = await fetchWithCache(`/api/products?${queryParams}`);
       if (data) {
         let loadedProducts = data.products || [];
+        // Apply client-side filtering for combined search functionality
         loadedProducts = filterProducts(loadedProducts, {
-          search: deferredSearchQuery
+          search: deferredSearchQuery,
+          category: deferredCategory,
+          subcategory: deferredSubcategory
         });
         setProducts(loadedProducts);
         setTotalPages(data.pagination?.totalPages || (loadedProducts.length > 0 ? 1 : 0));
@@ -498,14 +575,18 @@ function ProductsPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, deferredSearchQuery, fetchWithCache, prefetchNextPage, filterProducts]);
+  }, [currentPage, deferredSearchQuery, deferredCategory, deferredSubcategory, fetchWithCache, prefetchNextPage, filterProducts]);
 
   useEffect(() => {
     if (initialized) return;
     const page = parseInt(searchParams.get('page') || '1') || 1;
     const search = searchParams.get('search') || '';
+    const category = searchParams.get('category') || '';
+    const subcategory = searchParams.get('subcategory') || '';
     setCurrentPage(page);
     setSearchQuery(search);
+    setSelectedCategory(category);
+    setSelectedSubcategory(subcategory);
     setInitialized(true);
   }, [searchParams, initialized]);
 
@@ -525,6 +606,12 @@ function ProductsPageContent() {
       if (deferredSearchQuery?.trim()) {
         params.set('search', deferredSearchQuery);
       }
+      if (deferredCategory) {
+        params.set('category', deferredCategory);
+      }
+      if (deferredSubcategory) {
+        params.set('subcategory', deferredSubcategory);
+      }
       if (currentPage > 1) {
         params.set('page', currentPage.toString());
       }
@@ -539,7 +626,7 @@ function ProductsPageContent() {
         clearTimeout(urlUpdateTimeoutRef.current);
       }
     };
-  }, [deferredSearchQuery, currentPage, pathname, router, initialized]);
+  }, [deferredSearchQuery, deferredCategory, deferredSubcategory, currentPage, pathname, router, initialized]);
 
   const handleProductClick = useCallback((product) => {
     if (product?._id) {
@@ -583,10 +670,42 @@ function ProductsPageContent() {
     });
   }, [currentPage]);
 
+  const handleCategoryChange = useCallback((e) => {
+    const value = e.target.value;
+    startTransition(() => {
+      setSelectedCategory(value);
+      setSelectedSubcategory(''); // Reset subcategory when category changes
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      }
+    });
+  }, [currentPage]);
+
+  const handleSubcategoryChange = useCallback((e) => {
+    const value = e.target.value;
+    startTransition(() => {
+      setSelectedSubcategory(value);
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      }
+    });
+  }, [currentPage]);
+
+  const handleClearFilters = useCallback(() => {
+    startTransition(() => {
+      setSearchQuery('');
+      setSelectedCategory('');
+      setSelectedSubcategory('');
+      setCurrentPage(1);
+    });
+  }, []);
+
   // Memo Fallback for filters
   const hasActiveFilters = useMemo(() => {
-    return (deferredSearchQuery?.trim() || '') !== '';
-  }, [deferredSearchQuery]);
+    return (deferredSearchQuery?.trim() || '') !== '' || 
+           deferredCategory !== '' || 
+           deferredSubcategory !== '';
+  }, [deferredSearchQuery, deferredCategory, deferredSubcategory]);
 
   useEffect(() => {
     return () => {
@@ -613,36 +732,95 @@ function ProductsPageContent() {
         <div className="mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
             <div className="flex flex-col sm:flex-row gap-4 lg:ml-auto">
-              {/* Enhanced Search */}
-              <div className="relative group">
-                <Search size={20} className={`absolute left-3 top-1/2 transform -translate-y-1/2 transition-colors ${
-                  searchQuery ? 'text-purple-500' : 'text-gray-400'
-                }`} />
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  className="pl-10 pr-10 py-2 w-80 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all duration-150 group-hover:shadow-sm"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={handleClearSearch}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                    type="button"
+              {/* Combined Category + Search Field - Matching Your Image Design */}
+              <div className="flex border border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm max-w-2xl w-full">
+                {/* Category Dropdown */}
+                <div className="relative">
+                  <select
+                    value={selectedCategory}
+                    onChange={handleCategoryChange}
+                    className="appearance-none pl-4 pr-8 py-3 bg-gray-50 border-r border-gray-300 text-gray-700 font-medium focus:outline-none focus:bg-white transition-all duration-150 cursor-pointer min-w-[160px]"
+                    disabled={categoriesLoading}
                   >
-                    <X size={16} />
-                  </button>
-                )}
-                {isPending && (
-                  <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
-                    <Loader2 size={16} className="animate-spin text-purple-500" />
+                    <option value="">All Categories</option>
+                    {Object.keys(memoizedCategories).map(cat => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={16} className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 pointer-events-none" />
+                </div>
+
+                {/* Subcategory Dropdown - Only show when category is selected */}
+                {selectedCategory && subCategoryOptions.length > 0 && (
+                  <div className="relative">
+                    <select
+                      value={selectedSubcategory}
+                      onChange={handleSubcategoryChange}
+                      className="appearance-none pl-4 pr-8 py-3 bg-gray-50 border-r border-gray-300 text-gray-700 font-medium focus:outline-none focus:bg-white transition-all duration-150 cursor-pointer min-w-[160px]"
+                    >
+                      <option value="">All Subcategories</option>
+                      {subCategoryOptions.map(option => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={16} className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 pointer-events-none" />
                   </div>
                 )}
+
+                {/* Search Input */}
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    placeholder={
+                      selectedCategory && selectedSubcategory 
+                        ? `Search in ${selectedCategory} > ${selectedSubcategory}...`
+                        : selectedCategory 
+                        ? `Search in ${selectedCategory}...`
+                        : "Search here"
+                    }
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    className="w-full px-4 py-3 focus:outline-none text-gray-700 placeholder-gray-400"
+                  />
+                  
+                  {/* Search Icon or Clear Button */}
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center">
+                    {isPending && (
+                      <Loader2 size={18} className="animate-spin text-purple-500 mr-2" />
+                    )}
+                    {searchQuery ? (
+                      <button
+                        onClick={handleClearSearch}
+                        className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                        type="button"
+                      >
+                        <X size={18} />
+                      </button>
+                    ) : (
+                      <Search size={18} className="text-gray-400" />
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {/* Clear Filters Button */}
+              {hasActiveFilters && (
+                <button
+                  onClick={handleClearFilters}
+                  className="flex items-center px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-150 whitespace-nowrap"
+                >
+                  <X size={16} className="mr-1" />
+                  Clear All
+                </button>
+              )}
             </div>
           </div>
         </div>
+        
         {/* Products Grid */}
         <div className="relative">
           {loading && (
@@ -663,14 +841,12 @@ function ProductsPageContent() {
               onToggleFavorite={handleToggleFavorite}
               isFavorite={isFavorite}
               hasActiveFilters={hasActiveFilters}
-              handleClearFilters={() => {
-                setSearchQuery('');
-                setCurrentPage(1);
-              }}
+              handleClearFilters={handleClearFilters}
               deferredSearchQuery={deferredSearchQuery}
             />
           </AnimatePresence>
         </div>
+        
         {/* Pagination */}
         {totalPages > 1 && (
           <PaginationControls
@@ -681,6 +857,7 @@ function ProductsPageContent() {
           />
         )}
       </div>
+      
       <style jsx>{`
         .slider-thumb {
           -webkit-appearance: none;
