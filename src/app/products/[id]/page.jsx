@@ -14,7 +14,14 @@ import {
   ShoppingCart,
   ChevronDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Zap,
+  Droplets,
+  Clock,
+  Battery,
+  Settings,
+  Star,
+  Gift
 } from 'lucide-react';
 import { useCart } from '../../../../components/hooks/useCart';
 import { useFavorites } from '../../../../components/hooks/useFavorites';
@@ -190,6 +197,44 @@ export default function ProductDetailPage() {
     return nicotineOptions.length > 0 || vgPgOptions.length > 0 || colorOptions.length > 0;
   };
 
+  // 🆕 UPDATED: Function to get technical specifications (excluding features and eachSetContains)
+  const getAvailableSpecifications = () => {
+    if (!product) return [];
+    
+    const specifications = [];
+    
+    // Define specification mapping with icons and labels - EXCLUDING features and eachSetContains
+    const specificationMap = {
+      flavor: { label: 'Flavor', icon: Droplets, color: 'text-blue-500' },
+      resistance: { label: 'Resistance', icon: Zap, color: 'text-yellow-500', unit: 'Ω' },
+      wattageRange: { label: 'Wattage Range', icon: Battery, color: 'text-green-500', unit: 'W' },
+      bottleSizes: { label: 'Bottle Size', icon: Package, color: 'text-purple-500' },
+      bottleType: { label: 'Bottle Type', icon: Package, color: 'text-indigo-500' },
+      unit: { label: 'Unit', icon: Settings, color: 'text-gray-500' },
+      puffs: { label: 'Puffs', icon: Droplets, color: 'text-pink-500' },
+      coil: { label: 'Coil Type', icon: Settings, color: 'text-orange-500' },
+      volume: { label: 'Volume', icon: Droplets, color: 'text-cyan-500' },
+      charging: { label: 'Charging', icon: Battery, color: 'text-green-600' },
+      chargingTime: { label: 'Charging Time', icon: Clock, color: 'text-red-500' }
+    };
+
+    // Check each specification field (EXCLUDING features and eachSetContains)
+    Object.entries(specificationMap).forEach(([key, config]) => {
+      if (product[key] && product[key].toString().trim() !== '') {
+        specifications.push({
+          key,
+          label: config.label,
+          value: product[key],
+          icon: config.icon,
+          color: config.color,
+          unit: config.unit || ''
+        });
+      }
+    });
+
+    return specifications;
+  };
+
   // Navigation functions for image carousel
   const goToPrevious = () => {
     setCurrentImageIndex((prevIndex) => 
@@ -230,6 +275,7 @@ export default function ProductDetailPage() {
   const nicotineOptions = getUniqueSpecificationValues('nicotineStrength');
   const vgPgOptions = getUniqueSpecificationValues('vgPgRatio');
   const colorOptions = getUniqueSpecificationValues('colors');
+  const availableSpecs = getAvailableSpecifications(); // 🆕 Technical specifications only
 
   // Check if we have multiple images
   const hasMultipleImages = product.images && product.images.length > 1;
@@ -254,9 +300,9 @@ export default function ProductDetailPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Product Images Section */}
+          {/* Left Side - Product Images + Features + Each Set Contains */}
           <div className="space-y-6">
-            {/* Main Image with Navigation - FIXED */}
+            {/* Main Image with Navigation */}
             <motion.div 
               className="relative w-full h-[40rem] bg-gray-50 rounded-2xl shadow-lg overflow-hidden group"
               initial={{ opacity: 0, scale: 0.9 }}
@@ -311,7 +357,7 @@ export default function ProductDetailPage() {
               )}
             </motion.div>
 
-            {/* Beautiful Image Carousel - Only show if multiple images - FIXED */}
+            {/* Beautiful Image Carousel - Only show if multiple images */}
             {hasMultipleImages && (
               <motion.div 
                 className="space-y-4"
@@ -327,7 +373,7 @@ export default function ProductDetailPage() {
                   </span>
                 </div>
 
-                {/* Scrollable Thumbnail Carousel - FIXED */}
+                {/* Scrollable Thumbnail Carousel */}
                 <div className=" pb-4">
                   <div className="flex gap-3 min-w-max">
                     {product.images.map((image, index) => (
@@ -394,9 +440,57 @@ export default function ProductDetailPage() {
                 </div>
               </motion.div>
             )}
+
+            {/* 🆕 NEW: Features Section - On the left side */}
+            {product.features && Array.isArray(product.features) && product.features.length > 0 && (
+              <motion.div 
+                className="bg-white rounded-lg shadow p-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+              >
+                <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Star size={20} className="text-amber-500" />
+                  Features
+                </h3>
+                <div className="space-y-2">
+                  {product.features.map((feature, index) => (
+                    <div key={index} className="flex items-center gap-3 p-2 bg-amber-50 rounded-lg">
+                      <div className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0"></div>
+                      <span className="text-gray-800 font-medium">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* 🆕 NEW: Each Set Contains Section - On the left side */}
+            {product.eachSetContains && Array.isArray(product.eachSetContains) && product.eachSetContains.length > 0 && (
+              <motion.div 
+                className="bg-white rounded-lg shadow p-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.5 }}
+              >
+                <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Gift size={20} className="text-teal-500" />
+                  Each Set Contains
+                </h3>
+                <div className="space-y-2">
+                  {product.eachSetContains.map((item, index) => (
+                    <div key={index} className="flex items-start gap-3 p-3 bg-teal-50 rounded-lg">
+                      <span className="text-teal-600 font-bold text-sm mt-0.5 flex-shrink-0">
+                        {index + 1}.
+                      </span>
+                      <span className="text-gray-800 font-medium">{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
           </div>
 
-          {/* Product Details - Rest of the component remains the same */}
+          {/* Right Side - Product Details */}
           <motion.div 
             className="space-y-6"
             initial={{ opacity: 0, x: 50 }}
@@ -446,29 +540,30 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Additional Product Info */}
-            {(product.flavor || product.resistance || product.wattageRange) && (
-              <div className="bg-white rounded-lg shadow p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Specifications</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {product.flavor && (
-                    <div>
-                      <span className="text-sm font-medium text-gray-500">Flavor</span>
-                      <p className="text-gray-900">{product.flavor}</p>
-                    </div>
-                  )}
-                  {product.resistance && (
-                    <div>
-                      <span className="text-sm font-medium text-gray-500">Resistance</span>
-                      <p className="text-gray-900">{product.resistance}Ω</p>
-                    </div>
-                  )}
-                  {product.wattageRange && (
-                    <div>
-                      <span className="text-sm font-medium text-gray-500">Wattage</span>
-                      <p className="text-gray-900">{product.wattageRange}W</p>
-                    </div>
-                  )}
+            {/* 🆕 UPDATED: Technical Specifications Section (excluding features and eachSetContains) */}
+            {availableSpecs.length > 0 && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Settings size={20} className="text-purple-600" />
+                  Specifications
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {availableSpecs.map((spec) => {
+                    const IconComponent = spec.icon;
+                    return (
+                      <div key={spec.key} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                        <IconComponent size={18} className={`${spec.color} mt-0.5 flex-shrink-0`} />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-gray-500 block">
+                            {spec.label}
+                          </span>
+                          <p className="text-gray-900 font-semibold break-words">
+                            {spec.value}{spec.unit && ` ${spec.unit}`}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

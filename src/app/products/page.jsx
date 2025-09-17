@@ -777,10 +777,9 @@ function ProductsPageContent() {
                     type="text"
                     placeholder={
                       selectedCategory && selectedSubcategory 
-                        ? `Search in ${selectedCategory} > ${selectedSubcategory}...`
-                        : selectedCategory 
-                        ? `Search in ${selectedCategory}...`
+                        ? "Search here"
                         : "Search here"
+                        
                     }
                     value={searchQuery}
                     onChange={handleSearchChange}
