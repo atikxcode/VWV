@@ -341,64 +341,270 @@ export default function CheckoutPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+// Handle form submission with GUEST CHECKOUT support
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  if (!validateForm()) {
+    Swal.fire({
+      title: 'Validation Error',
+      text: 'Please fill in all required fields correctly.',
+      icon: 'error',
+      confirmButtonColor: '#8b5cf6'
+    });
+    return;
+  }
+
+  setIsProcessing(true);
+
+  try {
+    // Save data to localStorage if requested
+    if (saveForFuture) {
+      saveToLocalStorage();
+    }
+
+    console.log('🚀 Starting order submission...');
+    console.log('👤 User status:', user ? `Logged in: ${user.email}` : 'Guest checkout');
+    console.log('🛒 Cart items:', cartItems.length);
+    console.log('💰 Total:', orderSummary.total);
+
+    // 🔓 GUEST CHECKOUT: Authentication is optional
+    let token = null;
+    let isGuestOrder = !user;
     
-    if (!validateForm()) {
-      Swal.fire({
-        title: 'Validation Error',
-        text: 'Please fill in all required fields correctly.',
-        icon: 'error',
-        confirmButtonColor: '#8b5cf6'
-      });
-      return;
-    }
-
-    setIsProcessing(true);
-
-    try {
-      if (saveForFuture) {
-        saveToLocalStorage();
+    if (user) {
+      try {
+        token = await user.getIdToken();
+        console.log('🔑 Firebase token obtained for authenticated user');
+      } catch (tokenError) {
+        console.warn('⚠️ Failed to get Firebase token, proceeding as guest:', tokenError);
+        isGuestOrder = true;
       }
-
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      clearCart();
-
-      const selectedPaymentMethod = paymentMethods.find(method => method.id === paymentInfo.method);
-
-      await Swal.fire({
-        title: 'Order Placed Successfully!',
-        html: `
-          <div class="text-left">
-            <p class="text-gray-700 mb-4">Thank you for your order!</p>
-            <div class="bg-gray-100 p-4 rounded-lg">
-              <p class="font-semibold text-gray-900">Order Details:</p>
-              <p class="text-sm text-gray-600">Order ID: #VWV${Date.now()}</p>
-              <p class="text-sm text-gray-600">Total: BDT ${orderSummary.total.toLocaleString()}</p>
-              <p class="text-sm text-gray-600">Items: ${orderSummary.itemCount}</p>
-              <p class="text-sm text-gray-600">Payment: ${selectedPaymentMethod.name}</p>
-            </div>
-            <p class="text-sm text-gray-600 mt-4">You will receive a confirmation email shortly.</p>
-          </div>
-        `,
-        icon: 'success',
-        confirmButtonText: 'Continue Shopping',
-        confirmButtonColor: '#8b5cf6'
-      });
-
-      router.push('/products');
-    } catch (error) {
-      Swal.fire({
-        title: 'Order Failed',
-        text: 'There was an error processing your order. Please try again.',
-        icon: 'error',
-        confirmButtonColor: '#8b5cf6'
-      });
-    } finally {
-      setIsProcessing(false);
+    } else {
+      console.log('👤 Processing as guest checkout');
     }
-  };
+    
+    // 🛒 PREPARE ORDER DATA for the backend
+    const orderData = {
+      items: cartItems.map(item => ({
+        product: {
+          _id: item.product._id,
+          name: item.product.name,
+          price: item.product.price,
+          images: item.product.images || [],
+          brand: item.product.brand || '',
+          category: item.product.category || '',
+          subcategory: item.product.subcategory || ''
+        },
+        quantity: item.quantity,
+        selectedOptions: item.selectedOptions || {}
+      })),
+      customerInfo: {
+        fullName: customerInfo.fullName.trim(),
+        email: customerInfo.email.toLowerCase().trim(),
+        phone: customerInfo.phone.trim(),
+        address: customerInfo.address.trim(),
+        city: customerInfo.city.trim(),
+        postalCode: customerInfo.postalCode.trim(),
+        country: customerInfo.country || 'Bangladesh'
+      },
+      paymentInfo: {
+        method: paymentInfo.method,
+        // Include payment method specific data
+        ...(paymentInfo.method === 'bkash' && { bkashNumber: paymentInfo.bkashNumber.trim() }),
+        ...(paymentInfo.method === 'nagad' && { nagadNumber: paymentInfo.nagadNumber.trim() }),
+        ...(paymentInfo.method === 'rocket' && { rocketNumber: paymentInfo.rocketNumber.trim() }),
+        ...(paymentInfo.method === 'upay' && { upayNumber: paymentInfo.upayNumber.trim() }),
+        ...(paymentInfo.method === 'card' && { 
+          cardNumber: paymentInfo.cardNumber.replace(/\s/g, '').trim(),
+          expiryDate: paymentInfo.expiryDate.trim(),
+          cvv: paymentInfo.cvv.trim(),
+          cardName: paymentInfo.cardName.trim()
+        })
+      },
+      shippingAddress: customerInfo, // Using same as billing for now
+      orderNotes: orderNotes.trim(),
+      branch: 'main' // Default branch, can be made dynamic later
+    };
+
+    console.log('📦 Order data prepared:', {
+      itemCount: orderData.items.length,
+      customerEmail: orderData.customerInfo.email,
+      paymentMethod: orderData.paymentInfo.method,
+      totalAmount: orderSummary.total,
+      orderType: isGuestOrder ? 'guest' : 'registered'
+    });
+
+    // 🌐 SUBMIT ORDER to backend API (with optional authentication)
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest'
+    };
+    
+    // Only add authorization header if we have a token
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch('/api/orders', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(orderData)
+    });
+
+    console.log('📡 API Response status:', response.status);
+
+    // Handle API response
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('❌ Order API Error:', errorData);
+      
+      // Specific error handling
+      if (response.status === 400) {
+        throw new Error(errorData.error || 'Invalid order data. Please check your information.');
+      } else if (response.status === 413) {
+        throw new Error('Order data is too large. Please reduce the number of items.');
+      } else {
+        throw new Error(errorData.error || `Server error (${response.status}). Please try again.`);
+      }
+    }
+
+    // ✅ SUCCESS: Parse successful response
+    const result = await response.json();
+    console.log('✅ Order created successfully:', result);
+
+    if (!result.success || !result.order) {
+      throw new Error('Invalid response from server. Please try again.');
+    }
+
+    // 🧹 CLEAR CART after successful order
+    clearCart();
+    console.log('🧹 Cart cleared successfully');
+
+    // 💾 CLEAR saved checkout data
+    if (saveForFuture) {
+      localStorage.removeItem('vwv-checkout-data');
+    }
+
+    // 📧 SHOW SUCCESS MESSAGE with order details
+    const selectedPaymentMethod = paymentMethods.find(method => method.id === paymentInfo.method);
+    
+    await Swal.fire({
+      title: isGuestOrder ? 'Guest Order Placed Successfully!' : 'Order Placed Successfully!',
+      html: `
+        <div class="text-left">
+          <p class="text-gray-700 mb-4">Thank you for your order, ${customerInfo.fullName}!</p>
+          
+          ${isGuestOrder ? `
+            <div class="bg-blue-50 p-3 rounded-lg mb-4 border border-blue-200">
+              <p class="text-blue-800 font-medium text-sm mb-1">Guest Order:</p>
+              <p class="text-blue-700 text-xs">
+                Your order has been placed as a guest. To track your order status in the future, 
+                please save your order ID or consider creating an account.
+              </p>
+            </div>
+          ` : ''}
+          
+          <div class="bg-gray-100 p-4 rounded-lg mb-4">
+            <p class="font-semibold text-gray-900 mb-2">Order Details:</p>
+            <div class="text-sm text-gray-600 space-y-1">
+              <p><span class="font-medium">Order ID:</span> <span class="font-mono bg-yellow-100 px-2 py-1 rounded">${result.order.orderId}</span></p>
+              <p><span class="font-medium">Total Amount:</span> BDT ${result.order.totals.total.toLocaleString()}</p>
+              <p><span class="font-medium">Items:</span> ${result.order.totals.itemCount} (${result.order.totals.totalQuantity} units)</p>
+              <p><span class="font-medium">Payment Method:</span> ${selectedPaymentMethod?.name || paymentInfo.method}</p>
+              <p><span class="font-medium">Status:</span> <span class="text-orange-600 font-medium">${result.order.status}</span></p>
+              <p><span class="font-medium">Order Type:</span> <span class="capitalize text-purple-600">${result.orderType}</span></p>
+            </div>
+          </div>
+          
+          ${paymentInfo.method !== 'cod' ? `
+            <div class="bg-blue-50 p-3 rounded-lg mb-4 border border-blue-200">
+              <p class="text-blue-800 font-medium text-sm mb-1">Next Steps:</p>
+              <p class="text-blue-700 text-xs">
+                ${paymentInfo.method === 'card' 
+                  ? 'Your card will be charged shortly. You will receive a payment confirmation.'
+                  : `You will receive a payment request on your ${selectedPaymentMethod?.name || paymentInfo.method} account shortly.`
+                }
+              </p>
+            </div>
+          ` : `
+            <div class="bg-green-50 p-3 rounded-lg mb-4 border border-green-200">
+              <p class="text-green-800 font-medium text-sm mb-1">Cash on Delivery:</p>
+              <p class="text-green-700 text-xs">
+                Keep BDT ${result.order.totals.total.toLocaleString()} ready for payment upon delivery.
+              </p>
+            </div>
+          `}
+          
+          <p class="text-sm text-gray-600">
+            📧 A confirmation email has been sent to <strong>${customerInfo.email}</strong>
+          </p>
+          <p class="text-sm text-gray-500 mt-2">
+            💬 You can contact us with your Order ID if you have any questions.
+          </p>
+        </div>
+      `,
+      icon: 'success',
+      showCancelButton: !isGuestOrder, // Only show "View Orders" for registered users
+      confirmButtonText: '🛍️ Continue Shopping',
+      cancelButtonText: isGuestOrder ? undefined : '📋 View Orders',
+      confirmButtonColor: '#8b5cf6',
+      cancelButtonColor: '#6b7280',
+      allowOutsideClick: false,
+      width: '600px'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // Continue shopping
+        router.push('/products');
+      } else if (result.isDismissed && !isGuestOrder) {
+        // View orders (only for registered users)
+        router.push('/orders');
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Order submission error:', error);
+    
+    // Show user-friendly error message
+    await Swal.fire({
+      title: 'Order Failed',
+      html: `
+        <div class="text-left">
+          <p class="text-gray-700 mb-4">We encountered an issue processing your order:</p>
+          
+          <div class="bg-red-50 p-4 rounded-lg mb-4 border border-red-200">
+            <p class="text-red-800 font-medium text-sm">${error.message}</p>
+          </div>
+          
+          <div class="text-sm text-gray-600 space-y-2">
+            <p><strong>What you can do:</strong></p>
+            <ul class="list-disc list-inside space-y-1 text-xs ml-2">
+              <li>Check your internet connection and try again</li>
+              <li>Verify all your information is correct</li>
+              <li>Try a different payment method</li>
+              ${!user ? '<li>Consider creating an account for a smoother checkout experience</li>' : ''}
+              <li>Contact us if the problem persists</li>
+            </ul>
+          </div>
+          
+          <p class="text-xs text-gray-500 mt-4">
+            <strong>Error Code:</strong> ${error.name || 'CHECKOUT_ERROR'}<br>
+            <strong>Time:</strong> ${new Date().toLocaleString()}
+          </p>
+        </div>
+      `,
+      icon: 'error',
+      confirmButtonText: 'Try Again',
+      confirmButtonColor: '#ef4444',
+      width: '500px'
+    });
+
+  } finally {
+    setIsProcessing(false);
+    console.log('✅ Order submission process completed');
+  }
+};
+
 
   // Format card number
   const formatCardNumber = (value) => {

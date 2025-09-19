@@ -143,6 +143,7 @@ const Navbar = () => {
           </div>
 
           <div className="flex flex-row gap-4">
+            <a href="/TrackOrder">Track</a>
             <a href="#">Contact</a>
             <a href="#">Support</a>
             <a href="#">About</a>
