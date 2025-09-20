@@ -601,46 +601,88 @@ export async function GET(req) {
       ]
     }
 
-    // Handle stock and branch restrictions
-    if (userInfo.role === 'moderator') {
-      // Moderator can only see their branch data
-      if (branch && branch !== userInfo.branch) {
-        return NextResponse.json(
-          { error: 'Access denied: Cannot view other branch data' },
-          { status: 403 }
-        )
-      }
-      if (inStock === 'true') {
-        query[`stock.${userInfo.branch}_stock`] = { $gt: 0 }
-      }
-    } else if (userInfo.role === 'public') {
-      // Filter by branch stock availability for public
-      if (branch && inStock === 'true') {
-        if (!/^[a-zA-Z0-9_]{1,20}$/.test(branch)) {
-          return NextResponse.json(
-            { error: 'Invalid branch name' },
-            { status: 400 }
-          )
-        }
-        query[`stock.${branch}_stock`] = { $gt: 0 }
-      } else if (inStock === 'true') {
-        // Check stock in default branches
-        query.$or = [
-          { 'stock.bashundhara_stock': { $gt: 0 } },
-          { 'stock.mirpur_stock': { $gt: 0 } },
-        ]
-      }
-    } else if (userInfo.role === 'admin') {
-      // Admin can filter by any branch
-      if (branch && inStock === 'true') {
-        query[`stock.${branch}_stock`] = { $gt: 0 }
-      } else if (inStock === 'true') {
-        query.$or = [
-          { 'stock.bashundhara_stock': { $gt: 0 } },
-          { 'stock.mirpur_stock': { $gt: 0 } },
-        ]
-      }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Handle stock and branch restrictions
+if (userInfo.role === 'moderator') {
+  // 🔒 RESTRICTION: Moderator can only see their own branch data - NO FILTERING ALLOWED
+  if (branch && branch !== userInfo.branch) {
+    return NextResponse.json(
+      { error: 'Access denied: Cannot view other branch data' },
+      { status: 403 }
+    )
+  }
+  
+  // 🔒 MODERATOR ALWAYS sees products from their assigned branch only
+  console.log('🏢 Moderator restricted to their branch:', userInfo.branch);
+  if (inStock === 'true') {
+    query[`stock.${userInfo.branch}_stock`] = { $gt: 0 }
+  }
+  
+} else if (userInfo.role === 'public') {
+  // Filter by branch stock availability for public
+  if (branch) {
+    if (!/^[a-zA-Z0-9_]{1,20}$/.test(branch)) {
+      return NextResponse.json(
+        { error: 'Invalid branch name' },
+        { status: 400 }
+      )
     }
+    console.log('🏢 Public filtering by branch:', branch);
+    query[`stock.${branch}_stock`] = { $gt: 0 };
+  } else if (inStock === 'true') {
+    // Check stock in default branches
+    query.$or = [
+      { 'stock.bashundhura_stock': { $gt: 0 } },
+      { 'stock.mirpur_stock': { $gt: 0 } },
+    ]
+  }
+  
+} else if (userInfo.role === 'admin') {
+  // 🔥 FIXED: Admin can filter by any branch - ALWAYS apply branch filter
+  if (branch) {
+    console.log('🏢 Admin filtering by branch:', branch);
+    query[`stock.${branch}_stock`] = { $gt: 0 };
+  } else if (inStock === 'true') {
+    query.$or = [
+      { 'stock.bashundhura_stock': { $gt: 0 } },
+      { 'stock.mirpur_stock': { $gt: 0 } },
+    ]
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     console.log('GET: Built query:', JSON.stringify(query, null, 2))
 
