@@ -1039,9 +1039,7 @@ export default function EditProduct({ productId, onBack }) {
   }, [productId, reset])
 
 
-
-
-// 🔥 FIXED: Initialize stock for branches when branches change - preserve database values
+// FIXED: Initialize stock for branches when branches change - preserve database values
 useEffect(() => {
   if (branches.length > 0 && product?.stock) {
     console.log('🔧 Initializing stock from database:', product.stock)
@@ -1060,11 +1058,7 @@ useEffect(() => {
   }
 }, [branches, product?.stock]) // Only run when branches or product stock changes
 
-
-
-
-
- // 🔥 FIXED: Update subcategories when category changes OR when categories are loaded
+ //  FIXED: Update subcategories when category changes OR when categories are loaded
 useEffect(() => {
   console.log('🔧 Subcategory useEffect triggered');
   console.log('🔧 Current category:', category);
@@ -1117,7 +1111,7 @@ useEffect(() => {
     try {
       console.log('💾 Starting save process...', { isSilent, hasData: !!data })
       
-      // 🔧 NEW: Filter branch data based on user role
+      //  NEW: Filter branch data based on user role
       let filteredBranchSpecs = branchSpecifications
       let filteredStock = stock
 
