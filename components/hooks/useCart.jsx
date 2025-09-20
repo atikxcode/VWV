@@ -36,8 +36,8 @@ export function CartProvider({ children }) {
     }
   }, [cartItems, isHydrated]);
 
-  // 🆕 UPDATED: Add to cart with selected options support
-  const addToCart = (product, quantity = 1, selectedOptions = {}) => {
+  // 🆕 UPDATED: Add to cart with selected options and available branches
+  const addToCart = (product, quantity = 1, selectedOptions = {}, availableBranches = []) => {
     // Create a unique identifier based on product ID and selected options
     const optionsString = JSON.stringify(selectedOptions);
     const uniqueId = `${product._id}_${optionsString}`;
@@ -57,12 +57,13 @@ export function CartProvider({ children }) {
         )
       );
     } else {
-      // Add new item with selected options
+      // Add new item with selected options and available branches
       setCartItems(items => [...items, {
         id: uniqueId,
         product,
         quantity,
         selectedOptions, // 🆕 Store selected options
+        availableBranches, // 🆕 NEW: Store branches that have this product in stock with selected specs
         addedAt: new Date().toISOString()
       }]);
     }
@@ -96,7 +97,7 @@ export function CartProvider({ children }) {
     return cartItems.reduce((sum, item) => sum + item.quantity, 0);
   };
 
-  // 🆕 NEW: Helper function to format product options for display
+  // 🆕 UPDATED: Helper function to format product options for display
   const getProductOptionsText = (selectedOptions) => {
     if (!selectedOptions || Object.keys(selectedOptions).length === 0) {
       return '';
@@ -116,6 +117,24 @@ export function CartProvider({ children }) {
     return options.length > 0 ? `(${options.join(', ')})` : '';
   };
 
+  // 🆕 NEW: Helper function to get available branches for an item
+  const getAvailableBranchesText = (availableBranches) => {
+    if (!availableBranches || availableBranches.length === 0) {
+      return 'No branches available';
+    }
+    
+    if (availableBranches.length === 1) {
+      return `Available at: ${availableBranches[0].toUpperCase()}`;
+    }
+    
+    return `Available at: ${availableBranches.map(b => b.toUpperCase()).join(', ')}`;
+  };
+
+  // 🆕 NEW: Check if item has specifications selected
+  const hasProductSpecifications = (selectedOptions) => {
+    return selectedOptions && Object.keys(selectedOptions).length > 0;
+  };
+
   return (
     <CartContext.Provider value={{
       cartItems,
@@ -126,6 +145,8 @@ export function CartProvider({ children }) {
       getCartTotal,
       getCartItemsCount,
       getProductOptionsText, // 🆕 Export helper function
+      getAvailableBranchesText, // 🆕 NEW: Export branch helper
+      hasProductSpecifications, // 🆕 NEW: Export specification checker
       isHydrated,
     }}>
       {children}

@@ -166,39 +166,72 @@ function validateOrderItems(items) {
     if (!item.product.name) {
       throw new Error(`Item ${index + 1}: Product must have a name`)
     }
+
+    // Simple branch validation
+    if (item.availableBranches) {
+      if (!Array.isArray(item.availableBranches)) {
+        throw new Error(`Item ${index + 1}: availableBranches must be an array`)
+      }
+      
+      item.availableBranches.forEach((branch, branchIndex) => {
+        if (typeof branch !== 'string') {
+          throw new Error(`Item ${index + 1}, branch ${branchIndex + 1}: Branch name must be a string`)
+        }
+      })
+    }
+
+    // Simple selected options validation
+    if (item.selectedOptions) {
+      if (typeof item.selectedOptions !== 'object' || Array.isArray(item.selectedOptions)) {
+        throw new Error(`Item ${index + 1}: selectedOptions must be an object`)
+      }
+    }
   }
   
   return true
 }
 
-// 🔧 Calculate order totals with validation
-function calculateOrderTotals(items) {
+// 🆕 UPDATED: Calculate order totals with delivery charges
+function calculateOrderTotals(items, deliveryCharge = 0) {
   let subtotal = 0
   let totalQuantity = 0
   
   items.forEach(item => {
-    const itemTotal = item.product.price * item.quantity
+    const itemPrice = parseFloat(item.product.price) || 0
+    const itemQuantity = parseInt(item.quantity) || 0
+    const itemTotal = itemPrice * itemQuantity
+    
+    if (itemTotal < 0) {
+      throw new Error(`Invalid item total for ${item.product.name}: ${itemTotal}`)
+    }
+    
     subtotal += itemTotal
-    totalQuantity += item.quantity
+    totalQuantity += itemQuantity
   })
   
-  // Future: Add tax, shipping, discount calculations
+  // Validate delivery charge
+  const validatedDeliveryCharge = parseFloat(deliveryCharge) || 0
+  if (validatedDeliveryCharge < 0 || validatedDeliveryCharge > 1000) {
+    throw new Error('Delivery charge must be between 0 and 1000 BDT')
+  }
+  
+  // Future: Add tax, discount calculations
   const tax = 0
-  const shipping = 0
   const discount = 0
   
-  const total = subtotal + tax + shipping - discount
+  // Calculate total
+  const total = subtotal + tax + validatedDeliveryCharge - discount
   
   if (total < MIN_ORDER_VALUE || total > MAX_ORDER_VALUE) {
     throw new Error(`Order total must be between ${MIN_ORDER_VALUE} and ${MAX_ORDER_VALUE} BDT`)
   }
   
   return {
-    subtotal,
-    tax,
-    shipping,
-    discount,
-    total,
+    subtotal: Math.round(subtotal * 100) / 100,
+    tax: Math.round(tax * 100) / 100,
+    deliveryCharge: Math.round(validatedDeliveryCharge * 100) / 100,
+    discount: Math.round(discount * 100) / 100,
+    total: Math.round(total * 100) / 100,
     itemCount: items.length,
     totalQuantity
   }
@@ -259,24 +292,21 @@ export async function GET(req) {
     }
 
     if (branch) {
-      query.branch = branch
+      query.availableBranches = branch
     }
 
     // 🔐 CRITICAL: Role-based data access control
     if (userInfo.role === 'user') {
-      // 🔒 USERS: Can only see their own orders
       query['customerInfo.email'] = userInfo.email
       console.log('👤 User access: Filtering orders for', userInfo.email)
       
-      // Users cannot filter by other customer emails
       if (customerEmail && customerEmail !== userInfo.email) {
         return createAuthError('Access denied: Cannot view other customers\' orders', 403)
       }
       
     } else if (userInfo.role === 'moderator') {
-      // 🔒 MODERATORS: Can see orders from their branch + filter by customer email
       if (userInfo.branch) {
-        query.branch = userInfo.branch
+        query.availableBranches = userInfo.branch
         console.log('👮 Moderator access: Filtering orders for branch', userInfo.branch)
       }
       
@@ -285,7 +315,6 @@ export async function GET(req) {
       }
       
     } else if (['admin', 'manager'].includes(userInfo.role)) {
-      // 🔒 ADMINS/MANAGERS: Can see all orders + apply all filters
       console.log('👑 Admin/Manager access: Full access to all orders')
       
       if (customerEmail) {
@@ -293,7 +322,6 @@ export async function GET(req) {
       }
       
     } else {
-      // 🔒 UNKNOWN ROLE: Deny access
       return createAuthError('Insufficient permissions to view orders', 403)
     }
 
@@ -329,24 +357,20 @@ export async function GET(req) {
     // 🔐 FILTER SENSITIVE DATA based on user role
     const filteredOrders = orders.map(order => {
       if (userInfo.role === 'user') {
-        // 🔒 Users: Remove all sensitive payment information
         if (order.paymentInfo) {
           const { cardNumber, cvv, bkashNumber, nagadNumber, rocketNumber, upayNumber, ...safePaymentInfo } = order.paymentInfo
           order.paymentInfo = {
             method: safePaymentInfo.method,
-            // Keep only non-sensitive info
             ...(safePaymentInfo.cardLast4 && { cardLast4: safePaymentInfo.cardLast4 }),
             ...(safePaymentInfo.cardName && { cardName: safePaymentInfo.cardName })
           }
         }
       } else if (userInfo.role === 'moderator') {
-        // 🔒 Moderators: Remove some sensitive payment info
         if (order.paymentInfo) {
           const { cardNumber, cvv, ...safePaymentInfo } = order.paymentInfo
           order.paymentInfo = safePaymentInfo
         }
       }
-      // 🔒 Admins/Managers: See all data (no filtering)
       
       return order
     })
@@ -405,7 +429,7 @@ export async function GET(req) {
   }
 }
 
-// POST: Create new order (SUPPORTS GUEST CHECKOUT)
+// POST: Create new order
 export async function POST(req) {
   const ip = getUserIP(req)
 
@@ -420,7 +444,6 @@ export async function POST(req) {
       userInfo = await getUserInfo(req)
       console.log('🔑 Authenticated user:', userInfo.email)
     } catch (authError) {
-      // This is fine - guest checkout is allowed
       console.log('👤 Guest checkout detected')
       isGuestOrder = true
       userInfo = {
@@ -453,7 +476,7 @@ export async function POST(req) {
       paymentInfo,
       shippingAddress,
       orderNotes,
-      branch
+      deliveryCharge = 0
     } = body
 
     // Validate required fields
@@ -474,6 +497,15 @@ export async function POST(req) {
       )
     }
 
+    // Validate delivery charge
+    const validatedDeliveryCharge = parseFloat(deliveryCharge) || 0
+    if (validatedDeliveryCharge < 0 || validatedDeliveryCharge > 1000) {
+      return NextResponse.json(
+        { error: 'Invalid delivery charge (must be between 0-1000 BDT)' },
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
     // Sanitize customer info
     const sanitizedCustomerInfo = {
       fullName: sanitizeInput(customerInfo.fullName)?.substring(0, 100),
@@ -485,12 +517,12 @@ export async function POST(req) {
       country: sanitizeInput(customerInfo.country)?.substring(0, 50) || 'Bangladesh'
     }
 
-    // 🔓 GUEST CHECKOUT: Only validate email for authenticated users
+    // Guest checkout validation
     if (!isGuestOrder && userInfo.email !== sanitizedCustomerInfo.email) {
       return createAuthError('Authenticated users can only create orders with their own email address', 403)
     }
 
-    // Validate email format (required for both guest and authenticated)
+    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(sanitizedCustomerInfo.email)) {
       return NextResponse.json(
@@ -499,10 +531,10 @@ export async function POST(req) {
       )
     }
 
-    // Calculate totals with validation
+    // Calculate totals
     let totals
     try {
-      totals = calculateOrderTotals(items)
+      totals = calculateOrderTotals(items, validatedDeliveryCharge)
     } catch (calculationError) {
       return NextResponse.json(
         { error: calculationError.message },
@@ -513,7 +545,7 @@ export async function POST(req) {
     const client = await clientPromise
     const db = client.db('VWV')
 
-    // Generate unique order ID with collision check
+    // Generate unique order ID
     let orderId
     let attempts = 0
     const maxAttempts = 5
@@ -529,26 +561,37 @@ export async function POST(req) {
       throw new Error('Failed to generate unique order ID')
     }
 
-    // Validate and sanitize payment info
+    // Sanitize payment info
     const sanitizedPaymentInfo = {
       method: sanitizeInput(paymentInfo.method),
-      // Store payment method specific info (sanitized)
       ...(paymentInfo.method === 'bkash' && { bkashNumber: sanitizeInput(paymentInfo.bkashNumber)?.substring(0, 15) }),
       ...(paymentInfo.method === 'nagad' && { nagadNumber: sanitizeInput(paymentInfo.nagadNumber)?.substring(0, 15) }),
       ...(paymentInfo.method === 'rocket' && { rocketNumber: sanitizeInput(paymentInfo.rocketNumber)?.substring(0, 15) }),
       ...(paymentInfo.method === 'upay' && { upayNumber: sanitizeInput(paymentInfo.upayNumber)?.substring(0, 15) }),
-      // For card payments, store last 4 digits only (NEVER store full card number)
       ...(paymentInfo.method === 'card' && { 
         cardLast4: paymentInfo.cardNumber ? paymentInfo.cardNumber.replace(/\D/g, '').slice(-4) : '',
         cardName: sanitizeInput(paymentInfo.cardName)?.substring(0, 50)
       })
     }
 
-    // Create comprehensive order object
+    // 🔥 SIMPLE: Get all available branches from items
+    const allAvailableBranches = []
+    items.forEach(item => {
+      if (item.availableBranches && Array.isArray(item.availableBranches)) {
+        item.availableBranches.forEach(branch => {
+          const normalizedBranch = branch.toLowerCase()
+          if (!allAvailableBranches.includes(normalizedBranch)) {
+            allAvailableBranches.push(normalizedBranch)
+          }
+        })
+      }
+    })
+
+    // 🔥 SIMPLE: Create order object with ONLY availableBranches array
     const newOrder = {
       orderId,
       status: 'pending',
-      orderType: isGuestOrder ? 'guest' : 'registered', // Track order type
+      orderType: isGuestOrder ? 'guest' : 'registered',
       items: items.map(item => ({
         productId: item.product._id,
         product: {
@@ -562,20 +605,26 @@ export async function POST(req) {
         },
         quantity: parseInt(item.quantity),
         selectedOptions: item.selectedOptions || {},
+        // 🔥 SIMPLE: Only availableBranches array
+        availableBranches: item.availableBranches || [],
         itemTotal: parseFloat(item.product.price) * parseInt(item.quantity)
       })),
       customerInfo: sanitizedCustomerInfo,
       paymentInfo: sanitizedPaymentInfo,
       shippingAddress: shippingAddress || sanitizedCustomerInfo,
       orderNotes: sanitizeInput(orderNotes)?.substring(0, MAX_NOTES_LENGTH) || '',
-      branch: sanitizeInput(branch) || 'main',
+      
+      // 🔥 SIMPLE: Only availableBranches array at order level
+      availableBranches: allAvailableBranches,
+      
       totals,
       createdAt: new Date(),
       updatedAt: new Date(),
-      // Handle both guest and authenticated users
+      
       createdBy: isGuestOrder ? 'guest' : userInfo.userId,
       createdByRole: isGuestOrder ? 'guest' : userInfo.role,
-      createdByEmail: sanitizedCustomerInfo.email, // Always store customer email
+      createdByEmail: sanitizedCustomerInfo.email,
+      
       orderHistory: [{
         status: 'pending',
         timestamp: new Date(),
@@ -583,12 +632,12 @@ export async function POST(req) {
         updatedBy: isGuestOrder ? 'guest' : userInfo.userId,
         updatedByRole: isGuestOrder ? 'guest' : userInfo.role
       }],
-      // Additional tracking fields
+      
       trackingInfo: null,
       deliveryDate: null,
       cancelledAt: null,
       refundedAt: null,
-      // Security metadata
+      
       clientIP: ip,
       userAgent: req.headers.get('user-agent')?.substring(0, 200) || 'unknown'
     }
@@ -603,9 +652,10 @@ export async function POST(req) {
     console.log('✅ Order created successfully')
     console.log('📋 Order ID:', orderId)
     console.log('👤 Order type:', isGuestOrder ? 'Guest' : 'Registered')
+    console.log('🏪 Available branches:', allAvailableBranches)
     console.log('💰 Total amount:', totals.total)
 
-    // Create comprehensive audit log (non-blocking)
+    // Create audit log (non-blocking)
     setImmediate(async () => {
       try {
         await db.collection('audit_logs').insertOne({
@@ -616,10 +666,12 @@ export async function POST(req) {
           userRole: isGuestOrder ? 'guest' : userInfo.role,
           orderId,
           customerEmail: sanitizedCustomerInfo.email,
+          orderSubtotal: totals.subtotal,
+          deliveryCharge: totals.deliveryCharge,
           orderTotal: totals.total,
           itemCount: totals.itemCount,
           paymentMethod: sanitizedPaymentInfo.method,
-          branch: sanitizeInput(branch) || 'main',
+          availableBranches: allAvailableBranches,
           timestamp: new Date(),
           ipAddress: ip
         })
@@ -650,22 +702,18 @@ export async function POST(req) {
     )
 
   } catch (error) {
-    // Don't return auth errors for POST (guest checkout allowed)
     return handleApiError(error, 'POST /api/orders')
   }
 }
-
 
 // PUT: Update order status (Admin/Moderator/Manager only)
 export async function PUT(req) {
   const ip = getUserIP(req)
 
   try {
-    // 🔐 MANDATORY AUTHENTICATION
     const userInfo = await getUserInfo(req)
     logRequest(req, 'PUT', userInfo)
 
-    // 🔐 ROLE-BASED ACCESS CONTROL
     if (!['admin', 'manager', 'moderator'].includes(userInfo.role)) {
       return createAuthError('Insufficient permissions. Only admins, managers, and moderators can update orders', 403)
     }
@@ -680,7 +728,6 @@ export async function PUT(req) {
       )
     }
 
-    // Validate status
     if (!ORDER_STATUSES.includes(status)) {
       return NextResponse.json(
         { error: `Invalid status. Must be one of: ${ORDER_STATUSES.join(', ')}` },
@@ -688,7 +735,6 @@ export async function PUT(req) {
       )
     }
 
-    // Sanitize inputs
     const sanitizedOrderId = sanitizeInput(orderId)?.substring(0, MAX_ORDER_ID_LENGTH)
     const sanitizedNotes = sanitizeInput(notes)?.substring(0, MAX_NOTES_LENGTH)
     const sanitizedTrackingInfo = sanitizeInput(trackingInfo)?.substring(0, 100)
@@ -696,7 +742,6 @@ export async function PUT(req) {
     const client = await clientPromise
     const db = client.db('VWV')
 
-    // Find the order
     const existingOrder = await db.collection('orders').findOne({ orderId: sanitizedOrderId })
     
     if (!existingOrder) {
@@ -706,12 +751,11 @@ export async function PUT(req) {
       )
     }
 
-    // 🔐 Branch-based access control for moderators
-    if (userInfo.role === 'moderator' && existingOrder.branch !== userInfo.branch) {
+    // Branch-based access control for moderators
+    if (userInfo.role === 'moderator' && userInfo.branch && !existingOrder.availableBranches.includes(userInfo.branch)) {
       return createAuthError('Access denied: Cannot update orders from other branches', 403)
     }
 
-    // Prepare update data
     const updateData = {
       status,
       updatedAt: new Date(),
@@ -719,7 +763,6 @@ export async function PUT(req) {
       updatedByRole: userInfo.role
     }
 
-    // Add status-specific fields
     if (status === 'shipped' && sanitizedTrackingInfo) {
       updateData.trackingInfo = sanitizedTrackingInfo
     } else if (status === 'delivered') {
@@ -730,7 +773,6 @@ export async function PUT(req) {
       updateData.refundedAt = new Date()
     }
 
-    // Add to order history
     const historyEntry = {
       status,
       timestamp: new Date(),
@@ -739,7 +781,6 @@ export async function PUT(req) {
       updatedByRole: userInfo.role
     }
 
-    // Update order
     const result = await db.collection('orders').updateOne(
       { orderId: sanitizedOrderId },
       {
@@ -759,7 +800,7 @@ export async function PUT(req) {
     console.log('📋 Order ID:', sanitizedOrderId)
     console.log('📊 New status:', status)
 
-    // Create comprehensive audit log (non-blocking)
+    // Create audit log (non-blocking)
     setImmediate(async () => {
       try {
         await db.collection('audit_logs').insertOne({
@@ -773,6 +814,7 @@ export async function PUT(req) {
           newStatus: status,
           notes: sanitizedNotes || '',
           trackingInfo: sanitizedTrackingInfo || '',
+          availableBranches: existingOrder.availableBranches,
           timestamp: new Date(),
           ipAddress: ip
         })
@@ -806,12 +848,11 @@ export async function PUT(req) {
   }
 }
 
-// DELETE: Cancel order (Users can cancel own pending orders, Admins can cancel any)
+// DELETE: Cancel order
 export async function DELETE(req) {
   const ip = getUserIP(req)
 
   try {
-    // 🔐 MANDATORY AUTHENTICATION
     const userInfo = await getUserInfo(req)
     logRequest(req, 'DELETE', userInfo)
 
@@ -828,7 +869,6 @@ export async function DELETE(req) {
     const client = await clientPromise
     const db = client.db('VWV')
 
-    // Find the order
     const existingOrder = await db.collection('orders').findOne({ orderId })
     
     if (!existingOrder) {
@@ -838,7 +878,6 @@ export async function DELETE(req) {
       )
     }
 
-    // 🔐 PERMISSION CHECKS
     const isAdmin = ['admin', 'manager'].includes(userInfo.role)
     const isModerator = userInfo.role === 'moderator'
     const isOrderOwner = existingOrder.customerInfo.email === userInfo.email
@@ -846,12 +885,11 @@ export async function DELETE(req) {
     const canCancelTimeLimit = orderAge < 5 * 60 * 1000 // 5 minutes
     const isOrderPending = existingOrder.status === 'pending'
 
-    // Permission logic
     if (isAdmin) {
       // Admins can cancel any order
     } else if (isModerator) {
       // Moderators can cancel orders from their branch
-      if (existingOrder.branch !== userInfo.branch) {
+      if (userInfo.branch && !existingOrder.availableBranches.includes(userInfo.branch)) {
         return createAuthError('Access denied: Cannot cancel orders from other branches', 403)
       }
     } else if (userInfo.role === 'user') {
@@ -869,7 +907,7 @@ export async function DELETE(req) {
       return createAuthError('Insufficient permissions to cancel orders', 403)
     }
 
-    // Update order to cancelled status (soft delete)
+    // Update order to cancelled status
     const result = await db.collection('orders').updateOne(
       { orderId },
       {
@@ -897,7 +935,7 @@ export async function DELETE(req) {
     console.log('✅ Order cancelled successfully')
     console.log('📋 Order ID:', orderId)
 
-    // Create comprehensive audit log (non-blocking)
+    // Create audit log (non-blocking)
     setImmediate(async () => {
       try {
         await db.collection('audit_logs').insertOne({
@@ -909,6 +947,7 @@ export async function DELETE(req) {
           customerEmail: existingOrder.customerInfo.email,
           cancelledBy: isAdmin ? 'admin' : isModerator ? 'moderator' : 'customer',
           orderTotal: existingOrder.totals.total,
+          availableBranches: existingOrder.availableBranches,
           timestamp: new Date(),
           ipAddress: ip
         })

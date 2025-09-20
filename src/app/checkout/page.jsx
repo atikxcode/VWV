@@ -29,13 +29,14 @@ import {
   Droplets,
   Wallet,
   Save,
-  RefreshCw
+  RefreshCw,
+  Store
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cartItems, getCartTotal, clearCart } = useCart();
+  const { cartItems, getCartTotal, clearCart, getAvailableBranchesText } = useCart();
   const { user, loading: authLoading } = useContext(AuthContext);
   
   // Form states - using single name field
@@ -123,7 +124,7 @@ export default function CheckoutPage() {
     }
   ];
 
-  // 🆕 FIXED: Enhanced database fetching with proper authentication headers
+  // Enhanced database fetching with proper authentication headers
   const loadUserData = async () => {
     if (isLoadingUserData) return;
     
@@ -140,7 +141,7 @@ export default function CheckoutPage() {
         console.log('✅ Authenticated user found:', user.email);
         
         try {
-          // 🆕 ENHANCED: Get Firebase token for API authentication
+          // Enhanced: Get Firebase token for API authentication
           const token = await user.getIdToken();
           console.log('🔑 Got Firebase token');
 
@@ -160,7 +161,7 @@ export default function CheckoutPage() {
             const data = await response.json();
             console.log('📦 Raw API response:', data);
 
-            // 🆕 FIXED: Check for user data properly
+            // Fixed: Check for user data properly
             if (data.exists && data.user) {
               console.log('✅ User data found in database:', data.user);
               console.log('📝 User name:', data.user.name);
@@ -270,7 +271,7 @@ export default function CheckoutPage() {
     console.log('💾 Checkout data saved to localStorage');
   };
 
-  // 🆕 ENHANCED: Load user data with proper timing
+  // Enhanced: Load user data with proper timing
   useEffect(() => {
     console.log('🔄 useEffect triggered - authLoading:', authLoading, 'user:', !!user);
     
@@ -295,14 +296,21 @@ export default function CheckoutPage() {
     }
   }, [cartItems, router]);
 
-  // Calculate totals
+  // 🆕 UPDATED: Calculate totals with delivery charges
   const orderSummary = useMemo(() => {
     const subtotal = getCartTotal();
-    const total = subtotal;
     const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
     
-    return { subtotal, total, itemCount };
-  }, [cartItems, getCartTotal]);
+    // Calculate delivery charge based on city
+    let deliveryCharge = 120; // Default for outside Dhaka
+    if (customerInfo.city && customerInfo.city.toLowerCase() === 'dhaka') {
+      deliveryCharge = 80;
+    }
+    
+    const total = subtotal + deliveryCharge;
+    
+    return { subtotal, deliveryCharge, total, itemCount };
+  }, [cartItems, getCartTotal, customerInfo.city]);
 
   // Form validation
   const validateForm = () => {
@@ -341,270 +349,357 @@ export default function CheckoutPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-// Handle form submission with GUEST CHECKOUT support
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  
-  if (!validateForm()) {
-    Swal.fire({
-      title: 'Validation Error',
-      text: 'Please fill in all required fields correctly.',
-      icon: 'error',
-      confirmButtonColor: '#8b5cf6'
-    });
-    return;
-  }
-
-  setIsProcessing(true);
-
-  try {
-    // Save data to localStorage if requested
-    if (saveForFuture) {
-      saveToLocalStorage();
-    }
-
-    console.log('🚀 Starting order submission...');
-    console.log('👤 User status:', user ? `Logged in: ${user.email}` : 'Guest checkout');
-    console.log('🛒 Cart items:', cartItems.length);
-    console.log('💰 Total:', orderSummary.total);
-
-    // 🔓 GUEST CHECKOUT: Authentication is optional
-    let token = null;
-    let isGuestOrder = !user;
+  // 🔥 ENHANCED: Smart branch determination based on availability analysis
+  const determineBestBranch = (cartItems) => {
+    const branchAvailability = {};
+    const allBranches = new Set();
     
-    if (user) {
-      try {
-        token = await user.getIdToken();
-        console.log('🔑 Firebase token obtained for authenticated user');
-      } catch (tokenError) {
-        console.warn('⚠️ Failed to get Firebase token, proceeding as guest:', tokenError);
-        isGuestOrder = true;
+    // Collect all branch data and count items per branch
+    cartItems.forEach(item => {
+      if (item.availableBranches && Array.isArray(item.availableBranches)) {
+        item.availableBranches.forEach(branch => {
+          allBranches.add(branch);
+          if (!branchAvailability[branch]) {
+            branchAvailability[branch] = { count: 0, items: [] };
+          }
+          branchAvailability[branch].count++;
+          branchAvailability[branch].items.push({
+            name: item.product.name,
+            quantity: item.quantity,
+            specifications: item.selectedOptions || {}
+          });
+        });
       }
-    } else {
-      console.log('👤 Processing as guest checkout');
-    }
-    
-    // 🛒 PREPARE ORDER DATA for the backend
-    const orderData = {
-      items: cartItems.map(item => ({
-        product: {
-          _id: item.product._id,
-          name: item.product.name,
-          price: item.product.price,
-          images: item.product.images || [],
-          brand: item.product.brand || '',
-          category: item.product.category || '',
-          subcategory: item.product.subcategory || ''
-        },
-        quantity: item.quantity,
-        selectedOptions: item.selectedOptions || {}
-      })),
-      customerInfo: {
-        fullName: customerInfo.fullName.trim(),
-        email: customerInfo.email.toLowerCase().trim(),
-        phone: customerInfo.phone.trim(),
-        address: customerInfo.address.trim(),
-        city: customerInfo.city.trim(),
-        postalCode: customerInfo.postalCode.trim(),
-        country: customerInfo.country || 'Bangladesh'
-      },
-      paymentInfo: {
-        method: paymentInfo.method,
-        // Include payment method specific data
-        ...(paymentInfo.method === 'bkash' && { bkashNumber: paymentInfo.bkashNumber.trim() }),
-        ...(paymentInfo.method === 'nagad' && { nagadNumber: paymentInfo.nagadNumber.trim() }),
-        ...(paymentInfo.method === 'rocket' && { rocketNumber: paymentInfo.rocketNumber.trim() }),
-        ...(paymentInfo.method === 'upay' && { upayNumber: paymentInfo.upayNumber.trim() }),
-        ...(paymentInfo.method === 'card' && { 
-          cardNumber: paymentInfo.cardNumber.replace(/\s/g, '').trim(),
-          expiryDate: paymentInfo.expiryDate.trim(),
-          cvv: paymentInfo.cvv.trim(),
-          cardName: paymentInfo.cardName.trim()
-        })
-      },
-      shippingAddress: customerInfo, // Using same as billing for now
-      orderNotes: orderNotes.trim(),
-      branch: 'main' // Default branch, can be made dynamic later
-    };
-
-    console.log('📦 Order data prepared:', {
-      itemCount: orderData.items.length,
-      customerEmail: orderData.customerInfo.email,
-      paymentMethod: orderData.paymentInfo.method,
-      totalAmount: orderSummary.total,
-      orderType: isGuestOrder ? 'guest' : 'registered'
     });
 
-    // 🌐 SUBMIT ORDER to backend API (with optional authentication)
-    const headers = {
-      'Content-Type': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest'
-    };
-    
-    // Only add authorization header if we have a token
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch('/api/orders', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(orderData)
+    console.log('🏪 Branch availability analysis:', {
+      totalItems: cartItems.length,
+      branchAvailability,
+      allBranches: Array.from(allBranches)
     });
 
-    console.log('📡 API Response status:', response.status);
-
-    // Handle API response
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('❌ Order API Error:', errorData);
+    // Find the branch that can fulfill the most items
+    let bestBranch = null;
+    let maxCoverage = 0;
+    
+    for (const [branch, data] of Object.entries(branchAvailability)) {
+      const coveragePercentage = (data.count / cartItems.length) * 100;
+      console.log(`🏪 ${branch.toUpperCase()}: ${data.count}/${cartItems.length} items (${coveragePercentage.toFixed(1)}%)`);
       
-      // Specific error handling
-      if (response.status === 400) {
-        throw new Error(errorData.error || 'Invalid order data. Please check your information.');
-      } else if (response.status === 413) {
-        throw new Error('Order data is too large. Please reduce the number of items.');
+      if (data.count > maxCoverage) {
+        maxCoverage = data.count;
+        bestBranch = branch;
+      }
+    }
+
+    // If no branch can fulfill all items, still choose the best one
+    const selectedBranch = bestBranch || 'main';
+    console.log(`🎯 Selected fulfillment branch: ${selectedBranch.toUpperCase()} (${maxCoverage}/${cartItems.length} items)`);
+    
+    return selectedBranch;
+  };
+
+  // 🆕 NEW: Get branch summary for order display
+  const getBranchSummary = (cartItems) => {
+    const branchItems = {};
+    
+    cartItems.forEach(item => {
+      if (item.availableBranches && Array.isArray(item.availableBranches)) {
+        item.availableBranches.forEach(branch => {
+          if (!branchItems[branch]) {
+            branchItems[branch] = [];
+          }
+          branchItems[branch].push(item.product.name);
+        });
+      }
+    });
+
+    return branchItems;
+  };
+
+  // Handle form submission with GUEST CHECKOUT support
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      Swal.fire({
+        title: 'Validation Error',
+        text: 'Please fill in all required fields correctly.',
+        icon: 'error',
+        confirmButtonColor: '#8b5cf6'
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // Save data to localStorage if requested
+      if (saveForFuture) {
+        saveToLocalStorage();
+      }
+
+      console.log('🚀 Starting order submission...');
+      console.log('👤 User status:', user ? `Logged in: ${user.email}` : 'Guest checkout');
+      console.log('🛒 Cart items:', cartItems.length);
+      console.log('💰 Total:', orderSummary.total);
+
+      // Guest checkout: Authentication is optional
+      let token = null;
+      let isGuestOrder = !user;
+      
+      if (user) {
+        try {
+          token = await user.getIdToken();
+          console.log('🔑 Firebase token obtained for authenticated user');
+        } catch (tokenError) {
+          console.warn('⚠️ Failed to get Firebase token, proceeding as guest:', tokenError);
+          isGuestOrder = true;
+        }
       } else {
-        throw new Error(errorData.error || `Server error (${response.status}). Please try again.`);
+        console.log('👤 Processing as guest checkout');
       }
-    }
+      
+      // 🔥 ENHANCED: Prepare order data with comprehensive branch information
+      const primaryBranch = determineBestBranch(cartItems);
+      const branchSummary = getBranchSummary(cartItems);
+      
+      const orderData = {
+        items: cartItems.map(item => ({
+          product: {
+            _id: item.product._id,
+            name: item.product.name,
+            price: item.product.price,
+            images: item.product.images || [],
+            brand: item.product.brand || '',
+            category: item.product.category || '',
+            subcategory: item.product.subcategory || ''
+          },
+          quantity: item.quantity,
+          selectedOptions: item.selectedOptions || {},
+          availableBranches: item.availableBranches || [] // 🔥 Complete branch data for each item
+        })),
+        customerInfo: {
+          fullName: customerInfo.fullName.trim(),
+          email: customerInfo.email.toLowerCase().trim(),
+          phone: customerInfo.phone.trim(),
+          address: customerInfo.address.trim(),
+          city: customerInfo.city.trim(),
+          postalCode: customerInfo.postalCode.trim(),
+          country: customerInfo.country || 'Bangladesh'
+        },
+        paymentInfo: {
+          method: paymentInfo.method,
+          // Include payment method specific data
+          ...(paymentInfo.method === 'bkash' && { bkashNumber: paymentInfo.bkashNumber.trim() }),
+          ...(paymentInfo.method === 'nagad' && { nagadNumber: paymentInfo.nagadNumber.trim() }),
+          ...(paymentInfo.method === 'rocket' && { rocketNumber: paymentInfo.rocketNumber.trim() }),
+          ...(paymentInfo.method === 'upay' && { upayNumber: paymentInfo.upayNumber.trim() }),
+          ...(paymentInfo.method === 'card' && { 
+            cardNumber: paymentInfo.cardNumber.replace(/\s/g, '').trim(),
+            expiryDate: paymentInfo.expiryDate.trim(),
+            cvv: paymentInfo.cvv.trim(),
+            cardName: paymentInfo.cardName.trim()
+          })
+        },
+        shippingAddress: customerInfo,
+        orderNotes: orderNotes.trim(),
+        // 🔥 ENHANCED: Complete branch information
+        branch: primaryBranch, // Primary fulfillment branch
+        branchData: {
+          primaryBranch: primaryBranch,
+          branchSummary: branchSummary, // Which items are available at which branches
+          fulfillmentStrategy: 'single-branch' // Could be 'multi-branch' in future
+        },
+        // 🆕 NEW: Add delivery charge information
+        deliveryCharge: orderSummary.deliveryCharge
+      };
 
-    // ✅ SUCCESS: Parse successful response
-    const result = await response.json();
-    console.log('✅ Order created successfully:', result);
+      console.log('📦 Order data prepared:', {
+        itemCount: orderData.items.length,
+        customerEmail: orderData.customerInfo.email,
+        paymentMethod: orderData.paymentInfo.method,
+        subtotal: orderSummary.subtotal,
+        deliveryCharge: orderData.deliveryCharge,
+        totalAmount: orderSummary.total,
+        orderType: isGuestOrder ? 'guest' : 'registered',
+        // 🔥 Enhanced branch logging
+        primaryBranch: orderData.branch,
+        branchSummary: orderData.branchData.branchSummary,
+        itemsWithBranches: orderData.items.map(item => ({
+          productName: item.product.name,
+          availableBranches: item.availableBranches,
+          selectedOptions: item.selectedOptions
+        }))
+      });
 
-    if (!result.success || !result.order) {
-      throw new Error('Invalid response from server. Please try again.');
-    }
-
-    // 🧹 CLEAR CART after successful order
-    clearCart();
-    console.log('🧹 Cart cleared successfully');
-
-    // 💾 CLEAR saved checkout data
-    if (saveForFuture) {
-      localStorage.removeItem('vwv-checkout-data');
-    }
-
-    // 📧 SHOW SUCCESS MESSAGE with order details
-    const selectedPaymentMethod = paymentMethods.find(method => method.id === paymentInfo.method);
-    
-    await Swal.fire({
-      title: isGuestOrder ? 'Guest Order Placed Successfully!' : 'Order Placed Successfully!',
-      html: `
-        <div class="text-left">
-          <p class="text-gray-700 mb-4">Thank you for your order, ${customerInfo.fullName}!</p>
-          
-          ${isGuestOrder ? `
-            <div class="bg-blue-50 p-3 rounded-lg mb-4 border border-blue-200">
-              <p class="text-blue-800 font-medium text-sm mb-1">Guest Order:</p>
-              <p class="text-blue-700 text-xs">
-                Your order has been placed as a guest. To track your order status in the future, 
-                please save your order ID or consider creating an account.
-              </p>
-            </div>
-          ` : ''}
-          
-          <div class="bg-gray-100 p-4 rounded-lg mb-4">
-            <p class="font-semibold text-gray-900 mb-2">Order Details:</p>
-            <div class="text-sm text-gray-600 space-y-1">
-              <p><span class="font-medium">Order ID:</span> <span class="font-mono bg-yellow-100 px-2 py-1 rounded">${result.order.orderId}</span></p>
-              <p><span class="font-medium">Total Amount:</span> BDT ${result.order.totals.total.toLocaleString()}</p>
-              <p><span class="font-medium">Items:</span> ${result.order.totals.itemCount} (${result.order.totals.totalQuantity} units)</p>
-              <p><span class="font-medium">Payment Method:</span> ${selectedPaymentMethod?.name || paymentInfo.method}</p>
-              <p><span class="font-medium">Status:</span> <span class="text-orange-600 font-medium">${result.order.status}</span></p>
-              <p><span class="font-medium">Order Type:</span> <span class="capitalize text-purple-600">${result.orderType}</span></p>
-            </div>
-          </div>
-          
-          ${paymentInfo.method !== 'cod' ? `
-            <div class="bg-blue-50 p-3 rounded-lg mb-4 border border-blue-200">
-              <p class="text-blue-800 font-medium text-sm mb-1">Next Steps:</p>
-              <p class="text-blue-700 text-xs">
-                ${paymentInfo.method === 'card' 
-                  ? 'Your card will be charged shortly. You will receive a payment confirmation.'
-                  : `You will receive a payment request on your ${selectedPaymentMethod?.name || paymentInfo.method} account shortly.`
-                }
-              </p>
-            </div>
-          ` : `
-            <div class="bg-green-50 p-3 rounded-lg mb-4 border border-green-200">
-              <p class="text-green-800 font-medium text-sm mb-1">Cash on Delivery:</p>
-              <p class="text-green-700 text-xs">
-                Keep BDT ${result.order.totals.total.toLocaleString()} ready for payment upon delivery.
-              </p>
-            </div>
-          `}
-          
-          <p class="text-sm text-gray-600">
-            📧 A confirmation email has been sent to <strong>${customerInfo.email}</strong>
-          </p>
-          <p class="text-sm text-gray-500 mt-2">
-            💬 You can contact us with your Order ID if you have any questions.
-          </p>
-        </div>
-      `,
-      icon: 'success',
-      showCancelButton: !isGuestOrder, // Only show "View Orders" for registered users
-      confirmButtonText: '🛍️ Continue Shopping',
-      cancelButtonText: isGuestOrder ? undefined : '📋 View Orders',
-      confirmButtonColor: '#8b5cf6',
-      cancelButtonColor: '#6b7280',
-      allowOutsideClick: false,
-      width: '600px'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        // Continue shopping
-        router.push('/products');
-      } else if (result.isDismissed && !isGuestOrder) {
-        // View orders (only for registered users)
-        router.push('/orders');
+      // Submit order to backend API (with optional authentication)
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      };
+      
+      // Only add authorization header if we have a token
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
-    });
 
-  } catch (error) {
-    console.error('❌ Order submission error:', error);
-    
-    // Show user-friendly error message
-    await Swal.fire({
-      title: 'Order Failed',
-      html: `
-        <div class="text-left">
-          <p class="text-gray-700 mb-4">We encountered an issue processing your order:</p>
-          
-          <div class="bg-red-50 p-4 rounded-lg mb-4 border border-red-200">
-            <p class="text-red-800 font-medium text-sm">${error.message}</p>
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(orderData)
+      });
+
+      console.log('📡 API Response status:', response.status);
+
+      // Handle API response
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Order API Error:', errorData);
+        
+        // Specific error handling
+        if (response.status === 400) {
+          throw new Error(errorData.error || 'Invalid order data. Please check your information.');
+        } else if (response.status === 413) {
+          throw new Error('Order data is too large. Please reduce the number of items.');
+        } else {
+          throw new Error(errorData.error || `Server error (${response.status}). Please try again.`);
+        }
+      }
+
+      // Success: Parse successful response
+      const result = await response.json();
+      console.log('✅ Order created successfully:', result);
+
+      if (!result.success || !result.order) {
+        throw new Error('Invalid response from server. Please try again.');
+      }
+
+      // Clear cart after successful order
+      clearCart();
+      console.log('🧹 Cart cleared successfully');
+
+      // Clear saved checkout data
+      if (saveForFuture) {
+        localStorage.removeItem('vwv-checkout-data');
+      }
+
+      // Show success message with order details
+      const selectedPaymentMethod = paymentMethods.find(method => method.id === paymentInfo.method);
+      
+      await Swal.fire({
+        title: isGuestOrder ? 'Guest Order Placed Successfully!' : 'Order Placed Successfully!',
+        html: `
+          <div class="text-left">
+            <p class="text-gray-700 mb-4">Thank you for your order, ${customerInfo.fullName}!</p>
+            
+            ${isGuestOrder ? `
+              <div class="bg-blue-50 p-3 rounded-lg mb-4 border border-blue-200">
+                <p class="text-blue-800 font-medium text-sm mb-1">Guest Order:</p>
+                <p class="text-blue-700 text-xs">
+                  Your order has been placed as a guest. To track your order status in the future, 
+                  please save your order ID or consider creating an account.
+                </p>
+              </div>
+            ` : ''}
+            
+            <div class="bg-gray-100 p-4 rounded-lg mb-4">
+              <p class="font-semibold text-gray-900 mb-2">Order Details:</p>
+              <div class="text-sm text-gray-600 space-y-1">
+                <p><span class="font-medium">Order ID:</span> <span class="font-mono bg-yellow-100 px-2 py-1 rounded">${result.order.orderId}</span></p>
+                <p><span class="font-medium">Total Amount:</span> BDT ${result.order.totals.total.toLocaleString()}</p>
+                <p><span class="font-medium">Items:</span> ${result.order.totals.itemCount} (${result.order.totals.totalQuantity} units)</p>
+                <p><span class="font-medium">Payment Method:</span> ${selectedPaymentMethod?.name || paymentInfo.method}</p>
+                <p><span class="font-medium">Status:</span> <span class="text-orange-600 font-medium">${result.order.status}</span></p>
+                <p><span class="font-medium">Fulfillment Branch:</span> <span class="text-purple-600 font-medium">${primaryBranch.toUpperCase()}</span></p>
+                <p><span class="font-medium">Order Type:</span> <span class="capitalize text-purple-600">${result.orderType}</span></p>
+              </div>
+            </div>
+            
+            ${paymentInfo.method !== 'cod' ? `
+              <div class="bg-blue-50 p-3 rounded-lg mb-4 border border-blue-200">
+                <p class="text-blue-800 font-medium text-sm mb-1">Next Steps:</p>
+                <p class="text-blue-700 text-xs">
+                  ${paymentInfo.method === 'card' 
+                    ? 'Your card will be charged shortly. You will receive a payment confirmation.'
+                    : `You will receive a payment request on your ${selectedPaymentMethod?.name || paymentInfo.method} account shortly.`
+                  }
+                </p>
+              </div>
+            ` : `
+              <div class="bg-green-50 p-3 rounded-lg mb-4 border border-green-200">
+                <p class="text-green-800 font-medium text-sm mb-1">Cash on Delivery:</p>
+                <p class="text-green-700 text-xs">
+                  Keep BDT ${result.order.totals.total.toLocaleString()} ready for payment upon delivery.
+                </p>
+              </div>
+            `}
+            
+            <p class="text-sm text-gray-600">
+              📧 A confirmation email has been sent to <strong>${customerInfo.email}</strong>
+            </p>
+            <p class="text-sm text-gray-500 mt-2">
+              💬 You can contact us with your Order ID if you have any questions.
+            </p>
           </div>
-          
-          <div class="text-sm text-gray-600 space-y-2">
-            <p><strong>What you can do:</strong></p>
-            <ul class="list-disc list-inside space-y-1 text-xs ml-2">
-              <li>Check your internet connection and try again</li>
-              <li>Verify all your information is correct</li>
-              <li>Try a different payment method</li>
-              ${!user ? '<li>Consider creating an account for a smoother checkout experience</li>' : ''}
-              <li>Contact us if the problem persists</li>
-            </ul>
+        `,
+        icon: 'success',
+        showCancelButton: !isGuestOrder,
+        confirmButtonText: '🛍️ Continue Shopping',
+        cancelButtonText: isGuestOrder ? undefined : '📋 View Orders',
+        confirmButtonColor: '#8b5cf6',
+        cancelButtonColor: '#6b7280',
+        allowOutsideClick: false,
+        width: '600px'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          router.push('/products');
+        } else if (result.isDismissed && !isGuestOrder) {
+          router.push('/orders');
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Order submission error:', error);
+      
+      await Swal.fire({
+        title: 'Order Failed',
+        html: `
+          <div class="text-left">
+            <p class="text-gray-700 mb-4">We encountered an issue processing your order:</p>
+            
+            <div class="bg-red-50 p-4 rounded-lg mb-4 border border-red-200">
+              <p class="text-red-800 font-medium text-sm">${error.message}</p>
+            </div>
+            
+            <div class="text-sm text-gray-600 space-y-2">
+              <p><strong>What you can do:</strong></p>
+              <ul class="list-disc list-inside space-y-1 text-xs ml-2">
+                <li>Check your internet connection and try again</li>
+                <li>Verify all your information is correct</li>
+                <li>Try a different payment method</li>
+                ${!user ? '<li>Consider creating an account for a smoother checkout experience</li>' : ''}
+                <li>Contact us if the problem persists</li>
+              </ul>
+            </div>
+            
+            <p class="text-xs text-gray-500 mt-4">
+              <strong>Error Code:</strong> ${error.name || 'CHECKOUT_ERROR'}<br>
+              <strong>Time:</strong> ${new Date().toLocaleString()}
+            </p>
           </div>
-          
-          <p class="text-xs text-gray-500 mt-4">
-            <strong>Error Code:</strong> ${error.name || 'CHECKOUT_ERROR'}<br>
-            <strong>Time:</strong> ${new Date().toLocaleString()}
-          </p>
-        </div>
-      `,
-      icon: 'error',
-      confirmButtonText: 'Try Again',
-      confirmButtonColor: '#ef4444',
-      width: '500px'
-    });
+        `,
+        icon: 'error',
+        confirmButtonText: 'Try Again',
+        confirmButtonColor: '#ef4444',
+        width: '500px'
+      });
 
-  } finally {
-    setIsProcessing(false);
-    console.log('✅ Order submission process completed');
-  }
-};
-
+    } finally {
+      setIsProcessing(false);
+      console.log('✅ Order submission process completed');
+    }
+  };
 
   // Format card number
   const formatCardNumber = (value) => {
@@ -631,7 +726,7 @@ const handleSubmit = async (e) => {
     return v;
   };
 
-  // 🆕 ENHANCED: Manual refresh with reset
+  // Enhanced: Manual refresh with reset
   const handleRefreshUserData = () => {
     console.log('🔄 Manual refresh triggered');
     setUserDataLoaded(false);
@@ -753,18 +848,6 @@ const handleSubmit = async (e) => {
                 </div>
               </div>
               
-              {/* Debug Info (remove in production) */}
-              {/* {process.env.NODE_ENV === 'development' && user && (
-                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
-                  <p><strong>Debug Info:</strong></p>
-                  <p>User email: {user.email}</p>
-                  <p>Data loaded: {userDataLoaded.toString()}</p>
-                  <p>Loading: {isLoadingUserData.toString()}</p>
-                  <p>Current name: "{customerInfo.fullName}"</p>
-                  <p>Current phone: "{customerInfo.phone}"</p>
-                </div>
-              )} */}
-              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
@@ -838,6 +921,16 @@ const handleSubmit = async (e) => {
                     placeholder="Enter city"
                   />
                   {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
+                  {/* 🆕 NEW: Delivery charge information */}
+                  {customerInfo.city && (
+                    <p className="text-xs text-gray-600 mt-1">
+                      {customerInfo.city.toLowerCase() === 'dhaka' ? (
+                        <span className="text-green-600">✓ Dhaka - Delivery charge: BDT 80</span>
+                      ) : (
+                        <span className="text-blue-600">• Outside Dhaka - Delivery charge: BDT 120</span>
+                      )}
+                    </p>
+                  )}
                 </div>
                 
                 <div>
@@ -1151,6 +1244,7 @@ const handleSubmit = async (e) => {
                           {item.product.name}
                         </h4>
                         
+                        {/* 🔥 ENHANCED: Show product specifications */}
                         {item.selectedOptions && Object.keys(item.selectedOptions).length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {item.selectedOptions.nicotineStrength && (
@@ -1173,6 +1267,18 @@ const handleSubmit = async (e) => {
                             )}
                           </div>
                         )}
+
+                        {/* 🔥 ENHANCED: Show available branches for each item */}
+                        {item.availableBranches && item.availableBranches.length > 0 && (
+                          <div className="mt-1">
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              <Store size={10} />
+                              <span className="font-medium">
+                                {getAvailableBranchesText(item.availableBranches)}
+                              </span>
+                            </div>
+                          </div>
+                        )}
                         
                         <div className="flex justify-between items-center mt-1">
                           <span className="text-xs text-gray-500">Qty: {item.quantity}</span>
@@ -1187,10 +1293,18 @@ const handleSubmit = async (e) => {
               </div>
               
               <div className="p-6 border-t border-gray-200">
+                {/* 🆕 UPDATED: Order summary with delivery charge */}
                 <div className="space-y-3">
                   <div className="flex justify-between text-gray-600">
                     <span>Subtotal ({orderSummary.itemCount} items)</span>
                     <span>BDT {orderSummary.subtotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <div className="flex items-center gap-1">
+                      <Truck size={16} />
+                      <span>Delivery Charge</span>
+                    </div>
+                    <span>BDT {orderSummary.deliveryCharge}</span>
                   </div>
                 </div>
                 
@@ -1215,6 +1329,16 @@ const handleSubmit = async (e) => {
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <CheckCircle size={16} className="text-green-600" />
                     <span>Order confirmation via email</span>
+                  </div>
+                  {/* 🆕 NEW: Delivery info */}
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Truck size={16} className="text-green-600" />
+                    <span>
+                      {customerInfo.city?.toLowerCase() === 'dhaka' 
+                        ? 'Dhaka delivery: BDT 80' 
+                        : 'Outside Dhaka: BDT 120'
+                      }
+                    </span>
                   </div>
                 </div>
               </div>

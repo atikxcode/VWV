@@ -1039,29 +1039,63 @@ export default function EditProduct({ productId, onBack }) {
   }, [productId, reset])
 
   // Initialize stock for branches when branches change
-  useEffect(() => {
-    if (branches.length > 0 && product) {
-      const newStock = {}
-      branches.forEach((branch) => {
-        newStock[`${branch}_stock`] = stock[`${branch}_stock`] || 0
-      })
-      setStock(newStock)
-    }
-  }, [branches, product])
+ // 🔥 FIXED: Initialize stock for branches when branches change - preserve database values
+useEffect(() => {
+  if (branches.length > 0 && product?.stock) {
+    console.log('🔧 Initializing stock from database:', product.stock)
+    
+    const newStock = {}
+    branches.forEach((branch) => {
+      // Use the stock value from the database (product.stock)
+      const dbStockValue = product.stock[`${branch}_stock`]
+      newStock[`${branch}_stock`] = dbStockValue ?? 0
+      
+      console.log(`🔧 ${branch}_stock: ${dbStockValue} (from DB)`)
+    })
+    
+    console.log('🔧 Final stock object:', newStock)
+    setStock(newStock)
+  }
+}, [branches, product?.stock]) // Only run when branches or product stock changes
 
-  // Update subcategories when category changes
-  useEffect(() => {
-    if (category) {
-      const categoryKey = category.toUpperCase()
-      if (categories[categoryKey]) {
-        setSubCategoryOptions(categories[categoryKey])
-      } else {
-        setSubCategoryOptions([])
-      }
+
+ // 🔥 FIXED: Update subcategories when category changes OR when categories are loaded
+useEffect(() => {
+  console.log('🔧 Subcategory useEffect triggered');
+  console.log('🔧 Current category:', category);
+  console.log('🔧 Categories available:', Object.keys(categories));
+  
+  if (category && Object.keys(categories).length > 0) {
+    const categoryKey = category.toUpperCase()
+    console.log('🔧 Looking for category key:', categoryKey);
+    
+    if (categories[categoryKey]) {
+      console.log('🔧 Found subcategories:', categories[categoryKey]);
+      setSubCategoryOptions(categories[categoryKey])
     } else {
+      console.log('🔧 Category not found in categories object');
       setSubCategoryOptions([])
     }
-  }, [category, categories])
+  } else {
+    console.log('🔧 No category or categories not loaded yet');
+    setSubCategoryOptions([])
+  }
+}, [category, categories])
+
+// 🔥 ADDITIONAL FIX: Handle race condition when categories load after product
+useEffect(() => {
+  if (product?.category && Object.keys(categories).length > 0 && subCategoryOptions.length === 0) {
+    console.log('🔧 Race condition fix: Setting subcategory options after categories loaded');
+    console.log('🔧 Product category:', product.category);
+    
+    const categoryKey = product.category.toUpperCase();
+    if (categories[categoryKey]) {
+      console.log('🔧 Setting subcategory options from race condition fix:', categories[categoryKey]);
+      setSubCategoryOptions(categories[categoryKey]);
+    }
+  }
+}, [categories, product?.category, subCategoryOptions.length])
+
 
   // 🔧 UPDATED: Save product function with branch specifications and new fields
   const handleSave = useCallback(async (data, isSilent = false) => {

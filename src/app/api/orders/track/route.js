@@ -6,11 +6,16 @@ import { verifyApiToken, createAuthError, checkRateLimit } from '@/lib/auth'
 const MAX_ORDER_ID_LENGTH = 50
 const MAX_EMAIL_LENGTH = 100
 
+// 🆕 NEW: Define valid branches for validation
+const VALID_BRANCHES = ['main', 'mirpur', 'bashundhara', 'dhanmondi', 'uttara', 'wari'] // Add your actual branches
+
 // Rate limiting for tracking (more lenient for guests)
 const RATE_LIMITS = {
   GUEST: { requests: 10, windowMs: 60000 }, // 10 requests per minute for guests
   USER: { requests: 20, windowMs: 60000 },
   ADMIN: { requests: 100, windowMs: 60000 },
+  MODERATOR: { requests: 50, windowMs: 60000 },
+  MANAGER: { requests: 80, windowMs: 60000 },
 }
 
 // Enhanced error handling wrapper
@@ -79,6 +84,7 @@ async function getUserInfo(req) {
         userId: 'temp-admin', 
         email: 'temp@admin.dev',
         name: 'Temp Admin',
+        branch: null,
         isAuthenticated: true 
       }
     }
@@ -89,6 +95,7 @@ async function getUserInfo(req) {
       userId: user.userId || user.id,
       email: user.email,
       name: user.name,
+      branch: user.branch || null, // 🆕 NEW: Include user branch
       isAuthenticated: true 
     }
   } catch (authError) {
@@ -105,7 +112,87 @@ function logRequest(req, userInfo = null) {
   console.log(`[${timestamp}] GET /api/orders/track`)
   console.log(`  IP: ${ip}`)
   console.log(`  User: ${userInfo?.email || 'guest'} (${userInfo?.role || 'guest'})`)
+  console.log(`  Branch: ${userInfo?.branch || 'none'}`)
   console.log(`  UserAgent: ${userAgent.substring(0, 100)}`)
+}
+
+// 🆕 NEW: Enhanced branch information formatting for tracking response
+function formatBranchInformation(order) {
+  const branchInfo = {
+    primaryBranch: order.branch || 'main',
+    branchData: order.branchData || null
+  }
+
+  // Enhanced branch analysis if available
+  if (order.branchData?.analysis) {
+    branchInfo.fulfillmentDetails = {
+      coveragePercentage: order.branchData.analysis.coveragePercentage || 0,
+      fulfillmentType: order.branchData.analysis.fulfillmentType || 'single-branch',
+      selectionMethod: order.branchData.selectionMethod || 'automatic'
+    }
+  }
+
+  // Item-branch mapping
+  branchInfo.itemAvailability = order.items.map(item => ({
+    productId: item.productId,
+    productName: item.product.name,
+    availableBranches: item.availableBranches || [],
+    selectedOptions: item.selectedOptions || {}
+  }))
+
+  return branchInfo
+}
+
+// 🆕 NEW: Calculate delivery status based on order info
+function calculateDeliveryStatus(order) {
+  const status = order.status
+  const createdAt = new Date(order.createdAt)
+  const now = new Date()
+  const daysSinceCreated = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24))
+
+  let estimatedDelivery = null
+  let statusMessage = ''
+
+  switch (status) {
+    case 'pending':
+      estimatedDelivery = new Date(createdAt.getTime() + (3 * 24 * 60 * 60 * 1000)) // 3 days
+      statusMessage = 'Your order is being processed and will be confirmed soon.'
+      break
+    case 'confirmed':
+      estimatedDelivery = new Date(createdAt.getTime() + (2 * 24 * 60 * 60 * 1000)) // 2 days from now
+      statusMessage = 'Your order has been confirmed and is being prepared for shipment.'
+      break
+    case 'processing':
+      estimatedDelivery = new Date(now.getTime() + (1 * 24 * 60 * 60 * 1000)) // 1 day from now
+      statusMessage = 'Your order is currently being processed and will be shipped soon.'
+      break
+    case 'shipped':
+      estimatedDelivery = new Date(now.getTime() + (1 * 24 * 60 * 60 * 1000)) // 1 day from now
+      statusMessage = 'Your order has been shipped and is on the way to you.'
+      break
+    case 'delivered':
+      estimatedDelivery = order.deliveryDate ? new Date(order.deliveryDate) : null
+      statusMessage = 'Your order has been successfully delivered.'
+      break
+    case 'cancelled':
+      statusMessage = 'Your order has been cancelled.'
+      break
+    case 'refunded':
+      statusMessage = 'Your order has been refunded.'
+      break
+    default:
+      statusMessage = 'Order status update pending.'
+  }
+
+  return {
+    currentStatus: status,
+    statusMessage,
+    estimatedDelivery,
+    daysSinceOrdered: daysSinceCreated,
+    isDelivered: status === 'delivered',
+    isCancelled: ['cancelled', 'refunded'].includes(status),
+    canTrack: ['confirmed', 'processing', 'shipped'].includes(status)
+  }
 }
 
 // GET: Track order by ID and email (works for guests and authenticated users)
@@ -200,13 +287,19 @@ export async function GET(req) {
     }
 
     console.log('✅ Order found for tracking:', order.orderId)
+    console.log('🏢 Order branch:', order.branch)
     console.log('🖼️ Order items with images:', order.items.map(item => ({
       name: item.product.name,
       hasImages: !!(item.product.images && item.product.images.length > 0),
-      imageCount: item.product.images?.length || 0
+      imageCount: item.product.images?.length || 0,
+      availableBranches: item.availableBranches?.length || 0
     })))
 
-    // ✅ FIXED: Filter sensitive information for response with IMAGES included
+    // 🆕 ENHANCED: Generate branch information and delivery status
+    const branchInformation = formatBranchInformation(order)
+    const deliveryStatus = calculateDeliveryStatus(order)
+
+    // ✅ ENHANCED: Filter sensitive information for response with complete branch data
     const trackingResponse = {
       orderId: order.orderId,
       status: order.status,
@@ -223,7 +316,7 @@ export async function GET(req) {
         country: order.customerInfo.country
       },
       
-      // ✅ FIXED: Items info WITH COMPLETE PRODUCT DATA INCLUDING IMAGES
+      // ✅ ENHANCED: Items info with complete product data including images and branch info
       items: order.items.map(item => ({
         productId: item.productId,
         productName: item.product.name,
@@ -231,20 +324,25 @@ export async function GET(req) {
         quantity: item.quantity,
         price: item.product.price,
         itemTotal: item.itemTotal,
-        selectedOptions: item.selectedOptions,
-        // ✅ FIX: Include complete product object with images
+        selectedOptions: item.selectedOptions || {}, // 🆕 Enhanced specifications
+        availableBranches: item.availableBranches || [], // 🆕 Branch availability for each item
+        // Complete product object with images
         product: {
           _id: item.product._id,
           name: item.product.name,
           brand: item.product.brand,
           category: item.product.category,
           subcategory: item.product.subcategory,
-          images: item.product.images || [] // ✅ This is what the frontend expects!
+          images: item.product.images || []
         }
       })),
       
-      // Order totals
-      totals: order.totals,
+      // Order totals with delivery charge breakdown
+      totals: {
+        ...order.totals,
+        // Ensure delivery charge is included
+        deliveryCharge: order.totals.deliveryCharge || 0
+      },
       
       // Payment info (limited)
       paymentInfo: {
@@ -256,31 +354,53 @@ export async function GET(req) {
       // Shipping info
       shippingAddress: order.shippingAddress,
       
-      // Tracking info
+      // 🆕 ENHANCED: Tracking and delivery information
       trackingInfo: order.trackingInfo,
       deliveryDate: order.deliveryDate,
+      deliveryStatus, // 🆕 NEW: Enhanced delivery status information
       
-      // Order history
+      // 🆕 ENHANCED: Order history with better formatting
       orderHistory: order.orderHistory.map(history => ({
         status: history.status,
         timestamp: history.timestamp,
-        note: history.note
+        note: history.note,
+        // Include role info for internal users (admins can see who updated)
+        ...(userInfo.role === 'admin' && history.updatedByRole && {
+          updatedBy: history.updatedByRole
+        })
       })),
       
-      // Branch info
-      branch: order.branch,
-      orderNotes: order.orderNotes
+      // 🆕 ENHANCED: Comprehensive branch information
+      branchInformation, // 🆕 NEW: Complete branch data
+      
+      // Order notes
+      orderNotes: order.orderNotes,
+      
+      // 🆕 NEW: Additional tracking metadata
+      trackingMetadata: {
+        canCancel: order.status === 'pending' && 
+                  ((Date.now() - new Date(order.createdAt).getTime()) < 5 * 60 * 1000), // 5 minutes
+        estimatedProcessingTime: deliveryStatus.estimatedDelivery,
+        orderAge: Math.floor((Date.now() - new Date(order.createdAt).getTime()) / (1000 * 60 * 60 * 24)), // days
+        lastUpdated: order.updatedAt
+      }
     }
 
-    // Log successful tracking with image info
+    // 🆕 ENHANCED: Log successful tracking with detailed branch info
     console.log('📦 Tracking response prepared with', trackingResponse.items.length, 'items')
+    console.log('🏢 Branch fulfillment details:', {
+      primaryBranch: branchInformation.primaryBranch,
+      fulfillmentType: branchInformation.fulfillmentDetails?.fulfillmentType,
+      coveragePercentage: branchInformation.fulfillmentDetails?.coveragePercentage
+    })
     console.log('🖼️ Images in response:', trackingResponse.items.map(item => ({
       productName: item.productName,
       hasImages: item.product.images.length > 0,
-      imageUrl: item.product.images[0]?.url || 'none'
+      imageUrl: item.product.images[0]?.url || 'none',
+      branches: item.availableBranches.join(', ') || 'none'
     })))
 
-    // Create successful tracking log (non-blocking)
+    // 🆕 ENHANCED: Create successful tracking log with branch information
     setImmediate(async () => {
       try {
         await db.collection('audit_logs').insertOne({
@@ -289,8 +409,14 @@ export async function GET(req) {
           customerEmail: email,
           userType: userInfo.role,
           userId: userInfo.userId || null,
+          userBranch: userInfo.branch || null, // 🆕 NEW: Log user's branch
           orderStatus: order.status,
+          orderBranch: order.branch, // 🆕 NEW: Log order's branch
           itemCount: order.items.length,
+          deliveryCharge: order.totals.deliveryCharge || 0,
+          fulfillmentType: branchInformation.fulfillmentDetails?.fulfillmentType || 'single-branch',
+          // 🆕 NEW: Log branch coverage for analysis
+          branchCoverage: branchInformation.fulfillmentDetails?.coveragePercentage || 100,
           timestamp: new Date(),
           ipAddress: ip
         })
@@ -302,7 +428,18 @@ export async function GET(req) {
     return NextResponse.json(
       {
         success: true,
-        order: trackingResponse
+        order: trackingResponse,
+        // 🆕 NEW: Additional tracking context
+        trackingContext: {
+          requestedBy: userInfo.role,
+          requestedAt: new Date().toISOString(),
+          supportedFeatures: {
+            branchTracking: true,
+            deliveryEstimation: true,
+            realTimeUpdates: false,
+            cancelationSupport: trackingResponse.trackingMetadata.canCancel
+          }
+        }
       },
       {
         headers: { 
@@ -316,5 +453,126 @@ export async function GET(req) {
 
   } catch (error) {
     return handleApiError(error, 'GET /api/orders/track')
+  }
+}
+
+// 🆕 NEW: POST method for advanced tracking queries (authenticated users only)
+export async function POST(req) {
+  const ip = getUserIP(req)
+  
+  try {
+    console.log('TRACK POST: Starting advanced tracking request...')
+    
+    // Require authentication for POST requests
+    let userInfo
+    try {
+      userInfo = await getUserInfo(req)
+      if (!userInfo.isAuthenticated) {
+        return createAuthError('Authentication required for advanced tracking features', 401)
+      }
+    } catch (authError) {
+      return createAuthError('Authentication failed', 401)
+    }
+    
+    logRequest(req, userInfo)
+    
+    const body = await req.json()
+    const { orderIds, branchFilter, statusFilter, dateRange } = body
+    
+    // Validate input
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+      return NextResponse.json(
+        { error: 'Order IDs array is required' },
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+    
+    if (orderIds.length > 10) {
+      return NextResponse.json(
+        { error: 'Maximum 10 orders can be tracked at once' },
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+    
+    const client = await clientPromise
+    const db = client.db('VWV')
+    
+    // Build query based on user role
+    let query = {
+      orderId: { $in: orderIds.map(id => sanitizeInput(id)) }
+    }
+    
+    // Apply role-based filtering
+    if (userInfo.role === 'user') {
+      query['customerInfo.email'] = userInfo.email
+    } else if (userInfo.role === 'moderator') {
+      if (userInfo.branch) {
+        query.branch = userInfo.branch
+      }
+    }
+    // Admins and managers can see all orders
+    
+    // Apply additional filters
+    if (branchFilter && VALID_BRANCHES.includes(branchFilter.toLowerCase())) {
+      query.branch = branchFilter.toLowerCase()
+    }
+    
+    if (statusFilter) {
+      query.status = statusFilter
+    }
+    
+    if (dateRange && dateRange.start && dateRange.end) {
+      query.createdAt = {
+        $gte: new Date(dateRange.start),
+        $lte: new Date(dateRange.end)
+      }
+    }
+    
+    const orders = await db.collection('orders').find(query).toArray()
+    
+    const trackingResults = orders.map(order => ({
+      orderId: order.orderId,
+      status: order.status,
+      branch: order.branch,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      customerInfo: {
+        fullName: order.customerInfo.fullName,
+        email: order.customerInfo.email,
+        city: order.customerInfo.city
+      },
+      totals: order.totals,
+      branchInformation: formatBranchInformation(order),
+      deliveryStatus: calculateDeliveryStatus(order)
+    }))
+    
+    return NextResponse.json(
+      {
+        success: true,
+        orders: trackingResults,
+        summary: {
+          totalOrders: trackingResults.length,
+          byStatus: trackingResults.reduce((acc, order) => {
+            acc[order.status] = (acc[order.status] || 0) + 1
+            return acc
+          }, {}),
+          byBranch: trackingResults.reduce((acc, order) => {
+            acc[order.branch] = (acc[order.branch] || 0) + 1
+            return acc
+          }, {})
+        }
+      },
+      {
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, no-cache',
+          'X-Frame-Options': 'DENY',
+          'X-Content-Type-Options': 'nosniff'
+        }
+      }
+    )
+    
+  } catch (error) {
+    return handleApiError(error, 'POST /api/orders/track')
   }
 }
