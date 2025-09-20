@@ -1038,8 +1038,10 @@ export default function EditProduct({ productId, onBack }) {
     loadInitialData()
   }, [productId, reset])
 
-  // Initialize stock for branches when branches change
- // 🔥 FIXED: Initialize stock for branches when branches change - preserve database values
+
+
+
+// 🔥 FIXED: Initialize stock for branches when branches change - preserve database values
 useEffect(() => {
   if (branches.length > 0 && product?.stock) {
     console.log('🔧 Initializing stock from database:', product.stock)
@@ -1057,6 +1059,9 @@ useEffect(() => {
     setStock(newStock)
   }
 }, [branches, product?.stock]) // Only run when branches or product stock changes
+
+
+
 
 
  // 🔥 FIXED: Update subcategories when category changes OR when categories are loaded
