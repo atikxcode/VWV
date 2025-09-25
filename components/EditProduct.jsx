@@ -1076,7 +1076,7 @@ useEffect(() => {
       setSubCategoryOptions([])
     }
   } else {
-    console.log('🔧 No category or categories not loaded yet');
+    console.log(' No category or categories not loaded yet');
     setSubCategoryOptions([])
   }
 }, [category, categories])

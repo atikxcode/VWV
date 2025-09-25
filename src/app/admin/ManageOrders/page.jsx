@@ -459,69 +459,126 @@ export default function AdminManageOrdersPage() {
     }
   }
 
-  // Assign order to different branch
-  const handleBranchAssignment = async (orderId, currentBranches) => {
-    const { value: selectedBranches } = await Swal.fire({
-      title: 'Assign Order to Branches',
-      html: `
-        <div style="text-align: left;">
-          <p style="margin-bottom: 15px;">Select branches for order ${orderId}:</p>
-          <div id="branch-checkboxes">
-            ${branches.map(branch => `
-              <label style="display: block; margin-bottom: 8px; cursor: pointer;">
-                <input 
-                  type="checkbox" 
-                  value="${branch}" 
-                  ${currentBranches.includes(branch) ? 'checked' : ''}
-                  style="margin-right: 8px;"
-                />
-                <span style="text-transform: capitalize;">${branch}</span>
-              </label>
-            `).join('')}
-          </div>
+// Enhanced branch assignment with actual API call
+const handleBranchAssignment = async (orderId, currentBranches) => {
+  const { value: selectedBranches } = await Swal.fire({
+    title: 'Assign Order to Branches',
+    html: `
+      <div style="text-align: left;">
+        <p style="margin-bottom: 15px;">Select branches for order ${orderId}:</p>
+        <div id="branch-checkboxes">
+          ${branches.map(branch => `
+            <label style="display: block; margin-bottom: 8px; cursor: pointer;">
+              <input 
+                type="checkbox" 
+                value="${branch}" 
+                ${currentBranches.includes(branch) ? 'checked' : ''}
+                style="margin-right: 8px;"
+              />
+              <span style="text-transform: capitalize;">${branch}</span>
+            </label>
+          `).join('')}
         </div>
-      `,
-      showCancelButton: true,
-      confirmButtonText: 'Update Branches',
-      cancelButtonText: 'Cancel',
-      preConfirm: () => {
-        const checkboxes = Swal.getPopup().querySelectorAll('input[type="checkbox"]:checked')
-        const selected = Array.from(checkboxes).map(cb => cb.value)
-        if (selected.length === 0) {
-          Swal.showValidationMessage('Please select at least one branch')
-          return false
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'Update Branches',
+    cancelButtonText: 'Cancel',
+    preConfirm: () => {
+      const checkboxes = Swal.getPopup().querySelectorAll('input[type="checkbox"]:checked')
+      const selected = Array.from(checkboxes).map(cb => cb.value)
+      if (selected.length === 0) {
+        Swal.showValidationMessage('Please select at least one branch')
+        return false
+      }
+      return selected
+    }
+  })
+
+  if (selectedBranches) {
+    try {
+      // Show loading
+      Swal.fire({
+        title: 'Updating Branches...',
+        text: 'Please wait while we update the order branches.',
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        willOpen: () => {
+          Swal.showLoading()
         }
-        return selected
-      }
-    })
+      })
 
-    if (selectedBranches) {
-      try {
-        // For now, just update locally - you can implement API call later
-        setOrders(prev => prev.map(order => 
-          order.orderId === orderId 
-            ? { ...order, availableBranches: selectedBranches }
-            : order
-        ))
+      // 🔥 ACTUAL API CALL to your backend
+      const headers = getAuthHeaders()
+      const response = await fetch('/api/orders', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          orderId,
+          availableBranches: selectedBranches,
+          notes: `Branches reassigned to: ${selectedBranches.join(', ')} by admin`
+        })
+      })
 
-        Swal.fire({
-          icon: 'success',
-          title: 'Branches Updated!',
-          text: `Order ${orderId} assigned to: ${selectedBranches.join(', ')}`,
-          timer: 2000,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end',
-        })
-      } catch (error) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Update Failed',
-          text: 'Failed to update branch assignment',
-        })
+      console.log('Branch assignment response status:', response.status)
+
+      if (response.status === 401) {
+        localStorage.removeItem('auth-token')
+        localStorage.removeItem('user-info')
+        if (process.env.NODE_ENV !== 'development') {
+          window.location.href = '/admin/login'
+          return
+        }
+        throw new Error('Authentication failed')
       }
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Branch assignment error:', errorData)
+        throw new Error(errorData.error || 'Failed to update branch assignment')
+      }
+
+      const responseData = await response.json()
+      console.log('Branch assignment success:', responseData)
+
+      // Update local state with the response
+      setOrders(prev => prev.map(order => 
+        order.orderId === orderId 
+          ? { 
+              ...order, 
+              availableBranches: selectedBranches, 
+              updatedAt: new Date().toISOString(),
+              // Also update items if your backend returns updated items
+              items: order.items.map(item => ({
+                ...item,
+                availableBranches: selectedBranches
+              }))
+            }
+          : order
+      ))
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Branches Updated!',
+        text: `Order ${orderId} assigned to: ${selectedBranches.join(', ')}`,
+        timer: 2000,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end',
+      })
+
+    } catch (error) {
+      console.error('Branch assignment error:', error)
+      Swal.fire({
+        icon: 'error',
+        title: 'Update Failed',
+        text: error.message || 'Failed to update branch assignment',
+        confirmButtonColor: '#8B5CF6',
+      })
     }
   }
+}
+
 
   // Enhanced view order details with product images
   const viewOrderDetails = (order) => {

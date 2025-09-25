@@ -707,6 +707,7 @@ export async function POST(req) {
 }
 
 // PUT: Update order status (Admin/Moderator/Manager only)
+// PUT: Update order status OR branch assignment (Admin-only for branch reassignment)
 export async function PUT(req) {
   const ip = getUserIP(req)
 
@@ -719,20 +720,26 @@ export async function PUT(req) {
     }
 
     const body = await req.json()
-    const { orderId, status, notes, trackingInfo } = body
+    const { orderId, status, notes, trackingInfo, availableBranches } = body
 
-    if (!orderId || !status) {
+    if (!orderId) {
       return NextResponse.json(
-        { error: 'Order ID and status are required' },
+        { error: 'Order ID is required' },
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       )
     }
 
-    if (!ORDER_STATUSES.includes(status)) {
+    // Validate that at least one update field is provided
+    if (!status && !availableBranches) {
       return NextResponse.json(
-        { error: `Invalid status. Must be one of: ${ORDER_STATUSES.join(', ')}` },
+        { error: 'Either status or availableBranches must be provided for update' },
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       )
+    }
+
+    // 🔒 CRITICAL: Branch reassignment is ADMIN-ONLY
+    if (availableBranches && !['admin', 'manager'].includes(userInfo.role)) {
+      return createAuthError('Access denied: Only administrators can reassign order branches', 403)
     }
 
     const sanitizedOrderId = sanitizeInput(orderId)?.substring(0, MAX_ORDER_ID_LENGTH)
@@ -751,32 +758,84 @@ export async function PUT(req) {
       )
     }
 
-    // Branch-based access control for moderators
+    // Branch-based access control for moderators (only for status updates)
     if (userInfo.role === 'moderator' && userInfo.branch && !existingOrder.availableBranches.includes(userInfo.branch)) {
       return createAuthError('Access denied: Cannot update orders from other branches', 403)
     }
 
     const updateData = {
-      status,
       updatedAt: new Date(),
       updatedBy: userInfo.userId,
       updatedByRole: userInfo.role
     }
 
-    if (status === 'shipped' && sanitizedTrackingInfo) {
-      updateData.trackingInfo = sanitizedTrackingInfo
-    } else if (status === 'delivered') {
-      updateData.deliveryDate = new Date()
-    } else if (status === 'cancelled') {
-      updateData.cancelledAt = new Date()
-    } else if (status === 'refunded') {
-      updateData.refundedAt = new Date()
+    let historyNote = ''
+    let auditAction = ''
+
+    // Handle status update (All roles: admin, manager, moderator)
+    if (status) {
+      if (!ORDER_STATUSES.includes(status)) {
+        return NextResponse.json(
+          { error: `Invalid status. Must be one of: ${ORDER_STATUSES.join(', ')}` },
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+
+      updateData.status = status
+      historyNote = sanitizedNotes || `Status changed to ${status} by ${userInfo.role}`
+      auditAction = 'ORDER_STATUS_UPDATED'
+
+      if (status === 'shipped' && sanitizedTrackingInfo) {
+        updateData.trackingInfo = sanitizedTrackingInfo
+      } else if (status === 'delivered') {
+        updateData.deliveryDate = new Date()
+      } else if (status === 'cancelled') {
+        updateData.cancelledAt = new Date()
+      } else if (status === 'refunded') {
+        updateData.refundedAt = new Date()
+      }
+    }
+
+    // Handle branch assignment update (ADMIN-ONLY)
+    if (availableBranches && Array.isArray(availableBranches)) {
+      console.log(`🔒 Branch reassignment requested by ${userInfo.role}: ${userInfo.email}`)
+      
+      // Double-check admin permissions
+      if (!['admin', 'manager'].includes(userInfo.role)) {
+        console.error(`❌ Unauthorized branch reassignment attempt by ${userInfo.role}`)
+        return createAuthError('Access denied: Only administrators can reassign order branches', 403)
+      }
+
+      // Validate branches
+      const validBranches = availableBranches.filter(branch => 
+        typeof branch === 'string' && branch.trim().length > 0
+      ).map(branch => branch.toLowerCase().trim())
+
+      if (validBranches.length === 0) {
+        return NextResponse.json(
+          { error: 'At least one valid branch must be provided' },
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+
+      updateData.availableBranches = validBranches
+      historyNote = sanitizedNotes || `Branches reassigned to: ${validBranches.join(', ')} by administrator`
+      auditAction = 'ORDER_BRANCHES_UPDATED'
+
+      // Also update each item's availableBranches
+      const updatedItems = existingOrder.items.map(item => ({
+        ...item,
+        availableBranches: validBranches
+      }))
+      updateData.items = updatedItems
+
+      console.log(`✅ Branch reassignment approved for order ${sanitizedOrderId}: ${validBranches.join(', ')}`)
     }
 
     const historyEntry = {
-      status,
+      status: status || existingOrder.status,
       timestamp: new Date(),
-      note: sanitizedNotes || `Status changed to ${status}`,
+      note: historyNote,
       updatedBy: userInfo.userId,
       updatedByRole: userInfo.role
     }
@@ -798,26 +857,41 @@ export async function PUT(req) {
 
     console.log('✅ Order updated successfully')
     console.log('📋 Order ID:', sanitizedOrderId)
-    console.log('📊 New status:', status)
+    console.log('👤 Updated by:', userInfo.role, '-', userInfo.email)
+    if (status) console.log('📊 New status:', status)
+    if (availableBranches) console.log('🏪 New branches:', availableBranches)
 
     // Create audit log (non-blocking)
     setImmediate(async () => {
       try {
-        await db.collection('audit_logs').insertOne({
-          action: 'ORDER_STATUS_UPDATED',
+        const auditData = {
+          action: auditAction,
           userId: userInfo.userId,
           userEmail: userInfo.email,
           userRole: userInfo.role,
           orderId: sanitizedOrderId,
           customerEmail: existingOrder.customerInfo.email,
-          oldStatus: existingOrder.status,
-          newStatus: status,
-          notes: sanitizedNotes || '',
-          trackingInfo: sanitizedTrackingInfo || '',
-          availableBranches: existingOrder.availableBranches,
           timestamp: new Date(),
           ipAddress: ip
-        })
+        }
+
+        if (status) {
+          auditData.oldStatus = existingOrder.status
+          auditData.newStatus = status
+          auditData.notes = sanitizedNotes || ''
+          auditData.trackingInfo = sanitizedTrackingInfo || ''
+        }
+
+        if (availableBranches) {
+          auditData.oldBranches = existingOrder.availableBranches
+          auditData.newBranches = availableBranches
+          auditData.reassignedBy = `${userInfo.role}_${userInfo.email}` // Track who did the reassignment
+        }
+
+        auditData.availableBranches = availableBranches || existingOrder.availableBranches
+
+        await db.collection('audit_logs').insertOne(auditData)
+        console.log(`📝 Audit log created for ${auditAction} by ${userInfo.role}`)
       } catch (auditError) {
         console.error('❌ Audit log error:', auditError)
       }
@@ -826,9 +900,11 @@ export async function PUT(req) {
     return NextResponse.json(
       {
         success: true,
-        message: 'Order updated successfully',
+        message: status ? 'Order status updated successfully' : 'Order branches updated successfully (Admin-only action)',
         orderId: sanitizedOrderId,
-        status,
+        updatedBy: userInfo.role,
+        ...(status && { status }),
+        ...(availableBranches && { availableBranches }),
         updatedAt: updateData.updatedAt
       },
       {
