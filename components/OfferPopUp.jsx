@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 export default function OfferPopup({
-  imageSrc = "/Home_Category/13.jpg", // This will be replaced by admin panel data later
+  imageSrc = "/", // This will be replaced by admin panel data later
   headline = "JOIN OUR",
   title = "NEWSLETTER",
   subtitle = "TO RECEIVE NEW EXCLUSIVE DEALS 50%"

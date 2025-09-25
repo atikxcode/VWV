@@ -17,6 +17,7 @@ import {
   FaNewspaper,
   FaUsers,
   FaCubes,
+  FaClipboardList 
 } from 'react-icons/fa'
 
 export default function AdminSidebar() {
@@ -28,6 +29,7 @@ export default function AdminSidebar() {
     { href: '/admin/SellPage', icon: FaCubes },
     { href: '/admin/AddProduct', icon: FaPlus },
     { href: '/admin/ManageProduct', icon: FaPen },
+    { href: '/admin/ManageOrders', icon: FaClipboardList },
     { href: '/admin/ProfileUpdate', icon: FaUser },
     { href: '/', icon: FaHome },
   ]

@@ -7,6 +7,7 @@ import {
   FaPlus,
   FaPen,
   FaChartLine,
+  FaClipboardList,
   FaCubes,
 } from 'react-icons/fa'
 
@@ -18,6 +19,7 @@ export default function ModeratorSidebar() {
     { href: '/moderator/SellPage', icon: FaCubes },
     { href: '/moderator/AddProduct', icon: FaPlus },
     { href: '/moderator/ManageProduct', icon: FaPen },
+    { href: '/moderator/ManageOrders', icon: FaClipboardList },
     { href: '/moderator/ProfileUpdate', icon: FaUser },
     { href: '/', icon: FaHome },
   ]

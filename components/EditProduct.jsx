@@ -1081,7 +1081,7 @@ useEffect(() => {
   }
 }, [category, categories])
 
-// 🔥 ADDITIONAL FIX: Handle race condition when categories load after product
+//  ADDITIONAL FIX: Handle race condition when categories load after product
 useEffect(() => {
   if (product?.category && Object.keys(categories).length > 0 && subCategoryOptions.length === 0) {
     console.log('🔧 Race condition fix: Setting subcategory options after categories loaded');
