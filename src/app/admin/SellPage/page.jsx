@@ -165,7 +165,7 @@ const makeAuthenticatedRequest = async (url, options = {}, bustCache = false) =>
   }
   
   if (token) {
-    headers.Authorization = token
+    headers.Authorization = token.startsWith('Bearer ') ? token : `Bearer ${token}`
   }
 
   if (bustCache) {
@@ -177,11 +177,45 @@ const makeAuthenticatedRequest = async (url, options = {}, bustCache = false) =>
     url = `${url}${separator}_t=${Date.now()}`
   }
   
-  return fetch(url, {
+  // 🔥 MAKE REQUEST
+  const response = await fetch(url, {
     ...options,
     headers,
   })
+
+  // 🔥 HANDLE EXPIRED TOKEN (401 Unauthorized)
+  if (response.status === 401) {
+    console.log('🔥 TOKEN EXPIRED: Clearing authentication and redirecting to login')
+    
+    // Clear stored tokens
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('authToken')
+      sessionStorage.removeItem('authToken')
+      localStorage.removeItem('userRole')
+      localStorage.removeItem('userBranch')
+    }
+    
+    // Show expiration message
+    Swal.fire({
+      icon: 'warning',
+      title: 'Session Expired',
+      text: 'Your session has expired. Please sign in again to continue.',
+      confirmButtonText: 'Go to Login',
+      allowOutsideClick: false,
+      allowEscapeKey: false
+    }).then(() => {
+      // Redirect to login page - CHANGE THIS TO YOUR ACTUAL LOGIN PATH
+      window.location.href = '/admin/login' // 🔥 CHANGE THIS TO YOUR LOGIN PAGE PATH
+    })
+    
+    // Return the response anyway for error handling
+    return response
+  }
+
+  return response
 }
+
+
 
 // 🔥 ENHANCED: Product Details Modal Component with Complete Product Information Display
 const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }) => {
@@ -1668,7 +1702,6 @@ export default function SellPageAdmin() {
   // Filter states
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
-  const [selectedSubcategory, setSelectedSubcategory] = useState('')
   const [barcodeFilter, setBarcodeFilter] = useState('')
   const [inStockOnly, setInStockOnly] = useState(false)
 
@@ -1758,7 +1791,6 @@ export default function SellPageAdmin() {
 
       if (searchTerm.trim()) params.append('search', searchTerm.trim())
       if (selectedCategory) params.append('category', selectedCategory)
-      if (selectedSubcategory) params.append('subcategory', selectedSubcategory)
       if (barcodeFilter.trim()) params.append('barcode', barcodeFilter.trim())
       if (inStockOnly) params.append('inStock', 'true')
       
@@ -1806,13 +1838,15 @@ export default function SellPageAdmin() {
   // Apply filters
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, selectedCategory, selectedSubcategory, barcodeFilter, inStockOnly])
+  }, [searchTerm, selectedCategory, barcodeFilter, inStockOnly])
+
 
   useEffect(() => {
     if (!loading) {
       fetchProducts()
     }
-  }, [currentPage, searchTerm, selectedCategory, selectedSubcategory, barcodeFilter, inStockOnly])
+  }, [currentPage, searchTerm, selectedCategory, barcodeFilter, inStockOnly])
+
 
   // Handle showing product details
   const handleShowProductDetails = (product) => {
@@ -2064,6 +2098,12 @@ try {
     body: JSON.stringify(saleData)
   })
 
+  // 🔥 CHECK FOR TOKEN EXPIRATION
+  if (response.status === 401) {
+    // Token expired - makeAuthenticatedRequest already handled the redirect
+    return
+  }
+
   if (response.ok) {
     const result = await response.json()
     console.log('SALE Sale processed successfully:', result)
@@ -2081,6 +2121,7 @@ try {
 }
 
 
+
       // Clear cart and payment data
       clearCart()
       setSelectedPaymentMethods([])
@@ -2096,12 +2137,10 @@ try {
         icon: 'success',
         title: 'Sale Complete!',
         text: `Sale processed successfully. Total: $${totalAmount.toFixed(2)}`,
-        confirmButtonText: 'Generate Receipt',
-      }).then((result) => {
-        if (result.isConfirmed) {
-          generateInvoice(saleData)
-        }
+        timer: 2000,
+        showConfirmButton: false
       })
+
 
     } catch (error) {
       console.error('Checkout error:', error)
@@ -2119,10 +2158,6 @@ try {
   const cartTotal = getCartTotal()
   const cartItemsCount = getCartItemsCount()
 
-  // Get subcategories for selected category
-  const subcategories = selectedCategory && categories[selectedCategory] 
-    ? categories[selectedCategory].subcategories || []
-    : []
 
   if (loading) {
     return (
@@ -2236,10 +2271,8 @@ try {
               </label>
               <select
                 value={selectedCategory}
-                onChange={(e) => {
-                  setSelectedCategory(e.target.value)
-                  setSelectedSubcategory('')
-                }}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+
                 className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="">All Categories</option>
@@ -2251,25 +2284,7 @@ try {
               </select>
             </div>
 
-            {/* Subcategory */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Type
-              </label>
-              <select
-                value={selectedSubcategory}
-                onChange={(e) => setSelectedSubcategory(e.target.value)}
-                disabled={!selectedCategory || subcategories.length === 0}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              >
-                <option value="">All Types</option>
-                {subcategories.map((subcategory) => (
-                  <option key={subcategory} value={subcategory}>
-                    {subcategory}
-                  </option>
-                ))}
-              </select>
-            </div>
+           
 
             {/* Barcode */}
             <div>
@@ -2726,7 +2741,7 @@ try {
                   </div>
                   <div>
                     <span className="text-gray-500">Total:</span>
-                    <p className="font-semibold text-green-600">${completedSaleData.totalAmount?.toFixed(2)}</p>
+                    <p className="font-semibold text-green-600">৳{completedSaleData.totalAmount?.toFixed(2)}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Customer:</span>
