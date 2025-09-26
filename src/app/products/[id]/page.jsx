@@ -134,12 +134,16 @@ export default function ProductDetailPage() {
       }
 
       // 🔥 CASE-INSENSITIVE BRANCH SPECIFICATION LOOKUP
+        // 🔥 FIXED: CASE-INSENSITIVE BRANCH SPECIFICATION LOOKUP
       const branchSpec = product.branchSpecifications[branch] || 
-                         product.branchSpecifications[branch.toLowerCase()] ||
-                         product.branchSpecifications[branch.toUpperCase()] ||
-                         product.branchSpecifications[branch.charAt(0).toUpperCase() + branch.slice(1)];
+                        product.branchSpecifications[branch.toLowerCase()] ||
+                        product.branchSpecifications[branch.toUpperCase()] ||
+                        product.branchSpecifications[branch.charAt(0).toUpperCase() + branch.slice(1).toLowerCase()] ||
+                        product.branchSpecifications[branch.charAt(0).toLowerCase() + branch.slice(1).toLowerCase()]
 
-      console.log(`🔥   Branch specifications for "${branch}":`, branchSpec);
+      console.log(`🔥 CASE DEBUG - Branch: ${branch}`)
+      console.log(`🔥 Available keys:`, Object.keys(product.branchSpecifications))
+      console.log(`🔥 Found branchSpec:`, branchSpec)
 
       // Check nicotine
       if (selectedNicotineStrength) {
