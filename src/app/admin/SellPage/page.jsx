@@ -65,6 +65,9 @@ import {
   Droplets, Battery, Star 
 } from 'lucide-react'
 
+// 🔥 NEW: Import your cart hook
+import { useCart } from '../../../../components/hooks/useCart'
+
 // 🔥 FIX: Enhanced Payment Methods with proper structure
 const PAYMENT_METHODS = [
   {
@@ -129,7 +132,7 @@ const PAYMENT_METHODS = [
   },
 ]
 
-// 🔥 FIX: Get auth headers with cache-busting
+// Helper functions remain the same
 const getAuthHeaders = (bustCache = false) => {
   const token = getAuthToken()
   const headers = {
@@ -146,7 +149,6 @@ const getAuthHeaders = (bustCache = false) => {
   return headers
 }
 
-// 🔥 FIX: Helper function to get auth token
 const getAuthToken = () => {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('authToken') || sessionStorage.getItem('authToken') || 'Bearer temp-admin-token-for-development'
@@ -154,7 +156,6 @@ const getAuthToken = () => {
   return 'Bearer temp-admin-token-for-development'
 }
 
-// 🔥 FIX: Helper function to make authenticated API requests
 const makeAuthenticatedRequest = async (url, options = {}, bustCache = false) => {
   const token = getAuthToken()
   
@@ -201,13 +202,12 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
 
   if (!product) return null
 
-  // 🔥 NEW: Get technical specifications (excluding features and eachSetContains)
+  // Get technical specifications
   const getAvailableSpecifications = () => {
     if (!product) return []
     
     const specifications = []
     
-    // Define specification mapping with icons and labels
     const specificationMap = {
       flavor: { label: 'Flavor', icon: Droplets, color: 'text-blue-500' },
       resistance: { label: 'Resistance', icon: Zap, color: 'text-yellow-500', unit: 'Ω' },
@@ -222,7 +222,6 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
       chargingTime: { label: 'Charging Time', icon: Clock, color: 'text-red-500' },
     }
     
-    // Check each specification field
     Object.entries(specificationMap).forEach(([key, config]) => {
       if (product[key] && product[key].toString().trim() !== '') {
         specifications.push({
@@ -239,10 +238,10 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
     return specifications
   }
 
-  // 🔥 ENHANCED: Get branches from stock data (same logic as product details page)
+  // Get branches from stock data
   const getBranches = () => {
     if (!product?.stock) {
-      return branches || [] // fallback to passed branches
+      return branches || []
     }
     
     const stockKeys = Object.keys(product.stock)
@@ -254,19 +253,19 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
 
   const productBranches = getBranches()
 
-  // 🔥 ENHANCED: Get branch stock status (same logic as product details page)
+  // Get branch stock status
   const getBranchStockStatus = (branchName) => {
     const stockKey = `${branchName}_stock`
     const stockValue = product?.stock?.[stockKey] || 0
     return stockValue > 0
   }
 
-  // 🔥 ENHANCED: Check if product has branch specifications
+  // Check if product has branch specifications
   const hasBranchSpecifications = () => {
     return product?.branchSpecifications && Object.keys(product.branchSpecifications).length > 0
   }
 
-  // 🔥 ENHANCED: Check if product has any specifications
+  // Check if product has any specifications
   const hasAnySpecifications = () => {
     const nicotineOptions = getUniqueSpecificationValues('nicotineStrength')
     const vgPgOptions = getUniqueSpecificationValues('vgPgRatio')
@@ -275,13 +274,12 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
     return nicotineOptions.length > 0 || vgPgOptions.length > 0 || colorOptions.length > 0
   }
 
-  // 🔥 ENHANCED: Case-insensitive specification values extraction
+  // Case-insensitive specification values extraction
   const getUniqueSpecificationValues = (specType) => {
     if (!product?.branchSpecifications) return []
     
     const allValues = new Set()
     
-    // Check all possible case variations of branch names
     Object.keys(product.branchSpecifications).forEach(branchName => {
       const branchSpec = product.branchSpecifications[branchName]
       if (branchSpec[specType]) {
@@ -292,7 +290,7 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
     return Array.from(allValues)
   }
 
-  // 🔥 ENHANCED: Check if specification should show as text (same logic)
+  // Check if specification should show as text
   const shouldShowAsText = (specType) => {
     if (!product?.branchSpecifications) return false
     
@@ -316,34 +314,19 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
     return firstValue !== null
   }
 
-  // 🔥 ENHANCED: Get single specification value (same logic)
+  // Get single specification value
   const getSingleSpecificationValue = (specType) => {
     if (!product?.branchSpecifications) return ''
     const firstBranch = Object.values(product.branchSpecifications)[0]
     return firstBranch?.[specType]?.[0] || ''
   }
 
-  // 🔥 ENHANCED: Check if any selections are made
+  // Check if any selections are made
   const hasAnySelections = () => {
     return selectedNicotineStrength || selectedVgPgRatio || selectedColor
   }
 
-  // 🔥 ENHANCED: Branch has specification check with case sensitivity
-  const branchHasSpecification = (branchName, specType, specValue) => {
-    // Try different case variations to find branch specifications
-    const branchSpec = product?.branchSpecifications?.[branchName] ||
-                      product?.branchSpecifications?.[branchName.toLowerCase()] ||
-                      product?.branchSpecifications?.[branchName.toUpperCase()] ||
-                      product?.branchSpecifications?.[branchName.charAt(0).toUpperCase() + branchName.slice(1)]
-
-    if (!branchSpec?.[specType]) {
-      // If branch doesn't have this spec type defined, it supports all values
-      return true
-    }
-    return branchSpec[specType].includes(specValue)
-  }
-
-  // 🔥 ENHANCED: Get available branches for current selection (same logic as product details)
+  // Get available branches for current selection
   const getAvailableBranchesForSelection = () => {
     if (!product?.branchSpecifications) {
       const result = productBranches.filter(branch => getBranchStockStatus(branch))
@@ -351,24 +334,20 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
     }
     
     const result = productBranches.filter(branch => {
-      // First check if branch has stock
       const hasStock = getBranchStockStatus(branch)
       if (!hasStock) {
         return false
       }
 
-      // If no selections are made, return all branches with stock
       if (!hasAnySelections()) {
         return true
       }
 
-      // Case-insensitive branch specification lookup
       const branchSpec = product.branchSpecifications[branch] || 
                          product.branchSpecifications[branch.toLowerCase()] ||
                          product.branchSpecifications[branch.toUpperCase()] ||
                          product.branchSpecifications[branch.charAt(0).toUpperCase() + branch.slice(1)]
 
-      // Check nicotine
       if (selectedNicotineStrength) {
         const branchNicotineSpecs = branchSpec?.nicotineStrength
         if (branchNicotineSpecs && !branchNicotineSpecs.includes(selectedNicotineStrength)) {
@@ -376,7 +355,6 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
         }
       }
       
-      // Check VG/PG
       if (selectedVgPgRatio) {
         const branchVgPgSpecs = branchSpec?.vgPgRatio
         if (branchVgPgSpecs && !branchVgPgSpecs.includes(selectedVgPgRatio)) {
@@ -384,7 +362,6 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
         }
       }
       
-      // Check color
       if (selectedColor) {
         const branchColorSpecs = branchSpec?.colors
         if (branchColorSpecs && !branchColorSpecs.includes(selectedColor)) {
@@ -398,13 +375,13 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
     return result
   }
 
-  // 🔥 NEW: Check if branch selection is required
+  // Check if branch selection is required
   const requiresBranchSelection = () => {
     const availableBranches = getAvailableBranchesForSelection()
-    return availableBranches.length > 1 // Multiple branches available, admin must choose
+    return availableBranches.length > 1
   }
 
-  // 🔥 ENHANCED: Check if user must select specifications
+  // Check if user must select specifications
   const mustSelectSpecifications = () => {
     if (!hasBranchSpecifications() || !hasAnySpecifications()) return false
     
@@ -412,7 +389,6 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
     const vgPgOptions = getUniqueSpecificationValues('vgPgRatio')
     const colorOptions = getUniqueSpecificationValues('colors')
 
-    // If any specification has multiple options, user must select
     const needsNicotineSelection = nicotineOptions.length > 1 && !shouldShowAsText('nicotineStrength')
     const needsVgPgSelection = vgPgOptions.length > 1 && !shouldShowAsText('vgPgRatio')
     const needsColorSelection = colorOptions.length > 1 && !shouldShowAsText('colors')
@@ -420,7 +396,7 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
     return needsNicotineSelection || needsVgPgSelection || needsColorSelection
   }
 
-  // 🔥 ENHANCED: Validate required selections
+  // Validate required selections
   const validateSelections = () => {
     const nicotineOptions = getUniqueSpecificationValues('nicotineStrength')
     const vgPgOptions = getUniqueSpecificationValues('vgPgRatio')
@@ -441,9 +417,8 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
     return errors
   }
 
-  // 🔥 ENHANCED: Check if all required selections are made (including branch selection)
+  // Check if all required selections are made
   const areAllRequiredSelectionsMade = () => {
-    // Check if specification selections are required and made
     if (mustSelectSpecifications()) {
       const missingSelections = validateSelections()
       if (missingSelections.length > 0) {
@@ -451,7 +426,6 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
       }
     }
     
-    // Check if branch selection is required and made
     if (requiresBranchSelection() && !selectedBranch) {
       return false
     }
@@ -459,21 +433,16 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
     return true
   }
 
-  // 🔥 ENHANCED: Check if add to cart is enabled
+  // Check if add to cart is enabled
   const isAddToCartEnabled = () => {
-    // Check if there's stock available
     const hasStock = productBranches.length > 0 ? productBranches.some(branch => getBranchStockStatus(branch)) : product?.stock?.available
-    
-    // Check if all required selections are made
     const allSelectionsMade = areAllRequiredSelectionsMade()
-    
-    // Check if there are available branches for current selection
     const hasAvailableBranches = getAvailableBranchesForSelection().length > 0
     
     return hasStock && allSelectionsMade && hasAvailableBranches
   }
 
-  // 🔥 ENHANCED: Get button text
+  // Get button text
   const getButtonText = () => {
     const hasStock = productBranches.length > 0 ? productBranches.some(branch => getBranchStockStatus(branch)) : product?.stock?.available
     
@@ -484,7 +453,7 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
     return 'Add to Cart'
   }
 
-  // 🔥 ENHANCED: Get tooltip message for disabled button (including branch selection)
+  // Get tooltip message for disabled button
   const getTooltipMessage = () => {
     const hasStock = productBranches.length > 0 ? productBranches.some(branch => getBranchStockStatus(branch)) : product?.stock?.available
     
@@ -531,7 +500,7 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
       selectedOptions.color = selectedColor
     }
 
-    // 🔥 ENHANCED: Use selected branch or first available branch
+    // Use selected branch or first available branch
     const availableBranches = getAvailableBranchesForSelection()
     const branchToUse = selectedBranch || availableBranches[0] || productBranches[0]
 
@@ -612,7 +581,7 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
 
                       {product.comparePrice && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Compare Price</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Regular Price</label>
                           <p className="text-lg text-gray-500 line-through">৳{product.comparePrice.toFixed(2)}</p>
                         </div>
                       )}
@@ -656,7 +625,7 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
                     )}
                   </div>
 
-                  {/* 🔥 NEW: Technical Specifications Section */}
+                  {/* Technical Specifications Section */}
                   {availableSpecs.length > 0 && (
                     <div className="bg-blue-50 rounded-xl p-6">
                       <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -682,7 +651,7 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
                     </div>
                   )}
 
-                  {/* 🔥 NEW: Features Section */}
+                  {/* Features Section */}
                   {product.features && Array.isArray(product.features) && product.features.length > 0 && (
                     <div className="bg-amber-50 rounded-xl p-6">
                       <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -702,7 +671,7 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
                     </div>
                   )}
 
-                  {/* 🔥 NEW: Each Set Contains Section */}
+                  {/* Each Set Contains Section */}
                   {product.eachSetContains && Array.isArray(product.eachSetContains) && product.eachSetContains.length > 0 && (
                     <div className="bg-emerald-50 rounded-xl p-6">
                       <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -725,7 +694,7 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
 
                 {/* Right Column - Specifications & Branch Selection */}
                 <div className="space-y-6">
-                  {/* 🔥 ENHANCED: Branch Specifications with Required Warning */}
+                  {/* Branch Specifications with Required Warning */}
                   {hasBranchSpecifications() && hasAnySpecifications() && (
                     <div className="bg-purple-50 rounded-xl p-6">
                       <div className="flex items-center justify-between mb-4">
@@ -857,7 +826,7 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
                     </div>
                   )}
 
-                  {/* 🔥 ENHANCED: Branch Selection with Admin Choice */}
+                  {/* Branch Selection with Admin Choice */}
                   <div className="bg-green-50 rounded-xl p-6">
                     <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                       <Store size={20} className="text-green-600" />
@@ -1021,7 +990,6 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
   )
 }
 
-
 // 🔥 UPDATED: Enhanced Product Card with Details Button
 const ProductCard = ({ product, onAddToCart, branches, onShowDetails }) => {
   const [selectedBranch, setSelectedBranch] = useState(branches[0] || 'bashundhara')
@@ -1067,7 +1035,7 @@ const ProductCard = ({ product, onAddToCart, branches, onShowDetails }) => {
 
         {/* Price Badge */}
         <div className="absolute bottom-3 left-3 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-          ${product.price?.toFixed(2) || '0.00'}
+          ৳{product.price?.toFixed(2) || '0.00'}
         </div>
 
         {/* Details Button */}
@@ -1140,7 +1108,7 @@ const ProductCard = ({ product, onAddToCart, branches, onShowDetails }) => {
   )
 }
 
-// 🔥 UPDATED: Enhanced Sortable Cart Item with specifications support
+// 🔥 UPDATED: Enhanced Sortable Cart Item using your cart structure
 const SortableCartItem = ({ item, onUpdateQuantity, onRemove }) => {
   const {
     attributes,
@@ -1201,7 +1169,7 @@ const SortableCartItem = ({ item, onUpdateQuantity, onRemove }) => {
           </h4>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
-              {item.branch?.charAt(0).toUpperCase() + item.branch?.slice(1) || 'N/A'}
+              {item.selectedBranch?.charAt(0).toUpperCase() + item.selectedBranch?.slice(1) || 'N/A'}
             </span>
             <span className="text-sm font-medium text-purple-600">
               ${item.product?.price?.toFixed(2) || '0.00'}
@@ -1209,21 +1177,21 @@ const SortableCartItem = ({ item, onUpdateQuantity, onRemove }) => {
           </div>
           
           {/* Show specifications if available */}
-          {item.specifications && (
+          {item.selectedOptions && Object.keys(item.selectedOptions).length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
-              {item.specifications.nicotineStrength && (
+              {item.selectedOptions.nicotineStrength && (
                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                  {item.specifications.nicotineStrength}
+                  {item.selectedOptions.nicotineStrength}
                 </span>
               )}
-              {item.specifications.vgPgRatio && (
+              {item.selectedOptions.vgPgRatio && (
                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
-                  {item.specifications.vgPgRatio}
+                  {item.selectedOptions.vgPgRatio}
                 </span>
               )}
-              {item.specifications.color && (
+              {item.selectedOptions.color && (
                 <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">
-                  {item.specifications.color}
+                  {item.selectedOptions.color}
                 </span>
               )}
             </div>
@@ -1266,7 +1234,7 @@ const SortableCartItem = ({ item, onUpdateQuantity, onRemove }) => {
   )
 }
 
-// Keep the existing generateInvoice function exactly as is
+// Keep existing generateInvoice and PaymentMethodSelector functions exactly as they were...
 const generateInvoice = async (saleData) => {
   const invoiceElement = document.createElement('div')
   invoiceElement.innerHTML = `
@@ -1335,8 +1303,8 @@ const generateInvoice = async (saleData) => {
                   </span>
                 </td>
                 <td style="padding: 6px; text-align: center; font-weight: 600; color: rgb(55, 65, 81);">${item.quantity || 0}</td>
-                <td style="padding: 6px; text-align: right; font-weight: 500; color: rgb(55, 65, 81);">$${(item.unitPrice || 0).toFixed(2)}</td>
-                <td style="padding: 6px; text-align: right; font-weight: 700; color: rgb(5, 150, 105);">$${(item.totalPrice || 0).toFixed(2)}</td>
+                <td style="padding: 6px; text-align: right; font-weight: 500; color: rgb(55, 65, 81);">৳${(item.unitPrice || 0).toFixed(2)}</td>
+                <td style="padding: 6px; text-align: right; font-weight: 700; color: rgb(5, 150, 105);">৳${(item.totalPrice || 0).toFixed(2)}</td>
               </tr>
             `
               )
@@ -1358,7 +1326,7 @@ const generateInvoice = async (saleData) => {
                   <span style="width: 6px; height: 6px; background: rgb(16, 185, 129); border-radius: 50%; display: inline-block; margin-right: 5px;"></span>
                   ${method.name || 'Unknown'}
                 </span>
-                <span style="font-size: 11px; font-weight: 700; color: rgb(5, 150, 105);">$${(method.amount || saleData.totalAmount || 0).toFixed(2)}</span>
+                <span style="font-size: 11px; font-weight: 700; color: rgb(5, 150, 105);">৳${(method.amount || saleData.totalAmount || 0).toFixed(2)}</span>
               </div>
             `
               )
@@ -1369,12 +1337,12 @@ const generateInvoice = async (saleData) => {
             <h4 style="margin: 0 0 8px 0; color: rgb(139, 92, 246); font-size: 12px; font-weight: bold;">TOTAL SUMMARY</h4>
             <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px;">
               <span style="color: rgb(55, 65, 81);">Subtotal:</span>
-              <span style="font-weight: 600;">$${(saleData.totalAmount || 0).toFixed(2)}</span>
+              <span style="font-weight: 600;">৳${(saleData.totalAmount || 0).toFixed(2)}</span>
             </div>
             <div style="border-top: 1px solid rgb(226, 232, 240); padding-top: 6px;">
               <div style="display: flex; justify-content: space-between; align-items: center; background: rgb(139, 92, 246); color: white; padding: 8px; border-radius: 4px;">
                 <span style="font-size: 12px; font-weight: bold;">TOTAL:</span>
-                <span style="font-size: 14px; font-weight: bold;">$${(saleData.payment?.totalPaid || saleData.totalAmount || 0).toFixed(2)}</span>
+                <span style="font-size: 14px; font-weight: bold;">৳${(saleData.payment?.totalPaid || saleData.totalAmount || 0).toFixed(2)}</span>
               </div>
               ${(saleData.payment?.change || 0) > 0 ? `
                 <div style="display: flex; justify-content: space-between; align-items: center; background: rgb(16, 185, 129); color: white; padding: 6px; border-radius: 4px; margin-top: 4px;">
@@ -1470,7 +1438,6 @@ const generateInvoice = async (saleData) => {
   }
 }
 
-// Keep the existing PaymentMethodSelector component exactly as is
 const PaymentMethodSelector = ({
   selectedMethods,
   onMethodChange,
@@ -1672,13 +1639,26 @@ const PaymentMethodSelector = ({
   )
 }
 
-// 🔥 MAIN COMPONENT: Enhanced Sales Page with Product Details Modal
+// 🔥 MAIN COMPONENT: Enhanced Sales Page with Cart Hook Integration
 export default function SellPageAdmin() {
-  // All existing states
+  // 🔥 NEW: Use your cart hook instead of local state
+  const { 
+    cartItems, 
+    addToCart, 
+    removeFromCart, 
+    updateQuantity, 
+    clearCart, 
+    getCartTotal, 
+    getCartItemsCount,
+    getProductOptionsText,
+    getAvailableBranchesText,
+    hasProductSpecifications
+  } = useCart()
+
+  // All existing states (except cart which is now handled by the hook)
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState({})
   const [branches, setBranches] = useState([])
-  const [cart, setCart] = useState([])
   const [loading, setLoading] = useState(true)
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
   const [showCartModal, setShowCartModal] = useState(false)
@@ -1702,7 +1682,7 @@ export default function SellPageAdmin() {
   const [totalPages, setTotalPages] = useState(1)
   const itemsPerPage = 12
 
-  // 🔥 NEW: Product details modal state
+  // Product details modal state
   const [showProductModal, setShowProductModal] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState(null)
 
@@ -1714,7 +1694,7 @@ export default function SellPageAdmin() {
     })
   )
 
-  // Load initial data
+  // Load initial data (same as before)
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -1767,7 +1747,7 @@ export default function SellPageAdmin() {
     loadData()
   }, [])
 
-  // Fetch products with cache-busting and proper refresh
+  // Fetch products (same as before)
   const fetchProducts = async (bustCache = false) => {
     try {
       const params = new URLSearchParams({
@@ -1834,13 +1814,13 @@ export default function SellPageAdmin() {
     }
   }, [currentPage, searchTerm, selectedCategory, selectedSubcategory, barcodeFilter, inStockOnly])
 
-  // 🔥 NEW: Handle showing product details
+  // Handle showing product details
   const handleShowProductDetails = (product) => {
     setSelectedProduct(product)
     setShowProductModal(true)
   }
 
-  // Enhanced barcode scanning with better error handling
+  // Enhanced barcode scanning (same as before)
   const handleBarcodeScan = async (data) => {
     try {
       if (data && data.trim()) {
@@ -1905,28 +1885,29 @@ export default function SellPageAdmin() {
     }
   }
 
-  // 🔥 UPDATED: Enhanced handleAddToCart with specifications support
-  const handleAddToCart = (product, branch, specifications = null) => {
+  // 🔥 UPDATED: Handle add to cart using your cart hook
+  const handleAddToCart = (product, selectedBranch, selectedOptions = {}, availableBranches = []) => {
     try {
       if (!product || !product._id) {
         throw new Error('Invalid product data')
       }
 
-      if (!branch) {
+      if (!selectedBranch) {
         throw new Error('Branch is required')
       }
 
-      const normalizedBranch = branch.toLowerCase()
+      const normalizedBranch = selectedBranch.toLowerCase()
       const stock = product.stock?.[`${normalizedBranch}_stock`] ?? 0
 
       console.log('[CART] Adding to cart:', {
         productName: product.name,
-        originalBranch: branch,
+        originalBranch: selectedBranch,
         normalizedBranch,
         stockKey: `${normalizedBranch}_stock`,
         stock,
         stockData: product.stock,
-        specifications
+        selectedOptions,
+        availableBranches
       })
 
       if (stock <= 0) {
@@ -1938,87 +1919,22 @@ export default function SellPageAdmin() {
         return
       }
 
-      // If specifications are provided, validate them
-      if (specifications && product.branchSpecifications) {
-        const branchSpec = product.branchSpecifications[normalizedBranch]
-        if (!branchSpec) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Branch Not Available',
-            text: 'This product is not available for the selected branch',
-          })
-          return
-        }
+      // Use your cart hook's addToCart function
+      addToCart(product, 1, selectedOptions, availableBranches || [selectedBranch])
 
-        // Validate each specification
-        const { nicotineStrength, vgPgRatio, color } = specifications
-        if (nicotineStrength && !branchSpec.nicotineStrength?.includes(nicotineStrength)) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Specification Not Available',
-            text: 'Selected nicotine strength is not available for this branch',
-          })
-          return
-        }
+      const specText = selectedOptions && Object.keys(selectedOptions).length > 0 ? 
+        ` (${Object.values(selectedOptions).join(', ')})` : ''
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Added to Cart!',
+        text: `${product.name}${specText} added to cart`,
+        timer: 1500,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end',
+      })
 
-        if (vgPgRatio && !branchSpec.vgPgRatio?.includes(vgPgRatio)) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Specification Not Available',
-            text: 'Selected VG/PG ratio is not available for this branch',
-          })
-          return
-        }
-
-        if (color && !branchSpec.colors?.includes(color)) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Specification Not Available',
-            text: 'Selected color is not available for this branch',
-          })
-          return
-        }
-      }
-
-      const existingItem = cart.find(
-        (item) => item.product._id === product._id && 
-                  item.branch === normalizedBranch &&
-                  JSON.stringify(item.specifications || {}) === JSON.stringify(specifications || {})
-      )
-
-      if (existingItem) {
-        if (existingItem.quantity >= stock) {
-          Swal.fire({
-            icon: 'warning',
-            title: 'Stock Limit Reached',
-            text: 'Cannot add more items than available stock',
-          })
-          return
-        }
-        handleUpdateQuantity(existingItem.id, existingItem.quantity + 1)
-      } else {
-        const newItem = {
-          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          product,
-          branch: normalizedBranch,
-          quantity: 1,
-          specifications: specifications || null
-        }
-        setCart((prev) => [...prev, newItem])
-
-        const specText = specifications ? 
-          ` (${specifications.nicotineStrength}, ${specifications.vgPgRatio}, ${specifications.color})` : ''
-        
-        Swal.fire({
-          icon: 'success',
-          title: 'Added to Cart!',
-          text: `${product.name}${specText} added to cart`,
-          timer: 1500,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end',
-        })
-      }
     } catch (error) {
       console.error('[CART] Error adding to cart:', error)
       Swal.fire({
@@ -2029,35 +1945,13 @@ export default function SellPageAdmin() {
     }
   }
 
+  // 🔥 UPDATED: Use cart hook functions
   const handleUpdateQuantity = (itemId, newQuantity) => {
-    if (newQuantity <= 0) {
-      handleRemoveFromCart(itemId)
-      return
-    }
-
-    setCart((prev) =>
-      prev.map((item) => {
-        if (item.id === itemId) {
-          const normalizedBranch = item.branch.toLowerCase()
-          const stock = item.product?.stock?.[`${normalizedBranch}_stock`] ?? 0
-          
-          if (newQuantity > stock) {
-            Swal.fire({
-              icon: 'warning',
-              title: 'Stock Limit',
-              text: `Only ${stock} items available in stock`,
-            })
-            return item
-          }
-          return { ...item, quantity: newQuantity }
-        }
-        return item
-      })
-    )
+    updateQuantity(itemId, newQuantity)
   }
 
   const handleRemoveFromCart = (itemId) => {
-    setCart((prev) => prev.filter((item) => item.id !== itemId))
+    removeFromCart(itemId)
   }
 
   const handleClearCart = () => {
@@ -2070,7 +1964,7 @@ export default function SellPageAdmin() {
       cancelButtonText: 'Cancel',
     }).then((result) => {
       if (result.isConfirmed) {
-        setCart([])
+        clearCart()
         Swal.fire({
           icon: 'success',
           title: 'Cart Cleared',
@@ -2083,36 +1977,28 @@ export default function SellPageAdmin() {
     })
   }
 
-  // Handle drag end for cart reordering
+  // Handle drag end for cart reordering (you might need to implement this in your cart hook)
   const handleDragEnd = (event) => {
     const { active, over } = event
 
     if (active.id !== over?.id) {
-      setCart((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id)
-        const newIndex = items.findIndex((item) => item.id === over.id)
-
-        return arrayMove(items, oldIndex, newIndex)
-      })
+      // For now, just log this - you may need to add reordering to
+      // For now, just log this - you may need to add reordering to your cart hook
+      console.log('Cart item reordered:', active.id, 'to', over?.id)
+      
+      // Note: If you want cart reordering, you'll need to add a reorderCart function to your cart hook
+      // For now, we'll just keep the existing order
     }
   }
 
-  // Calculate totals
-  const cartTotal = cart.reduce(
-    (sum, item) => sum + ((item.product?.price ?? 0) * (item.quantity ?? 1)),
-    0
-  )
-  const cartItemsCount = cart.reduce((sum, item) => sum + (item.quantity ?? 1), 0)
-
-  // Complete sales processing with proper error handling and authentication
-  const handleProcessSale = async () => {
+  // Handle checkout
+  const handleCheckout = async () => {
     try {
-      // Validation
-      if (cart.length === 0) {
+      if (cartItems.length === 0) {
         Swal.fire({
           icon: 'warning',
           title: 'Empty Cart',
-          text: 'Please add items to cart before processing sale',
+          text: 'Please add items to cart before checkout',
         })
         return
       }
@@ -2120,281 +2006,340 @@ export default function SellPageAdmin() {
       if (selectedPaymentMethods.length === 0) {
         Swal.fire({
           icon: 'warning',
-          title: 'Select Payment Method',
-          text: 'Please select a payment method to continue',
+          title: 'Payment Method Required',
+          text: 'Please select a payment method',
         })
         return
       }
 
-      const paymentMethod = selectedPaymentMethods[0]
-      const totalPaid = paymentMethod.amount || 0
+      const totalAmount = getCartTotal()
+      const totalPaid = selectedPaymentMethods.reduce(
+        (sum, method) => sum + (method.amount || 0),
+        0
+      )
 
-      if (totalPaid < cartTotal) {
+      if (totalPaid < totalAmount) {
         Swal.fire({
-          icon: 'error',
+          icon: 'warning',
           title: 'Insufficient Payment',
-          text: `Please ensure payment covers the full amount of $${cartTotal.toFixed(2)}`,
+          text: `Payment amount ($${totalPaid.toFixed(2)}) is less than total ($${totalAmount.toFixed(2)})`,
         })
         return
       }
 
-      // Show loading
-      Swal.fire({
-        title: 'Processing Sale...',
-        text: 'Please wait while we process your payment',
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        showConfirmButton: false,
-        didOpen: () => {
-          Swal.showLoading()
-        },
-      })
+      setLoading(true)
 
-      // Prepare sale data with properly normalized branch names
+      // Prepare sale data
       const saleData = {
+        saleId: `VWV-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: new Date().toISOString(),
+        cashier: 'Admin User', // You might want to get this from authentication
         customer: {
-          name: customerName.trim() || 'Walk-in Customer',
-          phone: customerPhone.trim() || '',
+          name: customerName || 'Walk-in Customer',
+          phone: customerPhone || null,
         },
-        items: cart.map((item) => ({
+        items: cartItems.map(item => ({
           productId: item.product._id,
-          productName: item.product.name || 'Unknown Product',
-          branch: item.branch.toLowerCase(),
-          quantity: item.quantity || 1,
-          unitPrice: item.product.price || 0,
-          totalPrice: (item.product.price || 0) * (item.quantity || 1),
-          specifications: item.specifications || null
+          productName: item.product.name,
+          quantity: item.quantity,
+          unitPrice: item.product.price,
+          totalPrice: item.product.price * item.quantity,
+          branch: item.availableBranches?.[0] || 'bashundhara', // Use first available branch
+          selectedOptions: item.selectedOptions || {}
         })),
+        totalAmount,
         payment: {
-          methods: selectedPaymentMethods.map(method => ({
-            id: method.id,
-            name: method.name,
-            type: method.type,
-            amount: method.amount || 0,
-          })),
-          totalAmount: cartTotal,
-          totalPaid: totalPaid,
-          change: Math.max(0, totalPaid - cartTotal),
+          methods: selectedPaymentMethods,
+          totalPaid,
+          change: totalPaid - totalAmount,
         },
-        totalAmount: cartTotal,
-        timestamp: new Date(),
-        cashier: 'Admin',
-        paymentType: paymentMethod.type || 'cash',
-        status: 'completed',
       }
 
-      console.log('[SALE] Processing sale data:', saleData)
+      console.log('Processing sale:', saleData)
 
-      // Process sale through API
-      const response = await makeAuthenticatedRequest('/api/sales', {
-        method: 'POST',
-        body: JSON.stringify(saleData),
-      })
+// 🔥 ACTUAL API CALL TO PROCESS SALE AND DECREMENT STOCK
+try {
+  const response = await makeAuthenticatedRequest('/api/sales', {
+    method: 'POST',
+    body: JSON.stringify(saleData)
+  })
 
-      if (response.ok) {
-        const result = await response.json()
-        console.log('[SALE] Sale processed successfully:', result)
-        
-        Swal.close()
+  if (response.ok) {
+    const result = await response.json()
+    console.log('SALE Sale processed successfully:', result)
+    
+    // 🔥 CRITICAL: Refresh products to show updated stock
+    await fetchProducts(true) // Pass true to bust cache and get fresh stock data
+    
+  } else {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.error || `API Error: ${response.status}`)
+  }
+} catch (apiError) {
+  console.error('SALE Error processing sale:', apiError)
+  throw new Error(apiError.message || 'Failed to process sale on server')
+}
 
-        // Complete sale
-        const completedSale = {
-          ...saleData,
-          saleId: result.saleId || `SALE-${Date.now()}`,
+
+      // Clear cart and payment data
+      clearCart()
+      setSelectedPaymentMethods([])
+      setCustomerName('')
+      setCustomerPhone('')
+      setShowCartModal(false)
+
+      // Set sale completion data
+      setCompletedSaleData(saleData)
+      setSaleCompleted(true)
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Sale Complete!',
+        text: `Sale processed successfully. Total: $${totalAmount.toFixed(2)}`,
+        confirmButtonText: 'Generate Receipt',
+      }).then((result) => {
+        if (result.isConfirmed) {
+          generateInvoice(saleData)
         }
-
-        setCompletedSaleData(completedSale)
-        setSaleCompleted(true)
-
-        // Clear form
-        setCart([])
-        setSelectedPaymentMethods([])
-        setCustomerName('')
-        setCustomerPhone('')
-
-        // Force immediate refresh with cache busting to get updated stock
-        console.log('🔄 Sale completed, forcing immediate stock refresh...')
-        await fetchProducts(true)
-        console.log('✅ Stock data refreshed after sale')
-
-      } else {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `API Error: ${response.status}`)
-      }
+      })
 
     } catch (error) {
-      console.error('[SALE] Error processing sale:', error)
+      console.error('Checkout error:', error)
       Swal.fire({
         icon: 'error',
-        title: 'Payment Failed',
-        text: error.message || 'There was an error processing the payment. Please try again.',
+        title: 'Checkout Failed',
+        text: 'Something went wrong during checkout. Please try again.',
       })
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handlePrintInvoice = async () => {
-    if (completedSaleData) {
-      await generateInvoice(completedSaleData)
-    }
-  }
+  // Calculate totals using cart hook
+  const cartTotal = getCartTotal()
+  const cartItemsCount = getCartItemsCount()
 
-  const handleNewSale = () => {
-    setSaleCompleted(false)
-    setCompletedSaleData(null)
-    setShowCartModal(false)
-  }
+  // Get subcategories for selected category
+  const subcategories = selectedCategory && categories[selectedCategory] 
+    ? categories[selectedCategory].subcategories || []
+    : []
 
-  const subcategoryOptions =
-    selectedCategory && categories[selectedCategory]
-      ? categories[selectedCategory]
-      : []
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-700">Loading VWV Admin Panel...</h2>
+          <p className="text-gray-500 mt-2">Preparing your sales dashboard</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header with Cart Icon */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-          <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">
-              💰 Admin Sales Point
-            </h1>
-            <p className="text-gray-600">
-              Process sales and manage transactions
-            </p>
-          </div>
-
-          {/* Enhanced Cart Button */}
-          <motion.button
-            whileHover={{ scale: 1.02, y: -2 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setShowCartModal(true)}
-            className="relative bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-600 text-white rounded-2xl shadow-xl p-6 flex items-center gap-4 hover:shadow-2xl transition-all min-w-[200px]"
-          >
-            <div className="relative">
-              <ShoppingCart size={32} />
-              {cartItemsCount > 0 && (
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white text-sm rounded-full w-7 h-7 flex items-center justify-center font-bold shadow-lg"
-                >
-                  {cartItemsCount}
-                </motion.span>
-              )}
-            </div>
-            <div className="text-left">
-              <p className="text-sm opacity-90 font-medium">Shopping Cart</p>
-              <p className="text-2xl font-bold">${cartTotal.toFixed(2)}</p>
-            </div>
-          </motion.button>
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div className="relative">
-              <Search
-                size={20}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
+      {/* Header */}
+      <div className="bg-white shadow-lg border-b border-purple-100">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center">
+                <Store size={24} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">VWV Admin Sales</h1>
+                <p className="text-gray-600 text-sm">Point of Sale System</p>
+              </div>
             </div>
 
-            <div className="relative">
-              <Hash
-                size={20}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                type="text"
-                placeholder="Filter by barcode..."
-                value={barcodeFilter}
-                onChange={(e) => setBarcodeFilter(e.target.value)}
-                className="w-full pl-10 pr-12 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-              <button
+            <div className="flex items-center gap-4">
+              {/* Cart Button */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowCartModal(true)}
+                className="relative bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+              >
+                <ShoppingCart size={20} />
+                <span>Cart</span>
+                {cartItemsCount > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[20px] text-center"
+                  >
+                    {cartItemsCount}
+                  </motion.span>
+                )}
+              </motion.button>
+
+              {/* Barcode Scanner */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setShowBarcodeScanner(true)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-600 hover:text-purple-700"
+                className="bg-green-600 text-white p-3 rounded-xl shadow-lg hover:bg-green-700 transition-colors"
                 title="Scan Barcode"
               >
-                <Camera size={20} />
-              </button>
+                <Scan size={20} />
+              </motion.button>
             </div>
+          </div>
+        </div>
+      </div>
 
-            <select
-              value={selectedCategory}
-              onChange={(e) => {
-                setSelectedCategory(e.target.value)
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* Filters */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <Filter size={20} className="text-purple-600" />
+              Product Filters
+            </h2>
+            <button
+              onClick={() => {
+                setSearchTerm('')
+                setSelectedCategory('')
                 setSelectedSubcategory('')
+                setBarcodeFilter('')
+                setInStockOnly(false)
               }}
-              className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="text-sm text-purple-600 hover:text-purple-700 font-medium"
             >
-              <option value="">All Categories</option>
-              {Object.keys(categories).map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={selectedSubcategory}
-              onChange={(e) => setSelectedSubcategory(e.target.value)}
-              disabled={!selectedCategory}
-              className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
-            >
-              <option value="">All Subcategories</option>
-              {subcategoryOptions.map((subcategory) => (
-                <option key={subcategory} value={subcategory}>
-                  {subcategory}
-                </option>
-              ))}
-            </select>
+              Clear All
+            </button>
           </div>
 
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+            {/* Search */}
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Search Products
+              </label>
+              <div className="relative">
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by name, brand..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category
+              </label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value)
+                  setSelectedSubcategory('')
+                }}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="">All Categories</option>
+                {Object.keys(categories).map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Subcategory */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Type
+              </label>
+              <select
+                value={selectedSubcategory}
+                onChange={(e) => setSelectedSubcategory(e.target.value)}
+                disabled={!selectedCategory || subcategories.length === 0}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">All Types</option>
+                {subcategories.map((subcategory) => (
+                  <option key={subcategory} value={subcategory}>
+                    {subcategory}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Barcode */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Barcode
+              </label>
+              <input
+                type="text"
+                value={barcodeFilter}
+                onChange={(e) => setBarcodeFilter(e.target.value)}
+                placeholder="Enter barcode..."
+                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+
+            {/* Stock Filter */}
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={inStockOnly}
                   onChange={(e) => setInStockOnly(e.target.checked)}
-                  className="rounded text-purple-600"
+                  className="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500"
                 />
-                <span className="text-sm text-gray-700">In Stock Only</span>
+                <span className="text-sm font-medium text-gray-700">In Stock Only</span>
               </label>
             </div>
-
-            <button
-              onClick={() => {
-                setSearchTerm('')
-                setBarcodeFilter('')
-                setSelectedCategory('')
-                setSelectedSubcategory('')
-                setInStockOnly(false)
-                setCurrentPage(1)
-              }}
-              className="px-4 py-2 text-purple-600 hover:text-purple-700"
-            >
-              Clear Filters
-            </button>
           </div>
         </div>
 
         {/* Products Grid */}
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <Package size={20} className="text-purple-600" />
+              Products ({products.length})
+            </h2>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage <= 1}
+                  className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-lg font-medium text-sm">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
           </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+
+          {products.length === 0 ? (
+            <div className="text-center py-12">
+              <Package2 size={64} className="text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Products Found</h3>
+              <p className="text-gray-500">Try adjusting your filters or search terms</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {products.map((product) => (
                 <ProductCard
                   key={product._id}
@@ -2405,49 +2350,11 @@ export default function SellPageAdmin() {
                 />
               ))}
             </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center mt-8 gap-2">
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50 transition-colors"
-                >
-                  Previous
-                </button>
-
-                <span className="px-4 py-2 bg-white rounded-lg border">
-                  Page {currentPage} of {totalPages}
-                </span>
-
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50 transition-colors"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-
-            {/* No Products */}
-            {products.length === 0 && !loading && (
-              <div className="text-center py-12">
-                <Package size={64} className="mx-auto text-gray-400 mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  No products found
-                </h3>
-                <p className="text-gray-600">
-                  Try adjusting your filters or check your inventory.
-                </p>
-              </div>
-            )}
-          </>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* 🔥 NEW: Product Details Modal */}
+      {/* Product Details Modal */}
       <ProductDetailsModal
         isOpen={showProductModal}
         product={selectedProduct}
@@ -2459,6 +2366,291 @@ export default function SellPageAdmin() {
         onAddToCart={handleAddToCart}
       />
 
+     {/* Fixed Simple Purple Cart Modal - Blurred Background, No Borders */}
+      <AnimatePresence>
+        {showCartModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0  bg-opacity-20 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-xl"
+
+            >
+              {/* Simple Purple Header */}
+              <div className="bg-purple-600 text-white px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <ShoppingCart size={20} />
+                  <div>
+                    <h2 className="text-lg font-semibold">Shopping Cart</h2>
+                    <p className="text-purple-100 text-sm">{cartItemsCount} items</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {cartItems.length > 0 && (
+                    <button
+                      onClick={handleClearCart}
+                      className="text-white hover:text-red-500 p-2 rounded hover:bg-purple-700 transition-colors"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowCartModal(false)}
+                    className="text-white hover:text-red-500 p-2 rounded hover:bg-purple-700 transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex h-[calc(90vh-80px)]">
+
+                {/* Cart Items */}
+                <div className="flex-1 flex flex-col">
+                  {cartItems.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center p-12">
+                      <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+                        <ShoppingCart size={24} className="text-purple-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Cart is Empty</h3>
+                      <p className="text-gray-500 mb-6">Add products to start a sale</p>
+                      <button
+                        onClick={() => setShowCartModal(false)}
+                        className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+                      >
+                        Browse Products
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Items List */}
+                      <div className="flex-1 overflow-y-auto p-6">
+                        <div className="space-y-4">
+                          {cartItems.map((item, index) => (
+                            <div key={item.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                              {/* Product Image */}
+                              <div className="w-12 h-12 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden">
+                                {item.product?.images?.[0] ? (
+                                  <img
+                                    src={item.product.images[0].url}
+                                    alt={item.product.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Package2 size={16} className="text-gray-400" />
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Product Info - FIXED CODE (COMPLETE) */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-gray-900 text-sm line-clamp-1">
+                            {item.product?.name || 'Unknown Product'}
+                          </h4>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+                              {item.availableBranches?.[0] || 'N/A'}
+                            </span>
+                            
+                            {/* ✅ SHOW ALL SPECIFICATIONS */}
+                            {item.selectedOptions?.nicotineStrength && (
+                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                                {item.selectedOptions.nicotineStrength}
+                              </span>
+                            )}
+                            
+                            {/* ✅ ADD VG/PG RATIO */}
+                            {item.selectedOptions?.vgPgRatio && (
+                              <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                                {item.selectedOptions.vgPgRatio}
+                              </span>
+                            )}
+                            
+                            {/* ✅ ADD COLOR */}
+                            {item.selectedOptions?.color && (
+                              <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">
+                                {item.selectedOptions.color}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+
+                              {/* Quantity */}
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleUpdateQuantity(item.id, (item.quantity || 1) - 1)}
+                                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 transition-colors"
+                                >
+                                  <Minus size={14} />
+                                </button>
+                                <span className="w-8 text-center font-medium">
+                                  {item.quantity || 1}
+                                </span>
+                                <button
+                                  onClick={() => handleUpdateQuantity(item.id, (item.quantity || 1) + 1)}
+                                  className="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </div>
+
+                              {/* Price */}
+                              <div className="text-right">
+                                <div className="font-semibold text-gray-900">
+                                  ৳{((item.product?.price || 0) * (item.quantity || 1)).toFixed(2)}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  ৳{(item.product?.price || 0).toFixed(2)} each
+                                </div>
+                              </div>
+
+                              {/* Remove */}
+                              <button
+                                onClick={() => handleRemoveFromCart(item.id)}
+                                className="text-gray-400 hover:text-red-500 p-1 rounded transition-colors"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Total */}
+                      <div className="p-6 bg-gray-50">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">{cartItemsCount} items</span>
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-gray-900">
+                              ৳{cartTotal.toFixed(2)}
+                            </div>
+                            <div className="text-sm text-gray-500">Total</div>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Checkout Panel */}
+                {cartItems.length > 0 && (
+                  <div className="w-80 bg-gray-50 flex flex-col">
+                    {/* Customer Info */}
+                    <div className="p-6">
+                      <h3 className="font-semibold text-gray-900 mb-4">Customer Info</h3>
+                      <div className="space-y-4">
+                        <input
+                          type="text"
+                          value={customerName}
+                          onChange={(e) => setCustomerName(e.target.value)}
+                          placeholder="Customer Name"
+                          className="w-full px-4 py-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                        />
+                        <input
+                          type="tel"
+                          value={customerPhone}
+                          onChange={(e) => setCustomerPhone(e.target.value)}
+                          placeholder="Phone (Optional)"
+                          className="w-full px-4 py-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Payment Methods */}
+                    <div className="flex-1 p-6">
+                      <h3 className="font-semibold text-gray-900 mb-4">Payment Method</h3>
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        {PAYMENT_METHODS.map((method) => {
+                          const IconComponent = method.icon
+                          const isSelected = selectedPaymentMethods.some((m) => m.id === method.id)
+                          
+                          return (
+                            <button
+                              key={method.id}
+                              onClick={() => {
+                                const newMethod = { ...method, amount: cartTotal || 0 }
+                                setSelectedPaymentMethods([newMethod])
+                              }}
+                              className={`p-4 rounded-xl text-center transition-all ${
+                                isSelected
+                                  ? 'bg-purple-600 text-white shadow-lg transform scale-105'
+                                  : 'bg-white hover:bg-gray-100'
+                              }`}
+                            >
+                              <IconComponent size={20} className={`mx-auto mb-2 ${isSelected ? 'text-white' : 'text-gray-400'}`} />
+                              <div className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-gray-700'}`}>
+                                {method.name}
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      {/* Payment Amount */}
+                      {selectedPaymentMethods.length > 0 && (
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Amount
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={selectedPaymentMethods[0]?.amount || ''}
+                            onChange={(e) => {
+                              const amount = parseFloat(e.target.value) || 0
+                              setSelectedPaymentMethods([{...selectedPaymentMethods[0], amount}])
+                            }}
+                            placeholder={cartTotal.toFixed(2)}
+                            className="w-full px-4 py-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Checkout Button */}
+                    <div className="p-6">
+                      <button
+                        onClick={handleCheckout}
+                        disabled={loading || selectedPaymentMethods.length === 0}
+                        className={`w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all ${
+                          loading || selectedPaymentMethods.length === 0
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg hover:shadow-xl transform hover:scale-105'
+                        }`}
+                      >
+                        {loading ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <Receipt size={16} />
+                            Complete Sale ৳{cartTotal.toFixed(2)}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+
+
+
+
       {/* Barcode Scanner Modal */}
       <AnimatePresence>
         {showBarcodeScanner && (
@@ -2466,292 +2658,109 @@ export default function SellPageAdmin() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl p-8 max-w-md w-full mx-4"
+              className="bg-white rounded-2xl max-w-md w-full p-6"
             >
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                  <Scan size={24} className="text-purple-600" />
-                  Barcode Scanner
-                </h3>
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Camera size={32} className="text-green-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Scan Barcode</h2>
+                <p className="text-gray-600">Point your camera at a product barcode</p>
+              </div>
+
+              <div className="mb-6">
+                <BarcodeReader
+                  onError={(error) => console.error('Barcode scanner error:', error)}
+                  onScan={handleBarcodeScan}
+                />
+              </div>
+
+              <div className="flex gap-4">
                 <button
                   onClick={() => setShowBarcodeScanner(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-semibold"
                 >
-                  <X size={24} />
+                  Cancel
                 </button>
               </div>
-
-              <div className="bg-gray-100 rounded-xl p-4 mb-4">
-                <BarcodeReader
-                  onError={(err) => console.error('Barcode scan error:', err)}
-                  onScan={handleBarcodeScan}
-                  style={{ width: '100%' }}
-                />
-                <p className="text-gray-600 text-center mt-2">
-                  Position barcode in the camera view
-                </p>
-              </div>
-
-              <button
-                onClick={() => setShowBarcodeScanner(false)}
-                className="w-full py-3 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors"
-              >
-                Cancel
-              </button>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Enhanced Cart Modal */}
+      {/* Sale Completion Modal */}
       <AnimatePresence>
-        {showCartModal && (
+        {saleCompleted && completedSaleData && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
+              className="bg-white rounded-2xl max-w-lg w-full p-8 text-center"
             >
-              {/* Modal Header */}
-              <div className="flex justify-between items-center p-8 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
-                <h3 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                  <ShoppingCart size={32} className="text-purple-600" />
-                  {saleCompleted ? '✅ Sale Completed' : '🛒 Shopping Cart'}
-                </h3>
-                <button
-                  onClick={() => setShowCartModal(false)}
-                  className="text-gray-400 hover:text-gray-600 p-3 rounded-xl hover:bg-gray-100 transition-colors"
-                >
-                  <X size={28} />
-                </button>
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle size={40} className="text-green-600" />
               </div>
 
-              <div className="flex-1 overflow-y-auto">
-                {saleCompleted ? (
-                  /* Sale Completed View */
-                  <div className="p-8">
-                    <div className="text-center mb-8">
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6"
-                      >
-                        <CheckCircle size={48} className="text-green-600" />
-                      </motion.div>
-                      <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                        Payment Successful!
-                      </h2>
-                      <p className="text-xl text-gray-600">
-                        Transaction completed successfully
-                      </p>
-                    </div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">Sale Complete!</h2>
+              <p className="text-gray-600 mb-6">
+                Transaction processed successfully
+              </p>
 
-                    {completedSaleData && (
-                      <div className="max-w-3xl mx-auto">
-                        <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-8 mb-8 border border-purple-200">
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-                            <div>
-                              <p className="text-sm font-medium text-gray-600 mb-1">
-                                Sale ID
-                              </p>
-                              <p className="text-lg font-bold text-purple-600">
-                                {completedSaleData.saleId}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-600 mb-1">
-                                Customer
-                              </p>
-                              <p className="text-lg font-bold text-gray-900">
-                                {completedSaleData.customer?.name || 'Walk-in Customer'}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-600 mb-1">
-                                Total Amount
-                              </p>
-                              <p className="text-lg font-bold text-green-600">
-                                ${(completedSaleData.totalAmount || 0).toFixed(2)}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-600 mb-1">
-                                Items
-                              </p>
-                              <p className="text-lg font-bold text-gray-900">
-                                {(completedSaleData.items || []).length} items
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-6">
-                          <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={handlePrintInvoice}
-                            className="flex-1 py-4 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-bold text-lg flex items-center justify-center gap-3 shadow-lg"
-                          >
-                            <Printer size={24} />
-                            Download Invoice PDF
-                          </motion.button>
-                          <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={handleNewSale}
-                            className="flex-1 py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold text-lg flex items-center justify-center gap-3 shadow-lg"
-                          >
-                            <Plus size={24} />
-                            Start New Sale
-                          </motion.button>
-                        </div>
-                      </div>
-                    )}
+              <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">Sale ID:</span>
+                    <p className="font-semibold">{completedSaleData.saleId}</p>
                   </div>
-                ) : cart.length === 0 ? (
-                  /* Empty Cart */
-                  <div className="flex flex-col items-center justify-center py-20">
-                    <div className="w-32 h-32 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full flex items-center justify-center mb-6">
-                      <ShoppingCart size={48} className="text-purple-400" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                      Your cart is empty
-                    </h3>
-                    <p className="text-gray-600 text-lg">
-                      Add some products to get started with your sale
-                    </p>
+                  <div>
+                    <span className="text-gray-500">Total:</span>
+                    <p className="font-semibold text-green-600">${completedSaleData.totalAmount?.toFixed(2)}</p>
                   </div>
-                ) : (
-                  /* Cart Content */
-                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 p-8">
-                    {/* Cart Items */}
-                    <div className="lg:col-span-3">
-                      <h4 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-between">
-                        <span>Items in Cart ({cartItemsCount})</span>
-                        <button
-                          onClick={handleClearCart}
-                          className="text-red-500 hover:text-red-700 text-base font-medium px-4 py-2 rounded-lg hover:bg-red-50 transition-colors"
-                        >
-                          Clear All
-                        </button>
-                      </h4>
-
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <SortableContext
-                          items={cart.map((item) => item.id)}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          <div className="max-h-96 overflow-y-auto space-y-3">
-                            {cart.map((item) => (
-                              <SortableCartItem
-                                key={item.id}
-                                item={item}
-                                onUpdateQuantity={handleUpdateQuantity}
-                                onRemove={handleRemoveFromCart}
-                              />
-                            ))}
-                          </div>
-                        </SortableContext>
-                      </DndContext>
-                    </div>
-
-                    {/* Order Summary & Payment */}
-                    <div className="lg:col-span-2 space-y-8">
-                      {/* Customer Info */}
-                      <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-6 border border-purple-200">
-                        <h4 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                          <User size={20} className="text-purple-600" />
-                          Customer Information
-                        </h4>
-                        <div className="space-y-4">
-                          <input
-                            type="text"
-                            placeholder="Customer Name (Optional)"
-                            value={customerName}
-                            onChange={(e) => setCustomerName(e.target.value)}
-                            className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                          />
-                          <input
-                            type="tel"
-                            placeholder="Customer Phone (Optional)"
-                            value={customerPhone}
-                            onChange={(e) => setCustomerPhone(e.target.value)}
-                            className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Order Summary */}
-                      <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 shadow-lg">
-                        <h4 className="text-xl font-bold text-gray-900 mb-4">
-                          Order Summary
-                        </h4>
-                        <div className="space-y-4 text-lg">
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-600">
-                              Subtotal ({cartItemsCount} items):
-                            </span>
-                            <span className="font-semibold">
-                              ${cartTotal.toFixed(2)}
-                            </span>
-                          </div>
-                          <div className="border-t-2 pt-4 flex justify-between items-center text-2xl font-bold">
-                            <span>Total:</span>
-                            <span className="text-purple-600">
-                              ${cartTotal.toFixed(2)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Payment Methods */}
-                      <PaymentMethodSelector
-                        selectedMethods={selectedPaymentMethods}
-                        onMethodChange={setSelectedPaymentMethods}
-                        totalAmount={cartTotal}
-                      />
-                    </div>
+                  <div>
+                    <span className="text-gray-500">Customer:</span>
+                    <p className="font-semibold">{completedSaleData.customer?.name || 'Walk-in'}</p>
                   </div>
-                )}
-              </div>
-
-              {/* Modal Footer */}
-              {!saleCompleted && cart.length > 0 && (
-                <div className="p-8 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-purple-50">
-                  <div className="flex gap-6">
-                    <button
-                      onClick={() => setShowCartModal(false)}
-                      className="flex-1 py-4 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-bold text-lg"
-                    >
-                      Continue Shopping
-                    </button>
-                    <button
-                      onClick={handleProcessSale}
-                      disabled={selectedPaymentMethods.length === 0}
-                      className="flex-2 py-4 px-8 bg-gradient-to-r from-green-500 via-green-600 to-emerald-600 text-white rounded-xl font-bold text-lg hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-lg"
-                    >
-                      <CheckCircle size={24} />
-                      Complete Sale
-                    </button>
+                  <div>
+                    <span className="text-gray-500">Items:</span>
+                    <p className="font-semibold">{completedSaleData.items?.length || 0}</p>
                   </div>
                 </div>
-              )}
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => {
+                    setSaleCompleted(false)
+                    setCompletedSaleData(null)
+                  }}
+                  className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-semibold"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    generateInvoice(completedSaleData)
+                    setSaleCompleted(false)
+                    setCompletedSaleData(null)
+                  }}
+                  className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-colors font-semibold flex items-center justify-center gap-2"
+                >
+                  <Download size={16} />
+                  Download Receipt
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
