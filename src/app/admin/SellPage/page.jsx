@@ -181,114 +181,336 @@ const makeAuthenticatedRequest = async (url, options = {}, bustCache = false) =>
   })
 }
 
-// 🔥 NEW: Product Details Modal Component
+// 🔥 ENHANCED: Product Details Modal Component with Branch Selection
 const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }) => {
-  const [selectedNicotine, setSelectedNicotine] = useState('')
-  const [selectedVgPg, setSelectedVgPg] = useState('')
+  const [selectedNicotineStrength, setSelectedNicotineStrength] = useState('')
+  const [selectedVgPgRatio, setSelectedVgPgRatio] = useState('')
   const [selectedColor, setSelectedColor] = useState('')
-  const [selectedBranch, setSelectedBranch] = useState('')
+  const [selectedBranch, setSelectedBranch] = useState('') // 🔥 NEW: Branch selection state
 
   // Reset selections when modal opens/closes or product changes
   useEffect(() => {
     if (isOpen && product) {
-      setSelectedNicotine('')
-      setSelectedVgPg('')
+      setSelectedNicotineStrength('')
+      setSelectedVgPgRatio('')
       setSelectedColor('')
-      setSelectedBranch(branches[0] || '')
+      setSelectedBranch('') // 🔥 NEW: Reset branch selection
     }
-  }, [isOpen, product, branches])
+  }, [isOpen, product])
 
   if (!product) return null
 
-  // Get all unique options across all branches
-  const getAllUniqueOptions = (optionType) => {
-    const allOptions = new Set()
-    if (product.branchSpecifications) {
-      Object.values(product.branchSpecifications).forEach(branchSpec => {
-        if (branchSpec[optionType]) {
-          branchSpec[optionType].forEach(option => allOptions.add(option))
+  // 🔥 ENHANCED: Get branches from stock data (same logic as product details page)
+  const getBranches = () => {
+    if (!product?.stock) {
+      return branches || [] // fallback to passed branches
+    }
+    
+    const stockKeys = Object.keys(product.stock)
+    const stockKeysFiltered = stockKeys.filter(key => key.endsWith('_stock'))
+    const productBranches = stockKeysFiltered.map(key => key.replace('_stock', ''))
+    
+    return productBranches.length > 0 ? productBranches : (branches || [])
+  }
+
+  const productBranches = getBranches()
+
+  // 🔥 ENHANCED: Get branch stock status (same logic as product details page)
+  const getBranchStockStatus = (branchName) => {
+    const stockKey = `${branchName}_stock`
+    const stockValue = product?.stock?.[stockKey] || 0
+    return stockValue > 0
+  }
+
+  // 🔥 ENHANCED: Check if product has branch specifications
+  const hasBranchSpecifications = () => {
+    return product?.branchSpecifications && Object.keys(product.branchSpecifications).length > 0
+  }
+
+  // 🔥 ENHANCED: Check if product has any specifications
+  const hasAnySpecifications = () => {
+    const nicotineOptions = getUniqueSpecificationValues('nicotineStrength')
+    const vgPgOptions = getUniqueSpecificationValues('vgPgRatio')
+    const colorOptions = getUniqueSpecificationValues('colors')
+    
+    return nicotineOptions.length > 0 || vgPgOptions.length > 0 || colorOptions.length > 0
+  }
+
+  // 🔥 ENHANCED: Case-insensitive specification values extraction
+  const getUniqueSpecificationValues = (specType) => {
+    if (!product?.branchSpecifications) return []
+    
+    const allValues = new Set()
+    
+    // Check all possible case variations of branch names
+    Object.keys(product.branchSpecifications).forEach(branchName => {
+      const branchSpec = product.branchSpecifications[branchName]
+      if (branchSpec[specType]) {
+        branchSpec[specType].forEach(value => allValues.add(value))
+      }
+    })
+    
+    return Array.from(allValues)
+  }
+
+  // 🔥 ENHANCED: Check if specification should show as text (same logic)
+  const shouldShowAsText = (specType) => {
+    if (!product?.branchSpecifications) return false
+    
+    const branches = Object.values(product.branchSpecifications)
+    if (branches.length === 0) return false
+
+    let firstValue = null
+    
+    for (const branchSpec of branches) {
+      if (!branchSpec[specType] || branchSpec[specType].length !== 1) {
+        return false
+      }
+      
+      if (firstValue === null) {
+        firstValue = branchSpec[specType][0]
+      } else if (branchSpec[specType][0] !== firstValue) {
+        return false
+      }
+    }
+    
+    return firstValue !== null
+  }
+
+  // 🔥 ENHANCED: Get single specification value (same logic)
+  const getSingleSpecificationValue = (specType) => {
+    if (!product?.branchSpecifications) return ''
+    const firstBranch = Object.values(product.branchSpecifications)[0]
+    return firstBranch?.[specType]?.[0] || ''
+  }
+
+  // 🔥 ENHANCED: Check if any selections are made
+  const hasAnySelections = () => {
+    return selectedNicotineStrength || selectedVgPgRatio || selectedColor
+  }
+
+  // 🔥 ENHANCED: Branch has specification check with case sensitivity
+  const branchHasSpecification = (branchName, specType, specValue) => {
+    // Try different case variations to find branch specifications
+    const branchSpec = product?.branchSpecifications?.[branchName] ||
+                      product?.branchSpecifications?.[branchName.toLowerCase()] ||
+                      product?.branchSpecifications?.[branchName.toUpperCase()] ||
+                      product?.branchSpecifications?.[branchName.charAt(0).toUpperCase() + branchName.slice(1)]
+
+    if (!branchSpec?.[specType]) {
+      // If branch doesn't have this spec type defined, it supports all values
+      return true
+    }
+    return branchSpec[specType].includes(specValue)
+  }
+
+  // 🔥 ENHANCED: Get available branches for current selection (same logic as product details)
+  const getAvailableBranchesForSelection = () => {
+    if (!product?.branchSpecifications) {
+      const result = productBranches.filter(branch => getBranchStockStatus(branch))
+      return result
+    }
+    
+    const result = productBranches.filter(branch => {
+      // First check if branch has stock
+      const hasStock = getBranchStockStatus(branch)
+      if (!hasStock) {
+        return false
+      }
+
+      // If no selections are made, return all branches with stock
+      if (!hasAnySelections()) {
+        return true
+      }
+
+      // Case-insensitive branch specification lookup
+      const branchSpec = product.branchSpecifications[branch] || 
+                         product.branchSpecifications[branch.toLowerCase()] ||
+                         product.branchSpecifications[branch.toUpperCase()] ||
+                         product.branchSpecifications[branch.charAt(0).toUpperCase() + branch.slice(1)]
+
+      // Check nicotine
+      if (selectedNicotineStrength) {
+        const branchNicotineSpecs = branchSpec?.nicotineStrength
+        if (branchNicotineSpecs && !branchNicotineSpecs.includes(selectedNicotineStrength)) {
+          return false
         }
-      })
-    }
-    return Array.from(allOptions)
+      }
+      
+      // Check VG/PG
+      if (selectedVgPgRatio) {
+        const branchVgPgSpecs = branchSpec?.vgPgRatio
+        if (branchVgPgSpecs && !branchVgPgSpecs.includes(selectedVgPgRatio)) {
+          return false
+        }
+      }
+      
+      // Check color
+      if (selectedColor) {
+        const branchColorSpecs = branchSpec?.colors
+        if (branchColorSpecs && !branchColorSpecs.includes(selectedColor)) {
+          return false
+        }
+      }
+
+      return true
+    })
+
+    return result
   }
 
-  const allNicotineOptions = getAllUniqueOptions('nicotineStrength')
-  const allVgPgOptions = getAllUniqueOptions('vgPgRatio')
-  const allColorOptions = getAllUniqueOptions('colors')
+  // 🔥 NEW: Check if branch selection is required
+  const requiresBranchSelection = () => {
+    const availableBranches = getAvailableBranchesForSelection()
+    return availableBranches.length > 1 // Multiple branches available, admin must choose
+  }
 
-  // Check if current selections are available in a specific branch
-  const isSpecAvailableInBranch = (branchName) => {
-    if (!product.branchSpecifications || !selectedNicotine || !selectedVgPg || !selectedColor) {
+  // 🔥 ENHANCED: Check if user must select specifications
+  const mustSelectSpecifications = () => {
+    if (!hasBranchSpecifications() || !hasAnySpecifications()) return false
+    
+    const nicotineOptions = getUniqueSpecificationValues('nicotineStrength')
+    const vgPgOptions = getUniqueSpecificationValues('vgPgRatio')
+    const colorOptions = getUniqueSpecificationValues('colors')
+
+    // If any specification has multiple options, user must select
+    const needsNicotineSelection = nicotineOptions.length > 1 && !shouldShowAsText('nicotineStrength')
+    const needsVgPgSelection = vgPgOptions.length > 1 && !shouldShowAsText('vgPgRatio')
+    const needsColorSelection = colorOptions.length > 1 && !shouldShowAsText('colors')
+
+    return needsNicotineSelection || needsVgPgSelection || needsColorSelection
+  }
+
+  // 🔥 ENHANCED: Validate required selections
+  const validateSelections = () => {
+    const nicotineOptions = getUniqueSpecificationValues('nicotineStrength')
+    const vgPgOptions = getUniqueSpecificationValues('vgPgRatio')
+    const colorOptions = getUniqueSpecificationValues('colors')
+
+    const errors = []
+
+    if (nicotineOptions.length > 1 && !shouldShowAsText('nicotineStrength') && !selectedNicotineStrength) {
+      errors.push('Nicotine Strength')
+    }
+    if (vgPgOptions.length > 1 && !shouldShowAsText('vgPgRatio') && !selectedVgPgRatio) {
+      errors.push('VG/PG Ratio')
+    }
+    if (colorOptions.length > 1 && !shouldShowAsText('colors') && !selectedColor) {
+      errors.push('Color')
+    }
+
+    return errors
+  }
+
+  // 🔥 ENHANCED: Check if all required selections are made (including branch selection)
+  const areAllRequiredSelectionsMade = () => {
+    // Check if specification selections are required and made
+    if (mustSelectSpecifications()) {
+      const missingSelections = validateSelections()
+      if (missingSelections.length > 0) {
+        return false
+      }
+    }
+    
+    // Check if branch selection is required and made
+    if (requiresBranchSelection() && !selectedBranch) {
       return false
     }
-
-    const branchKey = branchName.toLowerCase()
-    const branchSpec = product.branchSpecifications[branchKey]
     
-    if (!branchSpec) return false
-
-    const nicotineMatch = branchSpec.nicotineStrength?.includes(selectedNicotine)
-    const vgPgMatch = branchSpec.vgPgRatio?.includes(selectedVgPg)
-    const colorMatch = branchSpec.colors?.includes(selectedColor)
-
-    return nicotineMatch && vgPgMatch && colorMatch
+    return true
   }
 
-  // Get available branches for current selection
-  const getAvailableBranches = () => {
-    return branches.filter(branch => isSpecAvailableInBranch(branch))
-  }
-
-  // Check if a specific spec option is available in any branch
-  const isOptionAvailableInAnyBranch = (optionType, optionValue) => {
-    if (!product.branchSpecifications) return false
+  // 🔥 ENHANCED: Check if add to cart is enabled
+  const isAddToCartEnabled = () => {
+    // Check if there's stock available
+    const hasStock = productBranches.length > 0 ? productBranches.some(branch => getBranchStockStatus(branch)) : product?.stock?.available
     
-    return Object.values(product.branchSpecifications).some(branchSpec => 
-      branchSpec[optionType]?.includes(optionValue)
-    )
+    // Check if all required selections are made
+    const allSelectionsMade = areAllRequiredSelectionsMade()
+    
+    // Check if there are available branches for current selection
+    const hasAvailableBranches = getAvailableBranchesForSelection().length > 0
+    
+    return hasStock && allSelectionsMade && hasAvailableBranches
   }
 
-  // Get stock for selected branch
-  const getStockForBranch = (branchName) => {
-    if (!product.stock || !branchName) return 0
-    const stockKey = `${branchName.toLowerCase()}_stock`
-    return product.stock[stockKey] || 0
-  }
-
-  // Check if add to cart is possible
-  const canAddToCart = () => {
-    if (!selectedNicotine || !selectedVgPg || !selectedColor || !selectedBranch) {
-      return false
+  // 🔥 ENHANCED: Get button text
+  const getButtonText = () => {
+    const hasStock = productBranches.length > 0 ? productBranches.some(branch => getBranchStockStatus(branch)) : product?.stock?.available
+    
+    if (!hasStock) {
+      return 'Out of Stock'
     }
     
-    const isSpecAvailable = isSpecAvailableInBranch(selectedBranch)
-    const hasStock = getStockForBranch(selectedBranch) > 0
-    
-    return isSpecAvailable && hasStock
+    return 'Add to Cart'
   }
 
+  // 🔥 ENHANCED: Get tooltip message for disabled button (including branch selection)
+  const getTooltipMessage = () => {
+    const hasStock = productBranches.length > 0 ? productBranches.some(branch => getBranchStockStatus(branch)) : product?.stock?.available
+    
+    if (!hasStock) {
+      return 'This product is currently out of stock'
+    }
+    
+    const specMissing = validateSelections()
+    if (specMissing.length > 0) {
+      return 'Please select all the product specifications'
+    }
+    
+    if (requiresBranchSelection() && !selectedBranch) {
+      return 'Please select a branch to sell from'
+    }
+    
+    if (getAvailableBranchesForSelection().length === 0) {
+      return 'Not available with your selected options'
+    }
+    
+    return ''
+  }
+
+  // 🔥 ENHANCED: Handle add to cart with selected branch
   const handleAddToCart = () => {
-    if (!canAddToCart()) {
+    if (!isAddToCartEnabled()) {
       Swal.fire({
         icon: 'error',
         title: 'Invalid Selection',
-        text: 'Selected specifications are not available in the chosen branch or product is out of stock.',
+        text: getTooltipMessage(),
       })
       return
     }
 
-    // Call the parent's add to cart function with specifications
-    onAddToCart(product, selectedBranch, {
-      nicotineStrength: selectedNicotine,
-      vgPgRatio: selectedVgPg,
-      color: selectedColor
-    })
+    const selectedOptions = {}
+    
+    if (selectedNicotineStrength) {
+      selectedOptions.nicotineStrength = selectedNicotineStrength
+    }
+    if (selectedVgPgRatio) {
+      selectedOptions.vgPgRatio = selectedVgPgRatio
+    }
+    if (selectedColor) {
+      selectedOptions.color = selectedColor
+    }
+
+    // 🔥 ENHANCED: Use selected branch or first available branch
+    const availableBranches = getAvailableBranchesForSelection()
+    const branchToUse = selectedBranch || availableBranches[0] || productBranches[0]
+
+    console.log('🔥 ADMIN SELECTED BRANCH:', branchToUse)
+    console.log('🔥 Available branches:', availableBranches)
+    console.log('🔥 Selected specifications:', selectedOptions)
+
+    // Call the parent's add to cart function with specifications and SELECTED branch
+    onAddToCart(product, branchToUse, selectedOptions, [branchToUse]) // Only the selected branch
 
     onClose()
   }
 
-  const availableBranches = getAvailableBranches()
+  const nicotineOptions = getUniqueSpecificationValues('nicotineStrength')
+  const vgPgOptions = getUniqueSpecificationValues('vgPgRatio')
+  const colorOptions = getUniqueSpecificationValues('colors')
+  const buttonEnabled = isAddToCartEnabled()
+  const buttonText = getButtonText()
 
   return (
     <AnimatePresence>
@@ -345,13 +567,13 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
-                        <p className="text-2xl font-bold text-purple-600">${product.price?.toFixed(2) || '0.00'}</p>
+                        <p className="text-2xl font-bold text-purple-600">{product.price?.toFixed(2) || '0.00'} ৳</p>
                       </div>
 
                       {product.comparePrice && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Compare Price</label>
-                          <p className="text-lg text-gray-500 line-through">${product.comparePrice.toFixed(2)}</p>
+                          <p className="text-lg text-gray-500 line-through">{product.comparePrice.toFixed(2)} ৳</p>
                         </div>
                       )}
 
@@ -413,148 +635,254 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
 
                 {/* Right Column - Specifications & Selection */}
                 <div className="space-y-6">
-                  {/* Specification Selection */}
-                  <div className="bg-purple-50 rounded-xl p-6">
-                    <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <Settings size={20} className="text-purple-600" />
-                      Select Specifications
-                    </h4>
-
-                    <div className="space-y-4">
-                      {/* Nicotine Strength */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Nicotine Strength *
-                        </label>
-                        <select
-                          value={selectedNicotine}
-                          onChange={(e) => setSelectedNicotine(e.target.value)}
-                          className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        >
-                          <option value="">Select Nicotine Strength</option>
-                          {allNicotineOptions.map((option) => (
-                            <option
-                              key={option}
-                              value={option}
-                              disabled={!isOptionAvailableInAnyBranch('nicotineStrength', option)}
-                            >
-                              {option} {!isOptionAvailableInAnyBranch('nicotineStrength', option) && '(Not Available)'}
-                            </option>
-                          ))}
-                        </select>
+                  {/* 🔥 ENHANCED: Branch Specifications with Required Warning */}
+                  {hasBranchSpecifications() && hasAnySpecifications() && (
+                    <div className="bg-purple-50 rounded-xl p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                          <Settings size={20} className="text-purple-600" />
+                          Select Specifications
+                        </h4>
+                        {mustSelectSpecifications() && (
+                          <div className="flex items-center gap-1 text-red-600 text-sm">
+                            <AlertCircle size={16} />
+                            <span>Required</span>
+                          </div>
+                        )}
                       </div>
 
-                      {/* VG/PG Ratio */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          VG/PG Ratio *
-                        </label>
-                        <select
-                          value={selectedVgPg}
-                          onChange={(e) => setSelectedVgPg(e.target.value)}
-                          className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        >
-                          <option value="">Select VG/PG Ratio</option>
-                          {allVgPgOptions.map((option) => (
-                            <option
-                              key={option}
-                              value={option}
-                              disabled={!isOptionAvailableInAnyBranch('vgPgRatio', option)}
-                            >
-                              {option} {!isOptionAvailableInAnyBranch('vgPgRatio', option) && '(Not Available)'}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      <div className="space-y-4">
+                        {/* Nicotine Strength */}
+                        {nicotineOptions.length > 0 && (
+                          <div>
+                            {shouldShowAsText('nicotineStrength') ? (
+                              <div>
+                                <span className="text-sm font-medium text-gray-500">Nicotine Strength</span>
+                                <p className="text-gray-900 font-semibold">{getSingleSpecificationValue('nicotineStrength')}</p>
+                              </div>
+                            ) : (
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Nicotine Strength
+                                  {nicotineOptions.length > 1 && (
+                                    <span className="text-red-500 ml-1">*</span>
+                                  )}
+                                </label>
+                                <select
+                                  value={selectedNicotineStrength}
+                                  onChange={(e) => setSelectedNicotineStrength(e.target.value)}
+                                  className={`w-full p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                                    mustSelectSpecifications() && !selectedNicotineStrength && nicotineOptions.length > 1
+                                      ? 'border-red-300' 
+                                      : 'border-gray-300'
+                                  }`}
+                                >
+                                  <option value="">Select Nicotine Strength</option>
+                                  {nicotineOptions.map((option) => (
+                                    <option key={option} value={option}>
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </div>
+                        )}
 
-                      {/* Color */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                          <Palette size={16} className="text-purple-600" />
-                          Color *
-                        </label>
-                        <select
-                          value={selectedColor}
-                          onChange={(e) => setSelectedColor(e.target.value)}
-                          className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        >
-                          <option value="">Select Color</option>
-                          {allColorOptions.map((option) => (
-                            <option
-                              key={option}
-                              value={option}
-                              disabled={!isOptionAvailableInAnyBranch('colors', option)}
-                            >
-                              {option} {!isOptionAvailableInAnyBranch('colors', option) && '(Not Available)'}
-                            </option>
-                          ))}
-                        </select>
+                        {/* VG/PG Ratio */}
+                        {vgPgOptions.length > 0 && (
+                          <div>
+                            {shouldShowAsText('vgPgRatio') ? (
+                              <div>
+                                <span className="text-sm font-medium text-gray-500">VG/PG Ratio</span>
+                                <p className="text-gray-900 font-semibold">{getSingleSpecificationValue('vgPgRatio')}</p>
+                              </div>
+                            ) : (
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  VG/PG Ratio
+                                  {vgPgOptions.length > 1 && (
+                                    <span className="text-red-500 ml-1">*</span>
+                                  )}
+                                </label>
+                                <select
+                                  value={selectedVgPgRatio}
+                                  onChange={(e) => setSelectedVgPgRatio(e.target.value)}
+                                  className={`w-full p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                                    mustSelectSpecifications() && !selectedVgPgRatio && vgPgOptions.length > 1
+                                      ? 'border-red-300' 
+                                      : 'border-gray-300'
+                                  }`}
+                                >
+                                  <option value="">Select VG/PG Ratio</option>
+                                  {vgPgOptions.map((option) => (
+                                    <option key={option} value={option}>
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Color */}
+                        {colorOptions.length > 0 && (
+                          <div>
+                            {shouldShowAsText('colors') ? (
+                              <div>
+                                <span className="text-sm font-medium text-gray-500">Color</span>
+                                <p className="text-gray-900 font-semibold capitalize">{getSingleSpecificationValue('colors')}</p>
+                              </div>
+                            ) : (
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                  <Palette size={16} className="text-purple-600" />
+                                  Color
+                                  {colorOptions.length > 1 && (
+                                    <span className="text-red-500 ml-1">*</span>
+                                  )}
+                                </label>
+                                <select
+                                  value={selectedColor}
+                                  onChange={(e) => setSelectedColor(e.target.value)}
+                                  className={`w-full p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                                    mustSelectSpecifications() && !selectedColor && colorOptions.length > 1
+                                      ? 'border-red-300' 
+                                      : 'border-gray-300'
+                                  }`}
+                                >
+                                  <option value="">Select Color</option>
+                                  {colorOptions.map((option) => (
+                                    <option key={option} value={option}>
+                                      {option.charAt(0).toUpperCase() + option.slice(1)}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Branch Selection */}
+                  {/* 🔥 ENHANCED: Branch Selection with Admin Choice */}
                   <div className="bg-green-50 rounded-xl p-6">
                     <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                       <Store size={20} className="text-green-600" />
-                      Select Branch
+                      {requiresBranchSelection() ? 'Select Branch to Sell From' : 'Available Branches'}
+                      {requiresBranchSelection() && (
+                        <span className="text-red-500 text-sm font-medium">*Required</span>
+                      )}
                     </h4>
 
                     <div className="space-y-3">
-                      {branches.map((branch) => {
-                        const isAvailable = isSpecAvailableInBranch(branch)
-                        const stock = getStockForBranch(branch)
-                        const isOutOfStock = stock <= 0
+                      {productBranches.map((branch) => {
+                        const hasStock = getBranchStockStatus(branch)
+                        const isAvailable = hasBranchSpecifications() 
+                          ? (hasAnySelections() ? getAvailableBranchesForSelection().includes(branch) : hasStock)
+                          : hasStock
+                        const stockKey = `${branch}_stock`
+                        const stock = product.stock?.[stockKey] || 0
+                        const isSelected = selectedBranch === branch
 
                         return (
-                          <label
+                          <div
                             key={branch}
-                            className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                              selectedBranch === branch
-                                ? 'border-green-500 bg-green-100'
-                                : isAvailable && !isOutOfStock
-                                ? 'border-gray-300 bg-white hover:border-green-300'
-                                : 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
+                            className={`relative overflow-hidden ${
+                              isAvailable && requiresBranchSelection() 
+                                ? 'cursor-pointer hover:shadow-md transform hover:scale-[1.02] transition-all duration-200'
+                                : ''
                             }`}
+                            onClick={() => {
+                              if (isAvailable && requiresBranchSelection()) {
+                                setSelectedBranch(isSelected ? '' : branch) // Toggle selection
+                              }
+                            }}
                           >
-                            <input
-                              type="radio"
-                              name="branch"
-                              value={branch}
-                              checked={selectedBranch === branch}
-                              onChange={(e) => setSelectedBranch(e.target.value)}
-                              disabled={!isAvailable || isOutOfStock}
-                              className="mr-3"
-                            />
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <span className="font-semibold capitalize">{branch}</span>
-                                <div className="flex items-center gap-2">
-                                  {isAvailable && !isOutOfStock ? (
-                                    <span className="text-green-600 font-medium">
-                                      Stock: {stock}
-                                    </span>
-                                  ) : isOutOfStock ? (
-                                    <span className="text-red-600 font-medium">
-                                      Out of Stock
-                                    </span>
-                                  ) : (
-                                    <span className="text-orange-600 font-medium">
-                                      Specs Not Available
-                                    </span>
+                            <div
+                              className={`flex items-center justify-between p-4 rounded-lg border-2 transition-all duration-200 ${
+                                isSelected
+                                  ? 'border-blue-500 bg-blue-50 shadow-md'
+                                  : isAvailable
+                                  ? requiresBranchSelection() 
+                                    ? 'border-green-300 bg-green-50 hover:border-green-400'
+                                    : 'border-green-200 bg-green-50'
+                                  : 'border-gray-200 bg-gray-50 opacity-60'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="relative">
+                                  <Store size={20} className={
+                                    isSelected 
+                                      ? "text-blue-600" 
+                                      : isAvailable 
+                                      ? "text-green-600" 
+                                      : "text-gray-400"
+                                  } />
+                                  {isSelected && (
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-600 rounded-full flex items-center justify-center">
+                                      <CheckCircle size={10} className="text-white" />
+                                    </div>
                                   )}
                                 </div>
+                                <span className={`font-semibold capitalize ${
+                                  isSelected ? 'text-blue-900' : 'text-gray-900'
+                                }`}>
+                                  {branch}
+                                </span>
+                                {isSelected && (
+                                  <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full font-medium">
+                                    SELECTED
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {isAvailable ? (
+                                  <span className={`font-medium ${
+                                    isSelected ? 'text-blue-600' : 'text-green-600'
+                                  }`}>
+                                    Stock: {stock}
+                                  </span>
+                                ) : !hasStock ? (
+                                  <span className="text-red-600 font-medium">
+                                    Out of Stock
+                                  </span>
+                                ) : (
+                                  <span className="text-orange-600 font-medium">
+                                    Specs Not Available
+                                  </span>
+                                )}
                               </div>
                             </div>
-                          </label>
+
+                            {/* Selection indicator */}
+                            {isAvailable && requiresBranchSelection() && (
+                              <div className={`absolute left-0 top-0 bottom-0 w-1 ${
+                                isSelected ? 'bg-blue-600' : 'bg-transparent hover:bg-green-400'
+                              } transition-colors duration-200`} />
+                            )}
+                          </div>
                         )
                       })}
                     </div>
 
-                    {selectedNicotine && selectedVgPg && selectedColor && availableBranches.length === 0 && (
+                    {/* Warning messages */}
+                    {hasAnySelections() && getAvailableBranchesForSelection().length === 0 && (
                       <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg">
-                        <p className="text-red-800 text-sm">
-                          ⚠️ Selected specifications are not available in any branch
+                        <p className="text-red-800 text-sm flex items-center gap-2">
+                          <AlertCircle size={16} />
+                          Selected specifications are not available in any branch
+                        </p>
+                      </div>
+                    )}
+
+                    {requiresBranchSelection() && !selectedBranch && (
+                      <div className="mt-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+                        <p className="text-yellow-800 text-sm flex items-center gap-2">
+                          <AlertCircle size={16} />
+                          Please select which branch to sell this product from
                         </p>
                       </div>
                     )}
@@ -572,18 +900,28 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={handleAddToCart}
-                  disabled={!canAddToCart()}
-                  className={`flex-2 py-3 px-6 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 ${
-                    canAddToCart()
-                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  <ShoppingCart size={20} />
-                  {canAddToCart() ? 'Add to Cart' : 'Select All Specifications'}
-                </button>
+                <div className="flex-2 relative group">
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={!buttonEnabled}
+                    className={`w-full py-3 px-6 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 ${
+                      buttonEnabled
+                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <ShoppingCart size={20} />
+                    {buttonEnabled ? 'Add to Cart' : buttonText}
+                  </button>
+
+                  {/* Tooltip for disabled button */}
+                  {!buttonEnabled && getTooltipMessage() && (
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 pointer-events-none">
+                      {getTooltipMessage()}
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </motion.div>
@@ -592,6 +930,7 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
     </AnimatePresence>
   )
 }
+
 
 // 🔥 UPDATED: Enhanced Product Card with Details Button
 const ProductCard = ({ product, onAddToCart, branches, onShowDetails }) => {
