@@ -62,6 +62,7 @@ import {
   Info,
   Palette,
   Zap,
+  Droplets, Battery, Star 
 } from 'lucide-react'
 
 // 🔥 FIX: Enhanced Payment Methods with proper structure
@@ -181,7 +182,7 @@ const makeAuthenticatedRequest = async (url, options = {}, bustCache = false) =>
   })
 }
 
-// 🔥 ENHANCED: Product Details Modal Component with Branch Selection
+// 🔥 ENHANCED: Product Details Modal Component with Complete Product Information Display
 const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }) => {
   const [selectedNicotineStrength, setSelectedNicotineStrength] = useState('')
   const [selectedVgPgRatio, setSelectedVgPgRatio] = useState('')
@@ -199,6 +200,44 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
   }, [isOpen, product])
 
   if (!product) return null
+
+  // 🔥 NEW: Get technical specifications (excluding features and eachSetContains)
+  const getAvailableSpecifications = () => {
+    if (!product) return []
+    
+    const specifications = []
+    
+    // Define specification mapping with icons and labels
+    const specificationMap = {
+      flavor: { label: 'Flavor', icon: Droplets, color: 'text-blue-500' },
+      resistance: { label: 'Resistance', icon: Zap, color: 'text-yellow-500', unit: 'Ω' },
+      wattageRange: { label: 'Wattage Range', icon: Battery, color: 'text-green-500', unit: 'W' },
+      bottleSizes: { label: 'Bottle Size', icon: Package, color: 'text-purple-500' },
+      bottleType: { label: 'Bottle Type', icon: Package, color: 'text-indigo-500' },
+      unit: { label: 'Unit', icon: Settings, color: 'text-gray-500' },
+      puffs: { label: 'Puffs', icon: Droplets, color: 'text-pink-500' },
+      coil: { label: 'Coil Type', icon: Settings, color: 'text-orange-500' },
+      volume: { label: 'Volume', icon: Droplets, color: 'text-cyan-500' },
+      charging: { label: 'Charging', icon: Battery, color: 'text-green-600' },
+      chargingTime: { label: 'Charging Time', icon: Clock, color: 'text-red-500' },
+    }
+    
+    // Check each specification field
+    Object.entries(specificationMap).forEach(([key, config]) => {
+      if (product[key] && product[key].toString().trim() !== '') {
+        specifications.push({
+          key,
+          label: config.label,
+          value: product[key],
+          icon: config.icon,
+          color: config.color,
+          unit: config.unit || ''
+        })
+      }
+    })
+    
+    return specifications
+  }
 
   // 🔥 ENHANCED: Get branches from stock data (same logic as product details page)
   const getBranches = () => {
@@ -506,6 +545,7 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
     onClose()
   }
 
+  const availableSpecs = getAvailableSpecifications()
   const nicotineOptions = getUniqueSpecificationValues('nicotineStrength')
   const vgPgOptions = getUniqueSpecificationValues('vgPgRatio')
   const colorOptions = getUniqueSpecificationValues('colors')
@@ -525,7 +565,7 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
+            className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
           >
             {/* Header */}
             <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
@@ -544,9 +584,9 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Left Column - Product Info */}
+                {/* Left Column - Basic Info & Features */}
                 <div className="space-y-6">
-                  {/* Basic Info */}
+                  {/* Basic Product Info */}
                   <div className="bg-gray-50 rounded-xl p-6">
                     <h4 className="text-xl font-bold text-gray-900 mb-4">{product.name}</h4>
                     
@@ -567,13 +607,13 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
-                        <p className="text-2xl font-bold text-purple-600">{product.price?.toFixed(2) || '0.00'} ৳</p>
+                        <p className="text-2xl font-bold text-purple-600">৳{product.price?.toFixed(2) || '0.00'}</p>
                       </div>
 
                       {product.comparePrice && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Compare Price</label>
-                          <p className="text-lg text-gray-500 line-through">{product.comparePrice.toFixed(2)} ৳</p>
+                          <p className="text-lg text-gray-500 line-through">৳{product.comparePrice.toFixed(2)}</p>
                         </div>
                       )}
 
@@ -581,6 +621,20 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Barcode</label>
                           <p className="font-mono text-gray-900">{product.barcode}</p>
+                        </div>
+                      )}
+
+                      {product.category && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                          <p className="font-semibold text-gray-900">{product.category}</p>
+                        </div>
+                      )}
+
+                      {product.subcategory && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                          <p className="font-semibold text-gray-900">{product.subcategory}</p>
                         </div>
                       )}
                     </div>
@@ -602,38 +656,74 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
                     )}
                   </div>
 
-                  {/* General Specifications */}
-                  {(product.flavor || product.resistance || product.wattageRange) && (
+                  {/* 🔥 NEW: Technical Specifications Section */}
+                  {availableSpecs.length > 0 && (
                     <div className="bg-blue-50 rounded-xl p-6">
                       <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <Zap size={20} className="text-blue-600" />
-                        General Specifications
+                        <Settings size={20} className="text-blue-600" />
+                        Technical Specifications
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {product.flavor && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Flavor</label>
-                            <p className="font-semibold text-gray-900">{product.flavor}</p>
+                        {availableSpecs.map((spec) => {
+                          const IconComponent = spec.icon
+                          return (
+                            <div key={spec.key} className="flex items-start gap-3 p-3 bg-white rounded-lg shadow-sm">
+                              <IconComponent size={18} className={`${spec.color} mt-0.5 flex-shrink-0`} />
+                              <div className="flex-1 min-w-0">
+                                <span className="text-sm font-medium text-gray-500 block">{spec.label}</span>
+                                <p className="text-gray-900 font-semibold break-words">
+                                  {spec.value}{spec.unit && ` ${spec.unit}`}
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 🔥 NEW: Features Section */}
+                  {product.features && Array.isArray(product.features) && product.features.length > 0 && (
+                    <div className="bg-amber-50 rounded-xl p-6">
+                      <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <Star size={20} className="text-amber-600" />
+                        Product Features
+                      </h4>
+                      <div className="space-y-3">
+                        {product.features.map((feature, index) => (
+                          <div key={index} className="flex items-start gap-3 p-3 bg-white rounded-lg shadow-sm">
+                            <div className="w-6 h-6 bg-amber-500 text-white rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold">
+                              {index + 1}
+                            </div>
+                            <span className="text-gray-800 font-medium">{feature}</span>
                           </div>
-                        )}
-                        {product.resistance && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Resistance</label>
-                            <p className="font-semibold text-gray-900">{product.resistance}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 🔥 NEW: Each Set Contains Section */}
+                  {product.eachSetContains && Array.isArray(product.eachSetContains) && product.eachSetContains.length > 0 && (
+                    <div className="bg-emerald-50 rounded-xl p-6">
+                      <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <Package size={20} className="text-emerald-600" />
+                        Each Set Contains
+                      </h4>
+                      <div className="space-y-3">
+                        {product.eachSetContains.map((item, index) => (
+                          <div key={index} className="flex items-start gap-3 p-3 bg-white rounded-lg shadow-sm">
+                            <span className="text-emerald-600 font-bold text-sm mt-0.5 flex-shrink-0">
+                              {index + 1}.
+                            </span>
+                            <span className="text-gray-800 font-medium">{item}</span>
                           </div>
-                        )}
-                        {product.wattageRange && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Wattage Range</label>
-                            <p className="font-semibold text-gray-900">{product.wattageRange}</p>
-                          </div>
-                        )}
+                        ))}
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Right Column - Specifications & Selection */}
+                {/* Right Column - Specifications & Branch Selection */}
                 <div className="space-y-6">
                   {/* 🔥 ENHANCED: Branch Specifications with Required Warning */}
                   {hasBranchSpecifications() && hasAnySpecifications() && (
