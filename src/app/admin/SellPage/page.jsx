@@ -205,7 +205,7 @@ const makeAuthenticatedRequest = async (url, options = {}, bustCache = false) =>
       allowEscapeKey: false
     }).then(() => {
       // Redirect to login page - CHANGE THIS TO YOUR ACTUAL LOGIN PATH
-      window.location.href = '/admin/login' // 🔥 CHANGE THIS TO YOUR LOGIN PAGE PATH
+      window.location.href = '/RegistrationPage' // 🔥 CHANGE THIS TO YOUR LOGIN PAGE PATH
     })
     
     // Return the response anyway for error handling

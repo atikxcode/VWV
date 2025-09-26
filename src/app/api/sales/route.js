@@ -417,7 +417,7 @@ export async function POST(req) {
           totalAmount: totalAmount,
           paymentType: paymentType,
           status: status,
-          cashier: sanitizeInput(body.cashier || userInfo.role === 'admin' ? 'Admin' : 'Moderator'),
+          cashier: sanitizeInput(body.cashier || 'Unknown Cashier'),
           createdAt: new Date(),
           updatedAt: new Date(),
           createdBy: userInfo.userId,
