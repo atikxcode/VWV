@@ -988,9 +988,9 @@ const ProductCard = ({ product, onAddToCart, moderatorBranch, onShowDetails }) =
 
         {/* 🔒 FIXED BRANCH DISPLAY (NO SELECTOR) */}
         <div className="mb-3">
-          <div className="flex items-center gap-2 p-2 bg-orange-50 border border-orange-200 rounded-lg">
-            <Store size={14} className="text-orange-600" />
-            <span className="text-xs font-medium text-orange-800 capitalize">
+          <div className="flex items-center gap-2 p-2 bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg">
+            <Store size={14} className="text-purple-600" />
+            <span className="text-xs font-medium text-purple-600 capitalize">
               {moderatorBranch} Branch - {stock} in stock
             </span>
           </div>
@@ -1010,7 +1010,7 @@ const ProductCard = ({ product, onAddToCart, moderatorBranch, onShowDetails }) =
             className={`flex-1 py-2 rounded-lg font-medium transition-colors text-sm ${
               isOutOfStock
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-orange-600 text-white hover:bg-orange-700'
+                : 'bg-purple-600 text-white hover:bg-purple-700'
             }`}
           >
             {isOutOfStock ? 'Out of Stock' : 'Quick Add'}
@@ -1543,46 +1543,57 @@ const handleCheckout = async () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-amber-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-4">
       <div className="max-w-7xl mx-auto">
-        {/* 🔒 MODERATOR HEADER with branch restriction indicator */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-          <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-              🏪 Moderator Sales Point
-              <span className="text-sm bg-orange-100 text-orange-800 px-3 py-1 rounded-full font-medium">
-                {moderatorBranch?.charAt(0).toUpperCase() + moderatorBranch?.slice(1)} Branch Only
-              </span>
-            </h1>
-            <p className="text-gray-600">
-              Process sales for your assigned branch • Stock limited to your branch inventory
-            </p>
-          </div>
+        {/* Header */}
+      <div className="bg-white shadow-lg border-b border-purple-100 mb-8">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center">
+                <Store size={24} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">VWV Moderator Sales</h1>
+                <p className="text-gray-600 text-sm">Point of Sale System</p>
+              </div>
+            </div>
 
-          {/* Cart Button (same as admin) */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setShowBarcodeScanner(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl"
-            >
-              <Scan size={20} />
-              Scan Barcode
-            </button>
+            <div className="flex items-center gap-4">
+              {/* Cart Button */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowCartModal(true)}
+                className="relative bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+              >
+                <ShoppingCart size={20} />
+                <span>Cart</span>
+                {cartItemsCount > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[20px] text-center"
+                  >
+                    {cartItemsCount}
+                  </motion.span>
+                )}
+              </motion.button>
 
-            <button
-              onClick={() => setShowCartModal(true)}
-              className="relative flex items-center gap-2 bg-gradient-to-r from-orange-600 to-red-600 text-white px-6 py-3 rounded-xl hover:from-orange-700 hover:to-red-700 transition-all shadow-lg hover:shadow-xl"
-            >
-              <ShoppingCart size={20} />
-              View Cart
-              {cartItemsCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full">
-                  {cartItemsCount}
-                </span>
-              )}
-            </button>
+              {/* Barcode Scanner */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowBarcodeScanner(true)}
+                className="bg-green-600 text-white p-3 rounded-xl shadow-lg hover:bg-green-700 transition-colors"
+                title="Scan Barcode"
+              >
+                <Scan size={20} />
+              </motion.button>
+            </div>
           </div>
         </div>
+      </div>
 
         {/* Loading State */}
         {loading && (
@@ -1599,7 +1610,7 @@ const handleCheckout = async () => {
             {/* Filters Section (same as admin except no branch filter) */}
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <div className="flex items-center gap-3 mb-4">
-                <Filter size={20} className="text-orange-600" />
+                <Filter size={20} className="text-purple-600" />
                 <h2 className="text-lg font-bold text-gray-900">Filters</h2>
               </div>
 
@@ -1676,7 +1687,7 @@ const handleCheckout = async () => {
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <Package size={20} className="text-orange-600" />
+                  <Package size={20} className="text-purple-600" />
                   <h2 className="text-lg font-bold text-gray-900">
                     Products Available in {moderatorBranch?.charAt(0).toUpperCase() + moderatorBranch?.slice(1)} Branch
                   </h2>
