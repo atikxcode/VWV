@@ -2757,6 +2757,17 @@ try {
               <div className="flex gap-4">
                 <button
                   onClick={() => {
+                    generateInvoice(completedSaleData)
+                    setSaleCompleted(false)
+                    setCompletedSaleData(null)
+                  }}
+                  className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-colors font-semibold flex items-center justify-center gap-2"
+                >
+                  <Download size={16} />
+                  Download Receipt
+                </button>
+                <button
+                  onClick={() => {
                     setSaleCompleted(false)
                     setCompletedSaleData(null)
                   }}
@@ -2764,17 +2775,7 @@ try {
                 >
                   Close
                 </button>
-                <button
-                  onClick={() => {
-                    generateInvoice(completedSaleData)
-                    setSaleCompleted(false)
-                    setCompletedSaleData(null)
-                  }}
-                  className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-colors font-semibold flex items-center justify-center gap-2"
-                >
-                  <Download size={16} />
-                  Download Receipt
-                </button>
+                
               </div>
             </motion.div>
           </motion.div>
