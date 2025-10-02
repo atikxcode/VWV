@@ -537,11 +537,11 @@ const ProductDetailsModal = ({ isOpen, product, moderatorBranch, onClose, onAddT
             className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
           >
             {/* Header */}
-            <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50">
+            <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
               <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Info size={28} className="text-orange-600" />
+                <Info size={28} className="text-purple-600" />
                 Product Details
-                <span className="text-sm bg-orange-100 text-orange-800 px-3 py-1 rounded-full font-medium">
+                <span className="text-sm bg-blue-100 text-purple-800 px-3 py-1 rounded-full font-medium">
                   {moderatorBranch?.charAt(0).toUpperCase() + moderatorBranch?.slice(1)} Branch Only
                 </span>
               </h3>
@@ -699,13 +699,13 @@ const ProductDetailsModal = ({ isOpen, product, moderatorBranch, onClose, onAddT
                 <div className="space-y-6">
                   {/* Branch Specifications */}
                   {hasBranchSpecifications() && hasAnySpecifications() && (
-                    <div className="bg-orange-50 rounded-xl p-6">
+                    <div className="bg-purple-50 rounded-xl p-6">
                       <div className="flex items-center justify-between mb-4">
                         <h4 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                          <Settings size={20} className="text-orange-600" />
+                          <Settings size={20} className="text-purple-600" />
                           Select Specifications
                         </h4>
-                        <div className="flex items-center gap-1 text-orange-600 text-sm">
+                        <div className="flex items-center gap-1 text-red-600 text-sm">
                           <AlertCircle size={16} />
                           <span>Required</span>
                         </div>
@@ -731,7 +731,7 @@ const ProductDetailsModal = ({ isOpen, product, moderatorBranch, onClose, onAddT
                                 <select
                                   value={selectedNicotineStrength}
                                   onChange={(e) => setSelectedNicotineStrength(e.target.value)}
-                                  className={`w-full p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                                  className={`w-full p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
                                     nicotineOptions.length > 1 && !selectedNicotineStrength
                                       ? 'border-red-300' 
                                       : 'border-gray-300'
@@ -768,7 +768,7 @@ const ProductDetailsModal = ({ isOpen, product, moderatorBranch, onClose, onAddT
                                 <select
                                   value={selectedVgPgRatio}
                                   onChange={(e) => setSelectedVgPgRatio(e.target.value)}
-                                  className={`w-full p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                                  className={`w-full p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
                                     vgPgOptions.length > 1 && !selectedVgPgRatio
                                       ? 'border-red-300' 
                                       : 'border-gray-300'
@@ -797,7 +797,7 @@ const ProductDetailsModal = ({ isOpen, product, moderatorBranch, onClose, onAddT
                             ) : (
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                                  <Palette size={16} className="text-orange-600" />
+                                  <Palette size={16} className="text-purple-600" />
                                   Color
                                   {colorOptions.length > 1 && (
                                     <span className="text-red-500 ml-1">*</span>
@@ -806,7 +806,7 @@ const ProductDetailsModal = ({ isOpen, product, moderatorBranch, onClose, onAddT
                                 <select
                                   value={selectedColor}
                                   onChange={(e) => setSelectedColor(e.target.value)}
-                                  className={`w-full p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                                  className={`w-full p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
                                     colorOptions.length > 1 && !selectedColor
                                       ? 'border-red-300' 
                                       : 'border-gray-300'
@@ -828,24 +828,24 @@ const ProductDetailsModal = ({ isOpen, product, moderatorBranch, onClose, onAddT
                   )}
 
                   {/* 🔒 MODERATOR BRANCH DISPLAY (RESTRICTED TO MODERATOR'S BRANCH ONLY) */}
-                  <div className="bg-orange-50 rounded-xl p-6 border border-orange-200">
+                  <div className="bg-purple-50 rounded-xl p-6 border border-purple-200">
                     <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <Store size={20} className="text-orange-600" />
+                      <Store size={20} className="text-purple-600" />
                       Your Branch Stock
                     </h4>
 
                     <div className="space-y-3">
                       {/* Only show moderator's branch */}
-                      <div className="flex items-center justify-between p-4 rounded-lg border-2 border-orange-300 bg-orange-100">
+                      <div className="flex items-center justify-between p-4 rounded-lg border-2 border-purple-300 bg-purple-100">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-orange-600 text-white rounded-lg flex items-center justify-center">
+                          <div className="w-10 h-10 bg-purple-600 text-white rounded-lg flex items-center justify-center">
                             <Store size={20} />
                           </div>
                           <div>
                             <span className="font-semibold capitalize text-gray-900">
                               {moderatorBranch} Branch
                             </span>
-                            <p className="text-sm text-orange-700 font-medium">Your assigned branch</p>
+                            <p className="text-sm text-gray-700 font-medium">Your assigned branch</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">

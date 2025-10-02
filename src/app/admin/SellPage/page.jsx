@@ -861,9 +861,9 @@ const ProductDetailsModal = ({ isOpen, product, branches, onClose, onAddToCart }
                   )}
 
                   {/* Branch Selection with Admin Choice */}
-                  <div className="bg-green-50 rounded-xl p-6">
+                  <div className="bg-purple-50 rounded-xl p-6">
                     <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <Store size={20} className="text-green-600" />
+                      <Store size={20} className="text-purple-600" />
                       {requiresBranchSelection() ? 'Select Branch to Sell From' : 'Available Branches'}
                       {requiresBranchSelection() && (
                         <span className="text-red-500 text-sm font-medium">*Required</span>
