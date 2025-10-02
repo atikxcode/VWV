@@ -1325,12 +1325,19 @@ const generateInvoice = async (saleData) => {
                   ? 'background: rgb(249, 250, 251);'
                   : 'background: white;'
               }">
-                <td style="padding: 6px; font-weight: 600; color: rgb(107, 114, 128);">${index + 1}</td>
-                <td style="padding: 6px; font-weight: 500; color: rgb(55, 65, 81);">${
-                  (item.productName || 'Unknown Product').length > 30
-                    ? (item.productName || 'Unknown Product').substring(0, 30) + '...'
+                <td style="padding: 6px; font-weight: 500; color: rgb(55, 65, 81);">
+                  ${(item.productName || 'Unknown Product').length > 25
+                    ? (item.productName || 'Unknown Product').substring(0, 25) + '...'
                     : (item.productName || 'Unknown Product')
-                }</td>
+                  }
+                  ${item.selectedOptions && Object.keys(item.selectedOptions).length > 0 ? 
+                    `<br><small style="color: rgb(107, 114, 128);">
+                      ${Object.values(item.selectedOptions).join(' • ')}
+                    </small>` 
+                    : ''
+                  }
+                </td>
+
                 <td style="padding: 6px; text-align: center;">
                   <span style="background: rgb(139, 92, 246); color: white; padding: 1px 6px; border-radius: 10px; font-size: 9px; font-weight: 600;">
                     ${(item.branch || 'N/A').toUpperCase()}
