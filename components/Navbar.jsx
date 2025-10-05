@@ -144,7 +144,7 @@ const Navbar = () => {
 
           <div className="flex flex-row gap-4">
             <a href="/TrackOrder">Track</a>
-            <a href="#">Contact</a>
+            <a href="/Contact">Contact</a>
             <a href="#">Support</a>
             <a href="#">About</a>
           </div>
