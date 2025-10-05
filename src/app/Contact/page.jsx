@@ -52,6 +52,7 @@ const contactFormSchema = z.object({
 const ContactPage = () => {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [openFaq, setOpenFaq] = useState(null);
 
   // Initialize EmailJS on component mount
   useEffect(() => {
@@ -161,23 +162,23 @@ const ContactPage = () => {
     {
       icon: MapPin,
       title: 'Visit Our Store',
-      details: ['123 Vape Street, Downtown', 'City, State 12345'],
-      link: 'https://maps.google.com',
-      color: 'from-pink-500 to-rose-500'
+      details: ['Bashundhara, Dhaka', 'Bangladesh'],
+      link: 'https://maps.google.com/?q=Vibe+with+vape+Bashundhara',
+      color: 'from-purple-500 to-pink-500'
     },
     {
       icon: Phone,
       title: 'Call Us',
-      details: ['+1 (555) 123-4567', 'Mon-Sat: 9AM - 8PM'],
+      details: ['+880 1234-567890', 'Daily: 10AM - 10PM'],
       link: 'tel:+15551234567',
-      color: 'from-pink-600 to-purple-600'
+      color: 'from-purple-500 to-pink-500'
     },
     {
       icon: Mail,
       title: 'Email Us',
       details: ['info@vwvvapeshop.com', 'support@vwvvapeshop.com'],
       link: 'mailto:info@vwvvapeshop.com',
-      color: 'from-rose-500 to-pink-600'
+      color: 'from-purple-500 to-pink-500'
     },
     {
       icon: Clock,
@@ -221,11 +222,11 @@ const ContactPage = () => {
             email: 'info@vwvvapeshop.com',
             address: {
               '@type': 'PostalAddress',
-              streetAddress: '123 Vape Street',
-              addressLocality: 'City',
-              addressRegion: 'State',
-              postalCode: '12345',
-              addressCountry: 'US'
+              streetAddress: 'Bashundhara RA',
+              addressLocality: 'Dhaka',
+              addressRegion: 'Dhaka Division',
+              postalCode: '1229',
+              addressCountry: 'BD'
             },
             openingHoursSpecification: [
               {
@@ -250,7 +251,7 @@ const ContactPage = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="relative bg-gradient-to-r from-pink-600 via-rose-500 to-purple-600 text-white py-20 px-4 overflow-hidden"
+        className="relative bg-gradient-to-r from-purple-500 to-pink-500 text-white py-20 px-4 overflow-hidden"
       >
         <div className="absolute inset-0 bg-black opacity-10"></div>
         <div className="absolute inset-0">
@@ -273,7 +274,7 @@ const ContactPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4"
+            className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 tracking-wider"
           >
             Get in Touch
           </motion.h1>
@@ -328,7 +329,7 @@ const ContactPage = () => {
                     href={info.link}
                     target={info.link.startsWith('http') ? '_blank' : undefined}
                     rel={info.link.startsWith('http') ? 'noopener noreferrer' : undefined}
-                    className="inline-block mt-4 text-pink-600 hover:text-pink-700 font-medium text-sm transition-colors"
+                    className="inline-block mt-4 text-purple-500 hover:text-purple-700 font-medium text-sm transition-colors"
                   >
                     {info.title.includes('Visit') ? 'Get Directions →' : 
                      info.title.includes('Call') ? 'Call Now →' : 
@@ -472,7 +473,7 @@ const ContactPage = () => {
                       className={`w-full px-4 py-3 rounded-lg border ${
                         errors.phone ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-300'
                       } focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all outline-none`}
-                      placeholder="+1 (555) 000-0000"
+                      placeholder="+880-123456-7890"
                     />
                     {errors.phone && (
                       <p className="mt-1.5 text-sm text-red-600 flex items-center">
@@ -546,7 +547,7 @@ const ContactPage = () => {
                   whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full bg-gradient-to-r from-pink-600 to-rose-600 text-white font-semibold py-4 px-6 rounded-lg hover:from-pink-700 hover:to-rose-700 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold py-4 px-6 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                 >
                   {isSubmitting ? (
                     <>
@@ -576,70 +577,213 @@ const ContactPage = () => {
             transition={{ duration: 0.6 }}
             className="space-y-8"
           >
-            {/* Map */}
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-pink-100">
-              <div className="h-80 bg-gray-200 relative">
+           
+            {/* Map - Enhanced Design */}
+            <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="bg-white rounded-2xl shadow-xl overflow-hidden border border-pink-100 relative group"
+            >
+            {/* Header with Location Info */}
+            <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-white via-white/95 to-transparent p-4">
+                <div className="flex items-center space-x-3">
+                <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg shadow-lg">
+                    <MapPin className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                    <h4 className="font-bold text-gray-900">Find Us Here</h4>
+                    <p className="text-xs text-gray-600">Bashundhara, Dhaka</p>
+                </div>
+                </div>
+            </div>
+
+            {/* Map Container */}
+            <div className="h-80 bg-gray-200 relative overflow-hidden">
+                {/* Subtle border glow effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 via-transparent to-rose-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-10"></div>
+                
                 <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3651.902076205!2d90.38747631498119!3d23.750881084587707!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjPCsDQ1JzAzLjIiTiA5MMKwMjMnMjAuOSJF!5e0!3m2!1sen!2sbd!4v1234567890123!5m2!1sen!2sbd"
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0 }}
-                  allowFullScreen=""
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  title="VWV Vape Shop Location"
-                  className="absolute inset-0"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3650.0437297047088!2d90.42209221148978!3d23.817043978535757!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3755c70059acce05%3A0x9c390407301336b4!2sVibe%20with%20vape%20(Bashundhara)-!5e0!3m2!1sen!2sbd!4v1759704349937!5m2!1sen!2sbd"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen=""
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="Vibe with Vape Bashundhara Location"
+                className="absolute inset-0 transition-transform duration-500 group-hover:scale-105"
                 ></iframe>
-              </div>
             </div>
 
-            {/* FAQ */}
+            {/* Bottom Action Bar */}
+            <div className="p-4 bg-gradient-to-r from-pink-50 to-rose-50 border-t border-pink-100">
+                <motion.a
+                href="https://maps.google.com/?q=Vibe+with+vape+Bashundhara"
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="flex items-center justify-center space-x-2 w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-lg hover:from-purple-600 hover:to-pink-700 transition-all duration-300 shadow-md hover:shadow-lg"
+                >
+                <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+                    />
+                </svg>
+                <span>Get Directions</span>
+                </motion.a>
+            </div>
+            </motion.div>
+
+
+
+
+
+
+           
+           {/* FAQ - Animated Accordion */}
             <div className="bg-white rounded-2xl shadow-xl p-8 border border-pink-100">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">
+            <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <span className="inline-block w-1 h-8 bg-gradient-to-b from-pink-500 to-rose-500 mr-3 rounded-full"></span>
                 Frequently Asked Questions
-              </h3>
-              
-              <div className="space-y-6">
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">
-                    What are your store hours?
-                  </h4>
-                  <p className="text-gray-600 text-sm">
-                    We're open Monday-Friday 9AM-8PM, and weekends 10AM-6PM. We're here to serve you!
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">
-                    Do you offer wholesale pricing?
-                  </h4>
-                  <p className="text-gray-600 text-sm">
-                    Yes! Contact us for wholesale inquiries and bulk order discounts.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">
-                    What's your return policy?
-                  </h4>
-                  <p className="text-gray-600 text-sm">
-                    We offer 30-day returns on unopened products. See our full policy on our returns page.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">
-                    Do you ship nationwide?
-                  </h4>
-                  <p className="text-gray-600 text-sm">
-                    Yes, we ship to all 50 states. Free shipping on orders over $50!
-                  </p>
-                </div>
-              </div>
+            </h3>
+            
+            <div className="space-y-4">
+                {[
+                {
+                    question: "What are your store hours?",
+                    answer: "We're open daily from 10:00 AM to 10:00 PM, 7 days a week. Visit us anytime for the best vaping experience in Bashundhara!",
+                    icon: "🕒"
+                },
+                {
+                    question: "Do you offer wholesale pricing?",
+                    answer: "Absolutely! We provide competitive wholesale rates for bulk orders. Contact us directly to discuss pricing and minimum order quantities.",
+                    icon: "💼"
+                },
+                {
+                    question: "What's your return policy?",
+                    answer: "We accept returns within 7 days for unopened products with original packaging. Customer satisfaction is our priority!",
+                    icon: "↩️"
+                },
+                {
+                    question: "Do you deliver in Dhaka?",
+                    answer: "Yes! We offer fast delivery across Dhaka. Free delivery on orders over ৳2000. Orders are typically delivered within 24-48 hours.",
+                    icon: "🚚"
+                },
+                {
+                    question: "Are your products authentic?",
+                    answer: "100% authentic and imported products only. We source directly from authorized distributors to ensure quality and authenticity.",
+                    icon: "✓"
+                }
+                ].map((faq, index) => (
+                <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.1 }}
+                    className="group"
+                >
+                    <div 
+                    className={`overflow-hidden rounded-xl border transition-all duration-300 ${
+                        openFaq === index 
+                        ? 'border-pink-300 shadow-md' 
+                        : 'border-gray-200 hover:border-pink-300'
+                    }`}
+                    >
+                    <button
+                        onClick={() => setOpenFaq(openFaq === index ? null : index)}
+                        className={`w-full flex items-center justify-between cursor-pointer px-6 py-4 transition-all duration-300 ${
+                        openFaq === index
+                            ? 'bg-gradient-to-r from-pink-100 to-rose-100'
+                            : 'bg-gradient-to-r from-gray-50 to-pink-50 hover:from-pink-50 hover:to-rose-50'
+                        }`}
+                    >
+                        <div className="flex items-center space-x-3">
+                        <span className="text-2xl">{faq.icon}</span>
+                        <h4 className={`font-semibold transition-colors text-left ${
+                            openFaq === index ? 'text-pink-600' : 'text-gray-900'
+                        }`}>
+                            {faq.question}
+                        </h4>
+                        </div>
+                        <motion.div
+                        animate={{ rotate: openFaq === index ? 180 : 0 }}
+                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                        className="ml-4 text-pink-500 flex-shrink-0"
+                        >
+                        <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                            />
+                        </svg>
+                        </motion.div>
+                    </button>
+                    
+                    <motion.div
+                        initial={false}
+                        animate={{
+                        height: openFaq === index ? "auto" : 0,
+                        opacity: openFaq === index ? 1 : 0
+                        }}
+                        transition={{
+                        height: { duration: 0.3, ease: "easeInOut" },
+                        opacity: { duration: 0.2, ease: "easeInOut" }
+                        }}
+                        className="overflow-hidden"
+                    >
+                        <div className="px-6 py-4 bg-white border-t border-gray-100">
+                        <p className="text-gray-600 text-sm leading-relaxed">
+                            {faq.answer}
+                        </p>
+                        </div>
+                    </motion.div>
+                    </div>
+                </motion.div>
+                ))}
             </div>
+            
+            <motion.div
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.5 }}
+                className="mt-8 p-4 bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl border border-pink-200"
+            >
+                <p className="text-sm text-gray-700 text-center">
+                <span className="font-semibold text-pink-600">Still have questions?</span> 
+                <br />
+                Feel free to reach out – we're always happy to help!
+                </p>
+            </motion.div>
+            </div>
+
+
+
+
+
+
 
             {/* Social Media */}
-            <div className="bg-gradient-to-br from-pink-600 to-purple-600 rounded-2xl shadow-xl p-8 text-white">
+            <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl shadow-xl p-8 text-white">
               <h3 className="text-2xl font-bold mb-4">
                 Follow Us on Social Media
               </h3>
@@ -686,14 +830,14 @@ const ContactPage = () => {
         </div>
       </section>
 
-      {/* Age Verification Notice */}
-      <section className="bg-pink-50 py-8 px-4 border-t border-pink-100">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-gray-700 text-sm">
-            <span className="font-semibold text-pink-600">Age Verification Required:</span> All vaping products are restricted to adults 21+ years of age. By contacting us or visiting our store, you confirm you meet the legal age requirement.
-          </p>
-        </div>
-      </section>
+
+
+
+
+
+      
+
+      
     </div>
   );
 };
