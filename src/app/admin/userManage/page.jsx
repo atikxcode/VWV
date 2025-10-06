@@ -1,5 +1,6 @@
 'use client'
 
+
 import { useState, useEffect, useContext } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Swal from 'sweetalert2'
@@ -20,7 +21,9 @@ import {
   Building,
   Plus,
   Trash2,
+  Package, // 🔧 NEW: Icon for Stock Editor
 } from 'lucide-react'
+
 
 // Branch Management Modal Component with API integration
 const BranchManagementModal = ({
@@ -33,6 +36,7 @@ const BranchManagementModal = ({
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+
   const handleAddBranch = async (e) => {
     e.preventDefault()
     if (!newBranchName.trim()) {
@@ -40,11 +44,13 @@ const BranchManagementModal = ({
       return
     }
 
+
     const cleanBranchName = newBranchName.trim().toLowerCase()
     if (branches.includes(cleanBranchName)) {
       setError('Branch already exists')
       return
     }
+
 
     setLoading(true)
     try {
@@ -62,11 +68,14 @@ const BranchManagementModal = ({
         }),
       })
 
+
       if (!response.ok) throw new Error('Failed to add branch')
+
 
       onBranchUpdate([...branches, cleanBranchName])
       setNewBranchName('')
       setError('')
+
 
       Swal.fire({
         icon: 'success',
@@ -85,6 +94,7 @@ const BranchManagementModal = ({
     }
   }
 
+
   const handleDeleteBranch = async (branchName) => {
     const result = await Swal.fire({
       title: 'Delete Branch?',
@@ -95,6 +105,7 @@ const BranchManagementModal = ({
       cancelButtonColor: '#3085d6',
       confirmButtonText: 'Yes, delete it!',
     })
+
 
     if (result.isConfirmed) {
       setLoading(true)
@@ -110,9 +121,12 @@ const BranchManagementModal = ({
           body: JSON.stringify({ branchName }),
         })
 
+
         if (!response.ok) throw new Error('Failed to delete branch')
 
+
         onBranchUpdate(branches.filter((b) => b !== branchName))
+
 
         Swal.fire({
           icon: 'success',
@@ -136,7 +150,9 @@ const BranchManagementModal = ({
     }
   }
 
+
   if (!isOpen) return null
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -158,6 +174,7 @@ const BranchManagementModal = ({
             <X size={24} />
           </button>
         </div>
+
 
         {/* Add New Branch Form */}
         <form onSubmit={handleAddBranch} className="mb-6">
@@ -196,6 +213,7 @@ const BranchManagementModal = ({
           )}
         </form>
 
+
         {/* Current Branches List */}
         <div>
           <h4 className="text-lg font-semibold text-gray-800 mb-3">
@@ -228,6 +246,7 @@ const BranchManagementModal = ({
           </div>
         </div>
 
+
         <div className="flex justify-end mt-6">
           <button
             onClick={onClose}
@@ -241,6 +260,7 @@ const BranchManagementModal = ({
   )
 }
 
+
 export default function AdminUserManagement() {
   const { user } = useContext(AuthContext)
   const router = useRouter()
@@ -252,8 +272,10 @@ export default function AdminUserManagement() {
   const [editingUser, setEditingUser] = useState(null)
   const [tempRole, setTempRole] = useState('')
   const [tempBranch, setTempBranch] = useState('')
+  const [tempIsStockEditor, setTempIsStockEditor] = useState(false) // 🔧 NEW: State for Stock Editor
   const [showBranchModal, setShowBranchModal] = useState(false)
   const [error, setError] = useState('')
+
 
   // Fetch users and branches from API with authentication
   useEffect(() => {
@@ -261,6 +283,7 @@ export default function AdminUserManagement() {
       try {
         setLoading(true)
         setError('')
+
 
         // Get the authentication token
         let token = localStorage.getItem('auth-token')
@@ -271,11 +294,14 @@ export default function AdminUserManagement() {
           localStorage.setItem('auth-token', token)
         }
 
+
         if (!token) {
           throw new Error('No authentication token available')
         }
 
+
         console.log('🔍 Making request with token:', token ? 'Yes' : 'No')
+
 
         // Fetch users with authentication header
         const usersRes = await fetch('/api/user?getAllUsers=true', {
@@ -286,7 +312,9 @@ export default function AdminUserManagement() {
           }
         })
 
+
         console.log('🔍 Users response status:', usersRes.status)
+
 
         if (usersRes.status === 401) {
           // Token might be expired, redirect to login
@@ -296,9 +324,11 @@ export default function AdminUserManagement() {
           return
         }
 
+
         if (!usersRes.ok) {
           throw new Error(`Failed to fetch users: ${usersRes.status} ${usersRes.statusText}`)
         }
+
 
         const usersData = await usersRes.json()
         console.log('🔍 Users data:', usersData)
@@ -313,6 +343,7 @@ export default function AdminUserManagement() {
           setUsers([])
         }
 
+
         // Fetch branches with authentication header
         const branchesRes = await fetch('/api/branches', {
           method: 'GET',
@@ -322,6 +353,7 @@ export default function AdminUserManagement() {
           }
         })
 
+
         if (branchesRes.ok) {
           const branchesData = await branchesRes.json()
           setBranches(branchesData.branches || ['main', 'mirpur', 'bashundhara'])
@@ -329,6 +361,7 @@ export default function AdminUserManagement() {
           // Fallback to default branches if API fails
           setBranches(['main', 'mirpur', 'bashundhara'])
         }
+
 
       } catch (error) {
         console.error('❌ Error loading data:', error)
@@ -352,22 +385,28 @@ export default function AdminUserManagement() {
       }
     }
 
+
     loadData()
   }, [user, router])
+
 
   // Start editing a user
   const startEditing = (user) => {
     setEditingUser(user._id)
     setTempRole(user.role || 'user')
     setTempBranch(user.branch || '')
+    setTempIsStockEditor(user.isStockEditor || false) // 🔧 NEW: Set Stock Editor state
   }
+
 
   // Cancel editing
   const cancelEditing = () => {
     setEditingUser(null)
     setTempRole('')
     setTempBranch('')
+    setTempIsStockEditor(false) // 🔧 NEW: Reset Stock Editor state
   }
+
 
   // Save user changes
   const saveUserChanges = async (user) => {
@@ -387,25 +426,31 @@ export default function AdminUserManagement() {
           phone: user.phone,
           role: tempRole,
           branch: tempBranch || null,
+          isStockEditor: tempIsStockEditor, // 🔧 NEW: Include Stock Editor in update
         }),
       })
+
 
       if (!response.ok) {
         throw new Error('Failed to update user')
       }
 
+
       const result = await response.json()
+
 
       // Update local state
       setUsers((prev) =>
         prev.map((u) =>
           u._id === user._id
-            ? { ...u, role: tempRole, branch: tempBranch || null }
+            ? { ...u, role: tempRole, branch: tempBranch || null, isStockEditor: tempIsStockEditor } // 🔧 NEW: Update Stock Editor in state
             : u
         )
       )
 
+
       setEditingUser(null)
+
 
       Swal.fire({
         icon: 'success',
@@ -426,10 +471,12 @@ export default function AdminUserManagement() {
     }
   }
 
+
   // Handle branch updates from modal
   const handleBranchUpdate = (newBranches) => {
     setBranches(newBranches)
   }
+
 
   // Filter users based on search and role
   const filteredUsers = users.filter((user) => {
@@ -439,6 +486,7 @@ export default function AdminUserManagement() {
     const matchesRole = !filterRole || user.role === filterRole
     return matchesSearch && matchesRole
   })
+
 
   // Get role badge styling
   const getRoleBadge = (role) => {
@@ -452,6 +500,7 @@ export default function AdminUserManagement() {
     }
   }
 
+
   // Get role icon
   const getRoleIcon = (role) => {
     switch (role) {
@@ -464,6 +513,7 @@ export default function AdminUserManagement() {
     }
   }
 
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
@@ -474,6 +524,7 @@ export default function AdminUserManagement() {
       </div>
     )
   }
+
 
   // Show error state
   if (error && !loading) {
@@ -496,6 +547,7 @@ export default function AdminUserManagement() {
     )
   }
 
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 p-4">
       <div className="max-w-7xl mx-auto">
@@ -512,6 +564,7 @@ export default function AdminUserManagement() {
               </p>
             </div>
 
+
             {/* Branch Management Button */}
             <button
               onClick={() => setShowBranchModal(true)}
@@ -522,6 +575,7 @@ export default function AdminUserManagement() {
             </button>
           </div>
         </div>
+
 
         {/* Filters */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
@@ -541,6 +595,7 @@ export default function AdminUserManagement() {
               />
             </div>
 
+
             {/* Role Filter */}
             <select
               value={filterRole}
@@ -552,6 +607,7 @@ export default function AdminUserManagement() {
               <option value="moderator">Moderator</option>
               <option value="user">User</option>
             </select>
+
 
             {/* Stats */}
             <div className="flex items-center justify-end gap-4 text-sm text-gray-600">
@@ -566,6 +622,7 @@ export default function AdminUserManagement() {
             </div>
           </div>
         </div>
+
 
         {/* Users Table */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
@@ -584,6 +641,9 @@ export default function AdminUserManagement() {
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">
                     Branch
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">
+                    Stock Editor {/* 🔧 NEW: Stock Editor column */}
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">
                     Actions
@@ -627,6 +687,7 @@ export default function AdminUserManagement() {
                         </div>
                       </td>
 
+
                       {/* Contact */}
                       <td className="px-6 py-4">
                         <p className="text-sm text-gray-900">
@@ -636,6 +697,7 @@ export default function AdminUserManagement() {
                           Joined {new Date(user.createdAt).toLocaleDateString()}
                         </p>
                       </td>
+
 
                       {/* Role */}
                       <td className="px-6 py-4">
@@ -660,6 +722,7 @@ export default function AdminUserManagement() {
                           </span>
                         )}
                       </td>
+
 
                       {/* Branch */}
                       <td className="px-6 py-4">
@@ -693,6 +756,36 @@ export default function AdminUserManagement() {
                           </div>
                         )}
                       </td>
+
+
+                      {/* 🔧 NEW: Stock Editor Column */}
+                      <td className="px-6 py-4">
+                        {editingUser === user._id ? (
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={tempIsStockEditor}
+                              onChange={(e) => setTempIsStockEditor(e.target.checked)}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">Stock Editor</span>
+                          </label>
+                        ) : (
+                          <div>
+                            {user.isStockEditor ? (
+                              <span className="inline-flex items-center gap-1 px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
+                                <Package size={14} />
+                                Stock Editor
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 text-sm">
+                                No
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+
 
                       {/* Actions */}
                       <td className="px-6 py-4">
@@ -731,6 +824,7 @@ export default function AdminUserManagement() {
           </div>
         </div>
 
+
         {/* No Users */}
         {filteredUsers.length === 0 && !loading && (
           <div className="text-center py-12">
@@ -745,6 +839,7 @@ export default function AdminUserManagement() {
             </p>
           </div>
         )}
+
 
         {/* Branch Management Modal */}
         <BranchManagementModal

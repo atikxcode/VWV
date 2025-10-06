@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { v2 as cloudinary } from 'cloudinary'
 import { verifyApiToken, requireRole, createAuthError, checkRateLimit } from '@/lib/auth'
 
+
 // Validate environment variables
 if (
   !process.env.CLOUDINARY_CLOUD_NAME ||
@@ -13,6 +14,7 @@ if (
   throw new Error('Missing required Cloudinary environment variables')
 }
 
+
 // Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -20,9 +22,11 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 })
 
+
 // GET: return all users OR check by email if provided
 export async function GET(req) {
   let user = null
+
 
   try {
     checkRateLimit(req)
@@ -32,27 +36,33 @@ export async function GET(req) {
     return createAuthError(authError.message, 401)
   }
 
+
   try {
     const { searchParams } = new URL(req.url)
     const email = searchParams.get('email')
     const getAllUsers = searchParams.get('getAllUsers')
 
+
     console.log('🔍 GET /api/user params:', { email, getAllUsers })
     console.log('🔍 Authenticated user:', { email: user.email, role: user.role })
+
 
     // Input validation
     if (email && (typeof email !== 'string' || !email.includes('@'))) {
       return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
     }
 
+
     const client = await clientPromise
     const db = client.db('VWV')
+
 
     if (email) {
       // Users can only check their own email unless admin
       if (user.email !== email && user.role !== 'admin') {
         return createAuthError('Access denied: Cannot check other users', 403)
       }
+
 
       const foundUser = await db.collection('user').findOne({ email })
       
@@ -75,8 +85,10 @@ export async function GET(req) {
         }
       })
 
+
       return NextResponse.json({ exists: !!foundUser, user: foundUser })
     }
+
 
     // Get all users - ADMIN ONLY
     if (getAllUsers === 'true') {
@@ -87,7 +99,9 @@ export async function GET(req) {
         return createAuthError(roleError.message, 403)
       }
 
+
       console.log('🔍 Fetching all users from database...')
+
 
       // 🔧 SAFER APPROACH: Fetch all users and manually filter sensitive fields
       const allUsers = await db
@@ -96,7 +110,9 @@ export async function GET(req) {
         .sort({ createdAt: -1 })
         .toArray()
 
+
       console.log('🔍 Raw users found:', allUsers.length)
+
 
       // Filter out sensitive fields manually to ensure no sensitive data is returned
       const users = allUsers.map(user => {
@@ -108,8 +124,10 @@ export async function GET(req) {
         return safeUser
       })
 
+
       console.log('🔍 Filtered users:', users.length)
       console.log('🔍 Sample user structure:', users[0] ? Object.keys(users[0]) : 'No users')
+
 
       // Create audit log (non-blocking)
       setImmediate(async () => {
@@ -130,8 +148,10 @@ export async function GET(req) {
         }
       })
 
+
       return NextResponse.json({ users })
     }
+
 
     // Legacy: return all users (admin only)
     try {
@@ -141,12 +161,14 @@ export async function GET(req) {
       return createAuthError(roleError.message, 403)
     }
 
+
     // Fetch all users and filter sensitive fields
     const allUsers = await db.collection('user').find({}).toArray()
     const users = allUsers.map(user => {
       const { password, profilePicturePublicId, ...safeUser } = user
       return safeUser
     })
+
 
     return NextResponse.json(users)
     
@@ -160,6 +182,7 @@ export async function GET(req) {
   }
 }
 
+
 // POST: insert user OR update user profile/role/branch based on action parameter
 export async function POST(req) {
   try {
@@ -168,15 +191,19 @@ export async function POST(req) {
     const body = await req.json()
     const { action } = body
 
+
     console.log('🔍 POST /api/user action:', action)
+
 
     // Input validation
     if (!body.email || typeof body.email !== 'string' || !body.email.includes('@')) {
       return NextResponse.json({ error: 'Valid email is required' }, { status: 400 })
     }
 
+
     const client = await clientPromise
     const db = client.db('VWV')
+
 
     // Handle profile/role/branch update
     if (action === 'update') {
@@ -187,18 +214,22 @@ export async function POST(req) {
         return createAuthError(authError.message, 401)
       }
 
-      const { email, name, phone, role, branch } = body
+
+      const { email, name, phone, role, branch, isStockEditor } = body
+
 
       // Users can only update their own profile unless admin
       if (user.email !== email && user.role !== 'admin') {
         return createAuthError('Access denied: Cannot update other users', 403)
       }
 
+
       // Build update data
       const updateData = {
         updatedAt: new Date(),
         lastUpdatedBy: user.userId
       }
+
 
       // Validate and set name
       if (name !== undefined) {
@@ -208,32 +239,39 @@ export async function POST(req) {
         updateData.name = name.trim()
       }
 
+
       // Validate and set phone
       if (phone !== undefined) {
         if (typeof phone !== 'string') {
           return NextResponse.json({ error: 'Valid phone is required' }, { status: 400 })
         }
 
+
         if (phone.trim()) {
           let cleanPhone = phone.replace(/\D/g, '')
+
 
           if (cleanPhone.startsWith('880')) {
             cleanPhone = cleanPhone.substring(3)
           }
 
+
           if (!/^(\d{11}|\d{10})$/.test(cleanPhone)) {
             return NextResponse.json({ error: 'Invalid phone number format' }, { status: 400 })
           }
 
+
           if (cleanPhone.length === 10 && !cleanPhone.startsWith('0')) {
             cleanPhone = '0' + cleanPhone
           }
+
 
           updateData.phone = cleanPhone
         } else {
           updateData.phone = ''
         }
       }
+
 
       // Role updates - admin only
       if (role !== undefined) {
@@ -250,6 +288,7 @@ export async function POST(req) {
         }
       }
 
+
       // Branch updates - admin only (🔧 CHANGED: Only admin can update branches)
       if (branch !== undefined) {
         try {
@@ -261,24 +300,45 @@ export async function POST(req) {
         updateData.branch = branch ? branch.trim().toLowerCase() : null
       }
 
+
+      // Stock Editor updates - admin only (🔧 NEW FEATURE)
+      if (isStockEditor !== undefined) {
+        try {
+          requireRole(user, ['admin'])
+        } catch (roleError) {
+          return createAuthError('Only admins can assign Stock Editor permission', 403)
+        }
+        
+        if (typeof isStockEditor === 'boolean') {
+          updateData.isStockEditor = isStockEditor
+        } else {
+          return NextResponse.json({ error: 'isStockEditor must be a boolean value' }, { status: 400 })
+        }
+      }
+
+
       // Check if user exists
       const existingUser = await db.collection('user').findOne({ email })
       if (!existingUser) {
         return NextResponse.json({ error: 'User not found' }, { status: 404 })
       }
 
+
       // Update user information
       const updateResult = await db
         .collection('user')
         .updateOne({ email: email }, { $set: updateData })
 
+
       if (updateResult.matchedCount === 0) {
         return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 })
       }
 
+
       // Get updated user (filter sensitive fields safely)
       const updatedUserRaw = await db.collection('user').findOne({ email })
       const { password, profilePicturePublicId, ...updatedUser } = updatedUserRaw
+
 
       // Create audit log (non-blocking)
       setImmediate(async () => {
@@ -299,16 +359,19 @@ export async function POST(req) {
         }
       })
 
+
       return NextResponse.json({
         message: 'Profile updated successfully',
         user: updatedUser,
       }, { status: 200 })
     }
 
+
     // Handle user creation - ALLOW SELF-REGISTRATION OR ADMIN CREATION
     let user = null
     let isAdminCreation = false
     let requiresAuth = false
+
 
     try {
       user = await verifyApiToken(req)
@@ -319,6 +382,7 @@ export async function POST(req) {
       requiresAuth = false
     }
 
+
     // Only require admin role if creating for someone else
     if (isAdminCreation && requiresAuth) {
       try {
@@ -328,19 +392,23 @@ export async function POST(req) {
       }
     }
 
+
     const existingUser = await db
       .collection('user')
       .findOne({ email: body.email.toLowerCase() })
+
 
     if (existingUser) {
       const { password, profilePicturePublicId, ...safeUser } = existingUser
       return NextResponse.json({ message: 'User already exists', user: safeUser }, { status: 200 })
     }
 
+
     // Validate required fields for new user
     if (!body.name || typeof body.name !== 'string' || body.name.trim().length < 1) {
       return NextResponse.json({ error: 'Valid name is required' }, { status: 400 })
     }
+
 
     // Create new user - branch is null by default, admin assigns it later
     const newUser = {
@@ -351,6 +419,7 @@ export async function POST(req) {
           ? body.role
           : 'user', // Default role for self-registration
       branch: null, // Users start with no branch, admin assigns later
+      isStockEditor: false, // 🔧 NEW FEATURE: Default to false, admin assigns later
       profilePicture: body.profilePicture || '',
       firebaseUid: body.firebaseUid || '', // Can be empty, that's fine
       createdAt: new Date(),
@@ -358,11 +427,13 @@ export async function POST(req) {
       createdBy: user ? user.userId : 'self-registration'
     }
 
+
     const result = await db.collection('user').insertOne(newUser)
     const createdUserRaw = await db.collection('user').findOne({ _id: result.insertedId })
     
     // Filter sensitive fields
     const { password, profilePicturePublicId, ...createdUser } = createdUserRaw
+
 
     // Create audit log (non-blocking)
     setImmediate(async () => {
@@ -378,16 +449,19 @@ export async function POST(req) {
                     'unknown'
         }
 
+
         if (user) {
           logData.userId = user.userId
           logData.userEmail = user.email
         }
+
 
         await db.collection('audit_logs').insertOne(logData)
       } catch (auditError) {
         console.error('Audit log error:', auditError)
       }
     })
+
 
     return NextResponse.json({ message: 'User created', user: createdUser }, { status: 201 })
     
@@ -401,9 +475,11 @@ export async function POST(req) {
   }
 }
 
+
 // PUT: update user profile picture with Cloudinary upload
 export async function PUT(req) {
   let user = null
+
 
   try {
     checkRateLimit(req)
@@ -413,29 +489,35 @@ export async function PUT(req) {
     return createAuthError(authError.message, 401)
   }
 
+
   try {
     const formData = await req.formData()
     const email = formData.get('email')
     const file = formData.get('file')
+
 
     // Input validation
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       return NextResponse.json({ error: 'Valid email is required' }, { status: 400 })
     }
 
+
     if (!file) {
       return NextResponse.json({ error: 'File is required' }, { status: 400 })
     }
+
 
     // Users can only update their own profile picture unless admin
     if (user.email !== email && user.role !== 'admin') {
       return createAuthError('Access denied: Cannot update other users\' profile pictures', 403)
     }
 
+
     // Validate file type
     if (!file.type.startsWith('image/')) {
       return NextResponse.json({ error: 'Only image files are allowed' }, { status: 400 })
     }
+
 
     // Validate file size (5MB limit)
     const maxSize = 5 * 1024 * 1024 // 5MB
@@ -443,9 +525,11 @@ export async function PUT(req) {
       return NextResponse.json({ error: 'File size must be less than 5MB' }, { status: 400 })
     }
 
+
     // Convert file to buffer for Cloudinary upload
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
+
 
     // Upload to Cloudinary
     const uploadResponse = await new Promise((resolve, reject) => {
@@ -475,9 +559,11 @@ export async function PUT(req) {
         .end(buffer)
     })
 
+
     // Connect to database
     const client = await clientPromise
     const db = client.db('VWV')
+
 
     // Check if user exists
     const existingUser = await db.collection('user').findOne({ email })
@@ -491,6 +577,7 @@ export async function PUT(req) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+
     // Delete old profile picture from Cloudinary if exists
     if (existingUser.profilePicturePublicId) {
       try {
@@ -499,6 +586,7 @@ export async function PUT(req) {
         console.error('Error deleting old image:', deleteError)
       }
     }
+
 
     // Update user in database with new profile picture URL
     const updateResult = await db.collection('user').updateOne(
@@ -513,9 +601,11 @@ export async function PUT(req) {
       }
     )
 
+
     if (updateResult.matchedCount === 0) {
       return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })
     }
+
 
     // Create audit log (non-blocking)
     setImmediate(async () => {
@@ -536,6 +626,7 @@ export async function PUT(req) {
       }
     })
 
+
     return NextResponse.json({
       message: 'Profile picture updated successfully',
       imageUrl: uploadResponse.secure_url,
@@ -552,9 +643,11 @@ export async function PUT(req) {
   }
 }
 
+
 // DELETE: remove user profile picture from Cloudinary and database
 export async function DELETE(req) {
   let user = null
+
 
   try {
     checkRateLimit(req)
@@ -564,22 +657,27 @@ export async function DELETE(req) {
     return createAuthError(authError.message, 401)
   }
 
+
   try {
     const { searchParams } = new URL(req.url)
     const email = searchParams.get('email')
+
 
     // Input validation
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       return NextResponse.json({ error: 'Valid email is required' }, { status: 400 })
     }
 
+
     // Users can only delete their own profile picture unless admin
     if (user.email !== email && user.role !== 'admin') {
       return createAuthError('Access denied: Cannot delete other users\' profile pictures', 403)
     }
 
+
     const client = await clientPromise
     const db = client.db('VWV')
+
 
     // Get current user to find public_id
     const foundUser = await db.collection('user').findOne({ email })
@@ -587,9 +685,11 @@ export async function DELETE(req) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+
     if (!foundUser.profilePicturePublicId) {
       return NextResponse.json({ message: 'No profile picture to delete' }, { status: 200 })
     }
+
 
     // Delete from Cloudinary
     try {
@@ -597,6 +697,7 @@ export async function DELETE(req) {
     } catch (deleteError) {
       console.error('Error deleting from Cloudinary:', deleteError)
     }
+
 
     // Remove profile picture fields from database
     const updateResult = await db.collection('user').updateOne(
@@ -613,9 +714,11 @@ export async function DELETE(req) {
       }
     )
 
+
     if (updateResult.matchedCount === 0) {
       return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })
     }
+
 
     // Create audit log (non-blocking)
     setImmediate(async () => {
@@ -635,6 +738,7 @@ export async function DELETE(req) {
         console.error('Audit log error:', auditError)
       }
     })
+
 
     return NextResponse.json({ message: 'Profile picture deleted successfully' }, { status: 200 })
     

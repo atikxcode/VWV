@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import admin from 'firebase-admin'
 import clientPromise from './mongodb'
 
+
 // Initialize Firebase Admin SDK (only initialize once)
 if (!admin.apps.length) {
   try {
@@ -12,6 +13,7 @@ if (!admin.apps.length) {
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
     }
 
+
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       projectId: process.env.FIREBASE_PROJECT_ID,
@@ -20,6 +22,7 @@ if (!admin.apps.length) {
     console.error('Firebase Admin initialization error:', error)
   }
 }
+
 
 // Get user data from database by email
 async function getUserFromDatabase(email) {
@@ -34,11 +37,13 @@ async function getUserFromDatabase(email) {
   }
 }
 
+
 // Verify JWT token from request (now supports both Firebase and custom JWT with database role lookup)
 export async function verifyApiToken(req) {
   // Get token from Authorization header or cookies
   const authHeader = req.headers.get('authorization')
   let token = null
+
 
   if (authHeader?.startsWith('Bearer ')) {
     token = authHeader.slice(7)
@@ -46,9 +51,11 @@ export async function verifyApiToken(req) {
     token = req.cookies.get('auth-token').value
   }
 
+
   if (!token) {
     throw new Error('Authentication required - no token provided')
   }
+
 
   try {
     // First, try to verify as Firebase ID token
@@ -61,6 +68,7 @@ export async function verifyApiToken(req) {
       throw new Error('User not found in database')
     }
 
+
     // Return combined Firebase + Database user info
     return {
       userId: decodedToken.uid,
@@ -68,6 +76,7 @@ export async function verifyApiToken(req) {
       name: dbUser.name || decodedToken.name || decodedToken.email,
       role: dbUser.role || 'user', // Role from your database
       branch: dbUser.branch || 'main', // Branch from your database
+      isStockEditor: dbUser.isStockEditor || false, // 🔧 NEW: Stock Editor permission from database
       phone: dbUser.phone || '',
       profilePicture: dbUser.profilePicture || decodedToken.picture || '',
       dbUserId: dbUser._id.toString(), // Database user ID
@@ -88,6 +97,7 @@ export async function verifyApiToken(req) {
             ...decoded,
             role: dbUser.role || decoded.role || 'user',
             branch: dbUser.branch || decoded.branch || 'main',
+            isStockEditor: dbUser.isStockEditor || false, // 🔧 NEW: Stock Editor permission from database
             name: dbUser.name || decoded.name,
             phone: dbUser.phone || decoded.phone || '',
             profilePicture: dbUser.profilePicture || '',
@@ -117,6 +127,7 @@ export async function verifyApiToken(req) {
   }
 }
 
+
 // Check if user has required role
 export function requireRole(user, allowedRoles = ['admin']) {
   if (!user?.role || !allowedRoles.includes(user.role)) {
@@ -124,6 +135,7 @@ export function requireRole(user, allowedRoles = ['admin']) {
   }
   return true
 }
+
 
 // Create standardized auth error response - FIXED FUNCTION NAME
 export function createAuthError(message, status = 401) {
@@ -139,10 +151,12 @@ export function createAuthError(message, status = 401) {
   )
 }
 
+
 // Simple rate limiting (in-memory - upgrade to Redis for production)
 const requestCounts = new Map()
 const RATE_LIMIT = 100 // requests per window
 const WINDOW_MS = 15 * 60 * 1000 // 15 minutes
+
 
 export function checkRateLimit(req) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 
@@ -175,6 +189,7 @@ export function checkRateLimit(req) {
   }
 }
 
+
 // Helper function to update user role in database
 export async function updateUserRole(email, role, branch = null) {
   try {
@@ -202,6 +217,7 @@ export async function updateUserRole(email, role, branch = null) {
   }
 }
 
+
 // Helper function to ensure user exists in database (for first-time Firebase users)
 export async function ensureUserInDatabase(firebaseUser) {
   try {
@@ -220,6 +236,7 @@ export async function ensureUserInDatabase(firebaseUser) {
         phone: firebaseUser.phoneNumber || '',
         role: 'user', // Default role
         branch: 'main', // Default branch
+        isStockEditor: false, // 🔧 NEW: Default Stock Editor permission
         profilePicture: firebaseUser.photoURL || '',
         createdAt: new Date(),
         updatedAt: new Date(),

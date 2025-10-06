@@ -302,13 +302,13 @@ async function getUserInfo(req) {
   try {
     const authHeader = req.headers.get('authorization')
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return { role: 'public', branch: null, userId: null, isAuthenticated: false }
+      return { role: 'public', branch: null, userId: null, isStockEditor: false, isAuthenticated: false }
     }
     
     // Check for temp token (development mode)
     if (authHeader === 'Bearer temp-admin-token-for-development') {
       console.log('🔧 Using temporary admin token for development')
-      return { role: 'admin', branch: null, userId: 'temp-admin', isAuthenticated: true }
+      return { role: 'admin', branch: null, userId: 'temp-admin', isStockEditor: true, isAuthenticated: true }
     }
     
     const user = await verifyApiToken(req)
@@ -316,13 +316,15 @@ async function getUserInfo(req) {
       role: user.role || 'user', 
       branch: user.branch || null, 
       userId: user.userId || user.id,
+      isStockEditor: user.isStockEditor || false, // 🔧 NEW: Include isStockEditor
       isAuthenticated: true 
     }
   } catch (authError) {
     console.log('🔧 Authentication failed, treating as public user:', authError.message)
-    return { role: 'public', branch: null, userId: null, isAuthenticated: false }
+    return { role: 'public', branch: null, userId: null, isStockEditor: false, isAuthenticated: false }
   }
 }
+
 
 // 🔧 COMPLETELY FIXED GET method - ALLOWS PUBLIC ACCESS WITH PROPER DATA FILTERING
 export async function GET(req) {
@@ -1210,6 +1212,28 @@ export async function POST(req) {
 
       // Validate stock object
       if (stock && typeof stock === 'object') {
+        // 🔧 NEW: Stock Editor restriction for moderators
+        if (userInfo.role === 'moderator') {
+          // Check if moderator is a Stock Editor
+          if (!userInfo.isStockEditor) {
+            return NextResponse.json(
+              { error: 'Only Stock Editors can add or modify stock. Contact admin to get Stock Editor permission.' },
+              { status: 403 }
+            )
+          }
+          
+          // Stock Editors can only modify their own branch stock
+          const allowedStockKey = `${userInfo.branch}_stock`
+          for (const branchKey of Object.keys(stock)) {
+            if (branchKey !== allowedStockKey) {
+              return NextResponse.json(
+                { error: `You can only modify stock for your branch (${userInfo.branch}). Cannot modify ${branchKey}.` },
+                { status: 403 }
+              )
+            }
+          }
+        }
+        
         for (const [branchKey, stockValue] of Object.entries(stock)) {
           if (!branchKey.endsWith('_stock') || !/^[a-zA-Z0-9_]{1,20}_stock$/.test(branchKey)) {
             return NextResponse.json(
@@ -1227,6 +1251,7 @@ export async function POST(req) {
           }
         }
       }
+
 
       const { ObjectId } = require('mongodb')
 
@@ -1478,10 +1503,36 @@ export async function POST(req) {
       }
     }
 
-    // Initialize stock object with branches
-    let initialStock = {}
-
-    if (stock && typeof stock === 'object') {
+      // Initialize stock object with branches
+      let initialStock = {}
+      if (stock && typeof stock === 'object' && Object.keys(stock).length > 0) { // 🔧 FIXED: Check if stock object has keys
+        // 🔧 NEW: Stock Editor restriction for moderators - ONLY if they're trying to add stock
+        if (userInfo.role === 'moderator') {
+          // Check if they're actually trying to set stock values (not all zeros)
+          const hasNonZeroStock = Object.values(stock).some(val => parseInt(val) > 0)
+          
+          if (hasNonZeroStock) {
+            // Check if moderator is a Stock Editor
+            if (!userInfo.isStockEditor) {
+              return NextResponse.json(
+                { error: 'Only Stock Editors can add or modify stock. Contact admin to get Stock Editor permission.' },
+                { status: 403 }
+              )
+            }
+            
+            // Stock Editors can only modify their own branch stock
+            const allowedStockKey = `${userInfo.branch}_stock`
+            for (const branchKey of Object.keys(stock)) {
+              if (branchKey !== allowedStockKey) {
+                return NextResponse.json(
+                  { error: `You can only add stock for your branch (${userInfo.branch}). Cannot modify ${branchKey}.` },
+                  { status: 403 }
+                )
+              }
+            }
+          }
+        }
+      
       // Validate stock keys
       for (const [branchKey, stockValue] of Object.entries(stock)) {
         if (!branchKey.endsWith('_stock') || !/^[a-zA-Z0-9_]{1,20}_stock$/.test(branchKey)) {
@@ -1500,7 +1551,8 @@ export async function POST(req) {
         }
         initialStock[branchKey] = stockNum
       }
-    } else {
+    }
+ else {
       // Initialize with default branches
       const branchList = Array.isArray(branches) ? branches : DEFAULT_BRANCHES
       branchList.forEach((branch) => {
