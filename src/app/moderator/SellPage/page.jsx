@@ -2618,5 +2618,3 @@ const PaymentMethodSelector = ({
     </div>
   )
 }
-
-

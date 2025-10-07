@@ -375,7 +375,7 @@ const CategoryManagementModal = ({
           })
         }
       } catch (error) {
-        console.error('Error deleting category:', error)
+        
         MySwal.fire({
           icon: 'error',
           title: 'Error',
@@ -438,7 +438,7 @@ const CategoryManagementModal = ({
           })
         }
       } catch (error) {
-        console.error('Error deleting subcategory:', error)
+        
         MySwal.fire({
           icon: 'error',
           title: 'Error',
@@ -587,7 +587,7 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
         position: 'top-end',
       })
     } catch (error) {
-      console.error('Error adding branch:', error)
+      
       setError('Failed to add branch')
     } finally {
       setLoading(false)
@@ -634,7 +634,7 @@ const BranchModal = ({ isOpen, onClose, branches, onBranchUpdate }) => {
           position: 'top-end',
         })
       } catch (error) {
-        console.error('Error deleting branch:', error)
+        
         MySwal.fire({
           icon: 'error',
           title: 'Error',
@@ -773,14 +773,6 @@ export default function AddProduct() {
     defaultValues: {},
   })
 
-// 🆕 ADD THIS: Debug effect to monitor errors
-useEffect(() => {
-  console.log('🐛 Form Errors:', JSON.stringify(errors, null, 2))
-  console.log('🐛 Form Values:', JSON.stringify(watch(), null, 2))
-  console.log('🐛 Is Form Valid:', isValid)
-  console.log('🐛 Product Name Value:', watch('name'))
-  console.log('🐛 Product Name Error:', errors.name?.message)
-}, [errors, isValid])
 
 
 
@@ -916,10 +908,10 @@ const createBranchDefaultValues = (branchList) => {
       })
       if (response.ok) {
         const data = await response.json()
-        console.log('🔄 Raw API response:', data)
+        
         
         setDynamicCategories({...data.categories})
-        console.log('🔄 Categories refreshed:', data.categories)
+       
       } else {
         console.error('❌ Failed to load categories, using defaults')
         setDynamicCategories({...VAPE_CATEGORIES})
@@ -947,7 +939,7 @@ useEffect(() => {
 
       if (response.ok) {
         const data = await response.json()
-        console.log('🔄 Branches loaded from API:', data)
+        
 
         if (data.branches && Array.isArray(data.branches)) {
           setBranches([...data.branches])
@@ -962,25 +954,22 @@ useEffect(() => {
           const branchDefaults = createBranchDefaultValues(data.branches)
           reset(branchDefaults)
 
-          console.log('✅ Branches set successfully:', data.branches)
-          console.log('✅ Form defaults set:', JSON.stringify(branchDefaults, null, 2))
-          console.log('✅ Name field in defaults:', branchDefaults.name)
-          console.log('✅ All default keys:', Object.keys(branchDefaults))
+          
 
         } else {
-          console.warn('Invalid branches data, using defaults')
+          
           setBranches(['bashundhara', 'mirpur'])
           const branchDefaults = createBranchDefaultValues(['bashundhara', 'mirpur'])
           reset(branchDefaults)
         }
       } else {
-        console.error('Failed to fetch branches, status:', response.status)
+        
         setBranches(['bashundhara', 'mirpur'])
         const branchDefaults = createBranchDefaultValues(['bashundhara', 'mirpur'])
         reset(branchDefaults)
       }
     } catch (error) {
-      console.error('Error loading branches:', error)
+      
       setBranches(['bashundhara', 'mirpur'])
       const branchDefaults = createBranchDefaultValues(['bashundhara', 'mirpur'])
       reset(branchDefaults)
@@ -1008,7 +997,7 @@ useEffect(() => {
 
 const handleBranchUpdate = async (updatedBranches) => {
   try {
-    console.log('Branch update started', updatedBranches)
+    
     setBranches([...updatedBranches])
 
     const newStock = {}
@@ -1028,7 +1017,7 @@ const handleBranchUpdate = async (updatedBranches) => {
     })
 
     forceUpdate((n) => n + 1)
-    console.log('Branch update completed')
+    
   } catch (error) {
     console.error('Error in branch update:', error)
     forceUpdate((n) => n + 1)
@@ -1043,7 +1032,7 @@ const handleBranchUpdate = async (updatedBranches) => {
   const handleBarcodeScan = async (data) => {
     try {
       if (data) {
-        console.log('Scanned barcode:', data)
+        
 
         const token = localStorage.getItem('auth-token')
         const response = await fetch(`/api/products?barcode=${data}`, {
@@ -1135,7 +1124,7 @@ const handleBranchUpdate = async (updatedBranches) => {
         setShowBarcodeScanner(false)
       }
     } catch (error) {
-      console.error('Barcode scanning error:', error)
+      
       setValue('barcode', data)
       setShowBarcodeScanner(false)
       MySwal.fire({
@@ -1151,7 +1140,7 @@ const handleBranchUpdate = async (updatedBranches) => {
   }
 
   const handleBarcodeScanError = (err) => {
-    console.error('Barcode scan error:', err)
+    
   }
 
   const handleImageUpload = (e) => {
@@ -1222,7 +1211,7 @@ const handleBranchUpdate = async (updatedBranches) => {
           })
         }
       } catch (error) {
-        console.error('Error adding category:', error)
+        
         MySwal.fire({
           icon: 'error',
           title: 'Error',
@@ -1282,7 +1271,7 @@ const handleBranchUpdate = async (updatedBranches) => {
           })
         }
       } catch (error) {
-        console.error('Error adding subcategory:', error)
+        
         MySwal.fire({
           icon: 'error',
           title: 'Error',
@@ -1299,21 +1288,14 @@ const handleBranchUpdate = async (updatedBranches) => {
 
 
 const onSubmit = async (data) => {
-  console.log('🔍 === FORM SUBMISSION START ===');
-  console.log('🔍 Form Data Received:', JSON.stringify(data, null, 2));
-  console.log('🔍 Product Name Value:', data.name);
-  console.log('🔍 Product Name Type:', typeof data.name);
-  console.log('🔍 Product Name Length:', data.name?.length);
-  console.log('🔍 All Form Errors:', JSON.stringify(errors, null, 2));
+
 
   // ✅ Manual validation trigger (ONLY ONE DECLARATION)
   const isFormValid = await trigger();
-  console.log('🔍 Manual Validation Result:', isFormValid);
-  console.log('🔍 Errors after trigger:', JSON.stringify(errors, null, 2));
+  
   
   if (!isFormValid) {
-    console.error('❌ Form validation failed!');
-    console.error('❌ Validation Errors:', errors);
+   
     
     // Show specific error messages
     const errorMessages = Object.entries(errors)
@@ -1329,11 +1311,11 @@ const onSubmit = async (data) => {
     return;
   }
 
-  console.log('✅ All validations passed, proceeding with submission');
+  
   
   setIsLoading(true);
   try {
-    console.log('📤 Submitting form data:', data);
+    
 
     // Process branch-specific multi-select values
     const branchSpecificData = {};
@@ -1345,7 +1327,7 @@ const onSubmit = async (data) => {
       };
     });
 
-    console.log('🔍 Branch Specific Data:', branchSpecificData);
+    
 
     // Process additional fields
     const additionalFieldsData = {};
@@ -1355,7 +1337,7 @@ const onSubmit = async (data) => {
       }
     });
 
-    console.log('🔍 Additional Fields Data:', additionalFieldsData);
+   
 
     // Process features and each set contains
     const featuresData = showFeatures ? productFeatures
@@ -1366,8 +1348,7 @@ const onSubmit = async (data) => {
       .filter(f => f.value.trim() !== '')
       .map((f, index) => `${index + 1}. ${f.value.trim()}`) : [];
 
-    console.log('🔍 Features Data:', featuresData);
-    console.log('🔍 Each Set Contains Data:', eachSetContainsData);
+    
 
     const processedData = {
       ...data,
@@ -1381,8 +1362,6 @@ const onSubmit = async (data) => {
       tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()) : [],
     };
 
-    console.log('🔍 Final Processed Data:', processedData);
-    console.log('🔍 Product Name in Processed Data:', processedData.name);
 
     // Final validation check before API call
     if (!processedData.name) {
@@ -1390,7 +1369,7 @@ const onSubmit = async (data) => {
     }
 
     const token = localStorage.getItem('auth-token');
-    console.log('🔍 Auth Token:', token ? 'Present' : 'Missing');
+    
     
     const response = await fetch('/api/products', {
       method: 'POST',
@@ -1401,13 +1380,12 @@ const onSubmit = async (data) => {
       body: JSON.stringify(processedData),
     });
 
-    console.log('📥 Response status:', response.status);
-    console.log('📥 Response headers:', response.headers.get('content-type'));
+    
 
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
       const textResponse = await response.text();
-      console.error('❌ Non-JSON response received:', textResponse);
+      
       throw new Error(
         `Server returned non-JSON response. Status: ${response.status}`
       );
@@ -1415,17 +1393,17 @@ const onSubmit = async (data) => {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('❌ API Error Response:', errorData);
+      
       throw new Error(errorData.error || 'Failed to create product');
     }
 
     const result = await response.json();
-    console.log('✅ Product created:', result);
+    
     const productId = result.product._id;
 
     // Upload images if any
     if (images.length > 0) {
-      console.log('📤 Uploading images...');
+      
       const formData = new FormData();
       formData.append('productId', productId);
       images.forEach((image) => {
@@ -1440,7 +1418,7 @@ const onSubmit = async (data) => {
         body: formData,
       });
 
-      console.log('📥 Image upload status:', imageResponse.status);
+      
 
       const imageContentType = imageResponse.headers.get('content-type');
       if (
@@ -1448,15 +1426,14 @@ const onSubmit = async (data) => {
         !imageContentType.includes('application/json')
       ) {
         const imageTextResponse = await imageResponse.text();
-        console.error('❌ Non-JSON image response:', imageTextResponse);
-        console.warn('⚠️ Image upload failed, but product was created');
+       
       } else if (!imageResponse.ok) {
         const imageErrorData = await imageResponse.json();
-        console.error('❌ Image upload error:', imageErrorData);
-        console.warn('⚠️ Image upload failed, but product was created');
+        
+       
       } else {
         const imageResult = await imageResponse.json();
-        console.log('✅ Images uploaded:', imageResult);
+        
       }
     }
 
@@ -1489,7 +1466,7 @@ const onSubmit = async (data) => {
       fileInputRef.current.value = '';
     }
 
-    console.log('✅ Form reset complete');
+    
 
     MySwal.fire({
       icon: 'success',
@@ -1499,10 +1476,7 @@ const onSubmit = async (data) => {
       confirmButtonText: 'Great!',
     });
   } catch (error) {
-    console.error('💥 Full error details:', error);
-    console.error('💥 Error stack:', error.stack);
-    console.error('💥 Error name:', error.name);
-    console.error('💥 Error message:', error.message);
+   
 
     MySwal.fire({
       icon: 'error',
@@ -1513,7 +1487,7 @@ const onSubmit = async (data) => {
     });
   } finally {
     setIsLoading(false);
-    console.log('🔍 === FORM SUBMISSION END ===');
+    
   }
 };
 
@@ -1639,12 +1613,12 @@ const onSubmit = async (data) => {
                         },
                         validate: {
                           notEmpty: (value) => {
-                            console.log('🔍 Validating name field - value:', value);
+                            
                             if (!value || value.trim() === '') {
-                              console.log('❌ Name validation failed - empty value');
+                              
                               return 'Product name cannot be empty';
                             }
-                            console.log('✅ Name validation passed');
+                            
                             return true;
                           }
                         }
@@ -1653,13 +1627,13 @@ const onSubmit = async (data) => {
                       className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                       onBlur={(e) => {
                         // Trigger validation on blur
-                        console.log('🔍 Name field blur - value:', e.target.value);
+                        
                         trigger('name');
                       }}
                       onChange={(e) => {
                         // Manual onChange handling with validation
                         const value = e.target.value;
-                        console.log('🔍 Name field change - value:', value);
+                        
                         setValue('name', value, { shouldValidate: true });
                       }}
                     />
@@ -1676,10 +1650,7 @@ const onSubmit = async (data) => {
                       )}
                     </AnimatePresence>
                     
-                    {/* 🆕 ADD: Debug info (remove this after fixing) */}
-                    <div className="mt-1 text-xs text-gray-500">
-                      Debug - Name value: "{watch('name')}" | Valid: {!errors.name ? 'Yes' : 'No'}
-                    </div>
+                  
                   </div>
 
 
