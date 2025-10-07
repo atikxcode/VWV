@@ -27,6 +27,8 @@ import {
   Search,
   Filter,
   Package,
+  ChevronLeft,
+  ChevronRight,
   ShoppingCart,
   Plus,
   Minus,
