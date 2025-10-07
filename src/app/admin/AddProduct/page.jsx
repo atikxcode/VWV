@@ -763,12 +763,26 @@ export default function AddProduct() {
     watch,
     control,
     setValue,
-    formState: { errors },
+    formState: { errors, isValid },
     reset,
+    trigger,
   } = useForm({
+    mode: 'onChange', // 🆕 ADD: Enable validation on change
+    reValidateMode: 'onChange', // 🆕 ADD: Revalidate on change
     // 🔧 UPDATED: Dynamic default values based on branches
     defaultValues: {},
   })
+
+// 🆕 ADD THIS: Debug effect to monitor errors
+useEffect(() => {
+  console.log('🐛 Form Errors:', JSON.stringify(errors, null, 2))
+  console.log('🐛 Form Values:', JSON.stringify(watch(), null, 2))
+  console.log('🐛 Is Form Valid:', isValid)
+  console.log('🐛 Product Name Value:', watch('name'))
+  console.log('🐛 Product Name Error:', errors.name?.message)
+}, [errors, isValid])
+
+
 
   const [subCategoryOptions, setSubCategoryOptions] = useState([])
   const [branches, setBranches] = useState(['bashundhara', 'mirpur'])
@@ -811,15 +825,43 @@ export default function AddProduct() {
   const category = watch('category')
 
   // 🔧 NEW: Function to create branch-specific default values
-  const createBranchDefaultValues = (branchList) => {
-    const defaultValues = {}
-    branchList.forEach((branch) => {
-      defaultValues[`nicotineStrength_${branch}`] = []
-      defaultValues[`vgPgRatio_${branch}`] = []
-      defaultValues[`colors_${branch}`] = []
-    })
-    return defaultValues
+const createBranchDefaultValues = (branchList) => {
+  const defaultValues = {
+    // ✅ ADD: Basic field defaults - THESE MUST BE INCLUDED!
+    name: '',
+    brand: '',
+    barcode: '',
+    category: '',
+    subcategory: '',
+    price: '',
+    comparePrice: '',
+    description: '',
+    tags: '',
+    flavor: '',
+    resistance: '',
+    wattageRange: '',
+    // ✅ ADD: Additional field defaults
+    bottleSizes: '',
+    bottleType: '',
+    unit: '',
+    puffs: '',
+    coil: '',
+    volume: '',
+    charging: '',
+    chargingTime: '',
   }
+  
+  // Add branch-specific fields dynamically
+  branchList.forEach((branch) => {
+    defaultValues[`nicotineStrength_${branch}`] = []
+    defaultValues[`vgPgRatio_${branch}`] = []
+    defaultValues[`colors_${branch}`] = []
+  })
+  
+  return defaultValues
+}
+
+
 
   // 🆕 NEW: Functions for managing features
   const addFeature = () => {
@@ -892,56 +934,61 @@ export default function AddProduct() {
     refreshCategories()
   }, [])
 
-  useEffect(() => {
-    const loadBranches = async () => {
-      try {
-        const token = localStorage.getItem('auth-token')
-        const response = await fetch('/api/branches', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Cache-Control': 'no-cache'
-          }
-        })
-        if (response.ok) {
-          const data = await response.json()
-          console.log('🔄 Branches loaded from API:', data)
-          
-          if (data.branches && Array.isArray(data.branches)) {
-            setBranches([...data.branches])
-            
-            const initialStock = {}
-            data.branches.forEach((branch) => {
-              initialStock[`${branch}_stock`] = 0
-            })
-            setStock(initialStock)
-            
-            // 🔧 NEW: Set branch-specific default values in form
-            const branchDefaults = createBranchDefaultValues(data.branches)
-            reset(branchDefaults)
-            
-            console.log('✅ Branches set successfully:', data.branches)
-          } else {
-            console.warn('⚠️ Invalid branches data, using defaults')
-            setBranches(['bashundhara', 'mirpur'])
-            const branchDefaults = createBranchDefaultValues(['bashundhara', 'mirpur'])
-            reset(branchDefaults)
-          }
+useEffect(() => {
+  const loadBranches = async () => {
+    try {
+      const token = localStorage.getItem('auth-token')
+      const response = await fetch('/api/branches', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache',
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('🔄 Branches loaded from API:', data)
+
+        if (data.branches && Array.isArray(data.branches)) {
+          setBranches([...data.branches])
+
+          const initialStock = {}
+          data.branches.forEach((branch) => {
+            initialStock[`${branch}stock`] = 0
+          })
+          setStock(initialStock)
+
+          // ✅ UPDATED: Set complete form defaults including basic fields
+          const branchDefaults = createBranchDefaultValues(data.branches)
+          reset(branchDefaults)
+
+          console.log('✅ Branches set successfully:', data.branches)
+          console.log('✅ Form defaults set:', JSON.stringify(branchDefaults, null, 2))
+          console.log('✅ Name field in defaults:', branchDefaults.name)
+          console.log('✅ All default keys:', Object.keys(branchDefaults))
+
         } else {
-          console.error('❌ Failed to fetch branches, status:', response.status)
+          console.warn('Invalid branches data, using defaults')
           setBranches(['bashundhara', 'mirpur'])
           const branchDefaults = createBranchDefaultValues(['bashundhara', 'mirpur'])
           reset(branchDefaults)
         }
-      } catch (error) {
-        console.error('❌ Error loading branches:', error)
+      } else {
+        console.error('Failed to fetch branches, status:', response.status)
         setBranches(['bashundhara', 'mirpur'])
         const branchDefaults = createBranchDefaultValues(['bashundhara', 'mirpur'])
         reset(branchDefaults)
       }
+    } catch (error) {
+      console.error('Error loading branches:', error)
+      setBranches(['bashundhara', 'mirpur'])
+      const branchDefaults = createBranchDefaultValues(['bashundhara', 'mirpur'])
+      reset(branchDefaults)
     }
+  }
+  loadBranches()
+}, [reset])
 
-    loadBranches()
-  }, [reset])
 
   useEffect(() => {
     const initialStock = {}
@@ -959,34 +1006,35 @@ export default function AddProduct() {
     }
   }, [category, dynamicCategories])
 
-  const handleBranchUpdate = async (updatedBranches) => {
-    try {
-      console.log('🔄 Branch update started:', updatedBranches)
-      
-      setBranches([...updatedBranches])
-      
-      const newStock = {}
-      updatedBranches.forEach((branch) => {
-        newStock[`${branch}_stock`] = stock[`${branch}_stock`] || 0
-      })
-      setStock(newStock)
-      
-      // 🔧 NEW: Update form default values for new branches
-      const branchDefaults = createBranchDefaultValues(updatedBranches)
-      const currentValues = watch()
-      reset({
-        ...currentValues,
-        ...branchDefaults
-      })
-      
-      forceUpdate(n => n + 1)
-      
-      console.log('✅ Branch update completed')
-    } catch (error) {
-      console.error('❌ Error in branch update:', error)
-      forceUpdate(n => n + 1)
-    }
+const handleBranchUpdate = async (updatedBranches) => {
+  try {
+    console.log('Branch update started', updatedBranches)
+    setBranches([...updatedBranches])
+
+    const newStock = {}
+    updatedBranches.forEach((branch) => {
+      newStock[`${branch}stock`] = stock[`${branch}stock`] || 0
+    })
+    setStock(newStock)
+
+    // ✅ UPDATED: Preserve current form values when updating branches
+    const currentValues = watch()
+    const branchDefaults = createBranchDefaultValues(updatedBranches)
+    
+    // Merge current values with new branch defaults
+    reset({
+      ...branchDefaults,
+      ...currentValues, // ✅ Preserve existing values
+    })
+
+    forceUpdate((n) => n + 1)
+    console.log('Branch update completed')
+  } catch (error) {
+    console.error('Error in branch update:', error)
+    forceUpdate((n) => n + 1)
   }
+}
+
 
   const handleCategoryUpdate = (updatedCategories) => {
     setDynamicCategories(updatedCategories)
@@ -1248,175 +1296,245 @@ export default function AddProduct() {
     }
   }
 
-  // 🔧 UPDATED: Form submission to handle branch-specific multi-select arrays + new fields
-  const onSubmit = async (data) => {
-    setIsLoading(true)
-    try {
-      console.log('Submitting form data:', data)
 
-      // 🔧 NEW: Process branch-specific multi-select values
-      const branchSpecificData = {}
-      branches.forEach((branch) => {
-        branchSpecificData[branch] = {
-          nicotineStrength: data[`nicotineStrength_${branch}`]?.map(item => item.value) || [],
-          vgPgRatio: data[`vgPgRatio_${branch}`]?.map(item => item.value) || [],
-          colors: data[`colors_${branch}`]?.map(item => item.value) || [],
-        }
-      })
 
-      // 🆕 NEW: Process additional fields
-      const additionalFieldsData = {}
-      ADDITIONAL_FIELDS_CONFIG.forEach(field => {
-        if (additionalFields[field.key] && data[field.key]) {
-          additionalFieldsData[field.key] = data[field.key]
-        }
-      })
+const onSubmit = async (data) => {
+  console.log('🔍 === FORM SUBMISSION START ===');
+  console.log('🔍 Form Data Received:', JSON.stringify(data, null, 2));
+  console.log('🔍 Product Name Value:', data.name);
+  console.log('🔍 Product Name Type:', typeof data.name);
+  console.log('🔍 Product Name Length:', data.name?.length);
+  console.log('🔍 All Form Errors:', JSON.stringify(errors, null, 2));
 
-      // 🆕 NEW: Process features and each set contains
-      const featuresData = showFeatures ? productFeatures
-        .filter(f => f.value.trim() !== '')
-        .map((f, index) => `${index + 1}. ${f.value.trim()}`) : []
+  // ✅ Manual validation trigger (ONLY ONE DECLARATION)
+  const isFormValid = await trigger();
+  console.log('🔍 Manual Validation Result:', isFormValid);
+  console.log('🔍 Errors after trigger:', JSON.stringify(errors, null, 2));
+  
+  if (!isFormValid) {
+    console.error('❌ Form validation failed!');
+    console.error('❌ Validation Errors:', errors);
+    
+    // Show specific error messages
+    const errorMessages = Object.entries(errors)
+      .map(([field, error]) => `${field}: ${error.message}`)
+      .join('\n');
+    
+    MySwal.fire({
+      icon: 'error',
+      title: 'Form Validation Failed',
+      html: `<pre style="text-align: left; font-size: 12px;">${errorMessages || 'Please fill in all required fields'}</pre>`,
+      confirmButtonColor: '#8B5CF6',
+    });
+    return;
+  }
 
-      const eachSetContainsData = showEachSetContains ? eachSetContains
-        .filter(f => f.value.trim() !== '')
-        .map((f, index) => `${index + 1}. ${f.value.trim()}`) : []
+  console.log('✅ All validations passed, proceeding with submission');
+  
+  setIsLoading(true);
+  try {
+    console.log('📤 Submitting form data:', data);
 
-      const processedData = {
-        ...data,
-        stock,
-        // Store branch-specific specifications
-        branchSpecifications: branchSpecificData,
-        // 🆕 NEW: Add new fields
-        ...additionalFieldsData,
-        features: featuresData,
-        eachSetContains: eachSetContainsData,
-        resistance: data.resistance || null,
-        wattageRange: data.wattageRange || null,
-        tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()) : [],
+    // Process branch-specific multi-select values
+    const branchSpecificData = {};
+    branches.forEach((branch) => {
+      branchSpecificData[branch] = {
+        nicotineStrength: data[`nicotineStrength_${branch}`]?.map(item => item.value) || [],
+        vgPgRatio: data[`vgPgRatio_${branch}`]?.map(item => item.value) || [],
+        colors: data[`colors_${branch}`]?.map(item => item.value) || [],
+      };
+    });
+
+    console.log('🔍 Branch Specific Data:', branchSpecificData);
+
+    // Process additional fields
+    const additionalFieldsData = {};
+    ADDITIONAL_FIELDS_CONFIG.forEach(field => {
+      if (additionalFields[field.key] && data[field.key]) {
+        additionalFieldsData[field.key] = data[field.key];
       }
+    });
 
-      console.log('Processed product data:', processedData)
+    console.log('🔍 Additional Fields Data:', additionalFieldsData);
 
-      const token = localStorage.getItem('auth-token')
-      const response = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
+    // Process features and each set contains
+    const featuresData = showFeatures ? productFeatures
+      .filter(f => f.value.trim() !== '')
+      .map((f, index) => `${index + 1}. ${f.value.trim()}`) : [];
+
+    const eachSetContainsData = showEachSetContains ? eachSetContains
+      .filter(f => f.value.trim() !== '')
+      .map((f, index) => `${index + 1}. ${f.value.trim()}`) : [];
+
+    console.log('🔍 Features Data:', featuresData);
+    console.log('🔍 Each Set Contains Data:', eachSetContainsData);
+
+    const processedData = {
+      ...data,
+      stock,
+      branchSpecifications: branchSpecificData,
+      ...additionalFieldsData,
+      features: featuresData,
+      eachSetContains: eachSetContainsData,
+      resistance: data.resistance || null,
+      wattageRange: data.wattageRange || null,
+      tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()) : [],
+    };
+
+    console.log('🔍 Final Processed Data:', processedData);
+    console.log('🔍 Product Name in Processed Data:', processedData.name);
+
+    // Final validation check before API call
+    if (!processedData.name) {
+      throw new Error('Product name is missing in processed data');
+    }
+
+    const token = localStorage.getItem('auth-token');
+    console.log('🔍 Auth Token:', token ? 'Present' : 'Missing');
+    
+    const response = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(processedData),
+    });
+
+    console.log('📥 Response status:', response.status);
+    console.log('📥 Response headers:', response.headers.get('content-type'));
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const textResponse = await response.text();
+      console.error('❌ Non-JSON response received:', textResponse);
+      throw new Error(
+        `Server returned non-JSON response. Status: ${response.status}`
+      );
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('❌ API Error Response:', errorData);
+      throw new Error(errorData.error || 'Failed to create product');
+    }
+
+    const result = await response.json();
+    console.log('✅ Product created:', result);
+    const productId = result.product._id;
+
+    // Upload images if any
+    if (images.length > 0) {
+      console.log('📤 Uploading images...');
+      const formData = new FormData();
+      formData.append('productId', productId);
+      images.forEach((image) => {
+        formData.append('images', image.file);
+      });
+
+      const imageResponse = await fetch('/api/products', {
+        method: 'PUT',
+        headers: {
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(processedData),
-      })
+        body: formData,
+      });
 
-      console.log('Response status:', response.status)
-      console.log('Response headers:', response.headers.get('content-type'))
+      console.log('📥 Image upload status:', imageResponse.status);
 
-      const contentType = response.headers.get('content-type')
-      if (!contentType || !contentType.includes('application/json')) {
-        const textResponse = await response.text()
-        console.error('Non-JSON response received:', textResponse)
-        throw new Error(
-          `Server returned non-JSON response. Status: ${response.status}`
-        )
+      const imageContentType = imageResponse.headers.get('content-type');
+      if (
+        !imageContentType ||
+        !imageContentType.includes('application/json')
+      ) {
+        const imageTextResponse = await imageResponse.text();
+        console.error('❌ Non-JSON image response:', imageTextResponse);
+        console.warn('⚠️ Image upload failed, but product was created');
+      } else if (!imageResponse.ok) {
+        const imageErrorData = await imageResponse.json();
+        console.error('❌ Image upload error:', imageErrorData);
+        console.warn('⚠️ Image upload failed, but product was created');
+      } else {
+        const imageResult = await imageResponse.json();
+        console.log('✅ Images uploaded:', imageResult);
       }
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create product')
-      }
-
-      const result = await response.json()
-      console.log('Product created:', result)
-      const productId = result.product._id
-
-      // Upload images if any
-      if (images.length > 0) {
-        console.log('Uploading images...')
-        const formData = new FormData()
-        formData.append('productId', productId)
-        images.forEach((image) => {
-          formData.append('images', image.file)
-        })
-
-        const imageResponse = await fetch('/api/products', {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData,
-        })
-
-        console.log('Image upload status:', imageResponse.status)
-
-        const imageContentType = imageResponse.headers.get('content-type')
-        if (
-          !imageContentType ||
-          !imageContentType.includes('application/json')
-        ) {
-          const imageTextResponse = await imageResponse.text()
-          console.error('Non-JSON image response:', imageTextResponse)
-          console.warn('Image upload failed, but product was created')
-        } else if (!imageResponse.ok) {
-          const imageErrorData = await imageResponse.json()
-          console.error('Image upload error:', imageErrorData)
-          console.warn('Image upload failed, but product was created')
-        } else {
-          const imageResult = await imageResponse.json()
-          console.log('Images uploaded:', imageResult)
-        }
-      }
-
-      // 🔧 UPDATED: Reset form with branch-specific defaults + new fields
-      const branchDefaults = createBranchDefaultValues(branches)
-      reset(branchDefaults)
-      setStock({})
-      setImages([])
-      setIsAddingCustomCategory(false)
-      setIsAddingCustomSubcategory(false)
-      setCustomCategoryInput('')
-      setCustomSubcategoryInput('')
-      
-      // 🆕 NEW: Reset new fields
-      setProductFeatures([{ id: 1, value: '' }])
-      setEachSetContains([{ id: 1, value: '' }])
-      setShowFeatures(false)
-      setShowEachSetContains(false)
-      setAdditionalFields({
-        bottleSizes: false,
-        bottleType: false,
-        unit: false,
-        puffs: false,
-        coil: false,
-        volume: false,
-        charging: false,
-        chargingTime: false,
-      })
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-
-      MySwal.fire({
-        icon: 'success',
-        title: 'Success!',
-        text: 'Product has been added successfully!',
-        confirmButtonColor: '#8B5CF6',
-        confirmButtonText: 'Great!',
-      })
-    } catch (error) {
-      console.error('Full error details:', error)
-      console.error('Error stack:', error.stack)
-
-      MySwal.fire({
-        icon: 'error',
-        title: 'Oops...',
-        text: 'Error adding product: ' + error.message,
-        confirmButtonColor: '#8B5CF6',
-        confirmButtonText: 'Try Again',
-      })
-    } finally {
-      setIsLoading(false)
     }
+
+    // Reset form with branch-specific defaults + new fields
+    const branchDefaults = createBranchDefaultValues(branches);
+    reset(branchDefaults);
+    setStock({});
+    setImages([]);
+    setIsAddingCustomCategory(false);
+    setIsAddingCustomSubcategory(false);
+    setCustomCategoryInput('');
+    setCustomSubcategoryInput('');
+    
+    setProductFeatures([{ id: 1, value: '' }]);
+    setEachSetContains([{ id: 1, value: '' }]);
+    setShowFeatures(false);
+    setShowEachSetContains(false);
+    setAdditionalFields({
+      bottleSizes: false,
+      bottleType: false,
+      unit: false,
+      puffs: false,
+      coil: false,
+      volume: false,
+      charging: false,
+      chargingTime: false,
+    });
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    console.log('✅ Form reset complete');
+
+    MySwal.fire({
+      icon: 'success',
+      title: 'Success!',
+      text: 'Product has been added successfully!',
+      confirmButtonColor: '#8B5CF6',
+      confirmButtonText: 'Great!',
+    });
+  } catch (error) {
+    console.error('💥 Full error details:', error);
+    console.error('💥 Error stack:', error.stack);
+    console.error('💥 Error name:', error.name);
+    console.error('💥 Error message:', error.message);
+
+    MySwal.fire({
+      icon: 'error',
+      title: 'Oops...',
+      text: 'Error adding product: ' + error.message,
+      confirmButtonColor: '#8B5CF6',
+      confirmButtonText: 'Try Again',
+    });
+  } finally {
+    setIsLoading(false);
+    console.log('🔍 === FORM SUBMISSION END ===');
   }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // Animation variants
   const containerVariants = {
@@ -1515,9 +1633,35 @@ export default function AddProduct() {
                       type="text"
                       {...register('name', {
                         required: 'Product name is required',
+                        minLength: {
+                          value: 1,
+                          message: 'Product name must be at least 1 character'
+                        },
+                        validate: {
+                          notEmpty: (value) => {
+                            console.log('🔍 Validating name field - value:', value);
+                            if (!value || value.trim() === '') {
+                              console.log('❌ Name validation failed - empty value');
+                              return 'Product name cannot be empty';
+                            }
+                            console.log('✅ Name validation passed');
+                            return true;
+                          }
+                        }
                       })}
                       placeholder="Enter product name"
                       className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                      onBlur={(e) => {
+                        // Trigger validation on blur
+                        console.log('🔍 Name field blur - value:', e.target.value);
+                        trigger('name');
+                      }}
+                      onChange={(e) => {
+                        // Manual onChange handling with validation
+                        const value = e.target.value;
+                        console.log('🔍 Name field change - value:', value);
+                        setValue('name', value, { shouldValidate: true });
+                      }}
                     />
                     <AnimatePresence>
                       {errors.name && (
@@ -1531,7 +1675,13 @@ export default function AddProduct() {
                         </motion.span>
                       )}
                     </AnimatePresence>
+                    
+                    {/* 🆕 ADD: Debug info (remove this after fixing) */}
+                    <div className="mt-1 text-xs text-gray-500">
+                      Debug - Name value: "{watch('name')}" | Valid: {!errors.name ? 'Yes' : 'No'}
+                    </div>
                   </div>
+
 
                   {/* Brand */}
                   <div>
