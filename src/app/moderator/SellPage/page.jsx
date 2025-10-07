@@ -1080,28 +1080,58 @@ export default function SellPageModerator() {
     })
   )
 
-  // 🔒 GET MODERATOR'S BRANCH FROM JWT TOKEN OR USER CONTEXT
-  useEffect(() => {
-    const getModeratorsAssignedBranch = () => {
-      // Try to get from user context first
-      if (user?.branch) {
-        setModeratorBranch(user.branch.toLowerCase())
-        return
+    // 🔒 GET MODERATOR'S BRANCH FROM JWT TOKEN OR USER CONTEXT
+    // 🔒 FIXED: GET MODERATOR'S BRANCH FROM DATABASE
+    useEffect(() => {
+      const fetchUserDetails = async () => {
+        if (!user?.email) {
+          console.log('⚠️ No user email found')
+          return
+        }
+
+        try {
+          console.log('🔍 Fetching user details for:', user.email)
+          
+          const response = await fetch(
+            `/api/user?email=${encodeURIComponent(user.email)}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+              }
+            }
+          )
+
+          if (response.status === 401) {
+            console.log('🔒 Token expired, redirecting to login')
+            localStorage.removeItem('auth-token')
+            window.location.href = '/RegistrationPage'
+            return
+          }
+
+          if (response.ok) {
+            const data = await response.json()
+            if (data.user) {
+              setModeratorBranch(data.user.branch.toLowerCase())
+              
+              console.log('✅ Moderator Details Loaded:', {
+                email: data.user.email,
+                role: data.user.role,
+                branch: data.user.branch,
+                isStockEditor: data.user.isStockEditor
+              })
+            }
+          } else {
+            console.error('❌ Failed to fetch user details:', response.status)
+          }
+        } catch (error) {
+          console.error('❌ Error fetching user details:', error)
+        }
       }
 
-      // Try to get from localStorage as fallback
-      const storedBranch = localStorage.getItem('userBranch')
-      if (storedBranch) {
-        setModeratorBranch(storedBranch.toLowerCase())
-        return
-      }
+      fetchUserDetails()
+    }, [user])
 
-      // Default fallback - you might want to redirect to login instead
-      setModeratorBranch('bashundhara')
-    }
 
-    getModeratorsAssignedBranch()
-  }, [user])
 
   // Load initial data (same as admin but with moderator's branch)
   useEffect(() => {
