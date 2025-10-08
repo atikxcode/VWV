@@ -999,6 +999,7 @@ export default function EditProduct({ productId, onBack }) {
             brand: productData.brand || '',
             barcode: productData.barcode || '',
             price: productData.price || '',
+            buyingPrice: productData.buyingPrice || '',
             comparePrice: productData.comparePrice || '',
             category: productData.category || '',
             subcategory: productData.subcategory || '',
@@ -2193,59 +2194,85 @@ useEffect(() => {
 
                 {/* Pricing */}
                 <div className="space-y-4">
-                  <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                    <DollarSign size={20} className="text-purple-600" />
-                    Pricing
-                  </h3>
+                <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                  <DollarSign size={20} className="text-purple-600" />
+                  Pricing
+                </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Price *
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="0.01"
-                          {...register('price', {
-                            required: 'Price is required',
-                            min: 0,
-                          })}
-                          placeholder="0.00"
-                          className="w-full p-4 pl-12 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        />
-                        <DollarSign
-                          className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                          size={20}
-                        />
-                      </div>
-                      {errors.price && (
-                        <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-                          <AlertCircle size={16} />
-                          {errors.price.message}
-                        </p>
-                      )}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Selling Price */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Selling Price *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.01"
+                        {...register('price', {
+                          required: 'Selling price is required',
+                          min: 0,
+                        })}
+                        placeholder="0.00"
+                        className="w-full p-4 pl-12 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                      <DollarSign
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                        size={20}
+                      />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Compare Price
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="0.01"
-                          {...register('comparePrice', { min: 0 })}
-                          placeholder="0.00"
-                          className="w-full p-4 pl-12 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        />
-                        <DollarSign
-                          className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                          size={20}
-                        />
-                      </div>
+                    {errors.price && (
+                      <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
+                        <AlertCircle size={16} />
+                        {errors.price.message}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Buying Price */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Buying Price
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.01"
+                        {...register('buyingPrice', { min: 0 })}
+                        placeholder="0.00"
+                        className="w-full p-4 pl-12 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                      <DollarSign
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                        size={20}
+                      />
                     </div>
+                    <p className="text-xs text-gray-500 mt-1">Cost price for tracking</p>
+                  </div>
+
+                  {/* Compare Price */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Compare Price
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.01"
+                        {...register('comparePrice', { min: 0 })}
+                        placeholder="0.00"
+                        className="w-full p-4 pl-12 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                      <DollarSign
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                        size={20}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Original price for discount</p>
                   </div>
                 </div>
+              </div>
+
 
                 {/* 🆕 NEW: Additional Product Fields Section */}
                 <div className="space-y-4">

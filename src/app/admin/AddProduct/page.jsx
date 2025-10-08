@@ -826,6 +826,7 @@ const createBranchDefaultValues = (branchList) => {
     category: '',
     subcategory: '',
     price: '',
+    buyingPrice: '',
     comparePrice: '',
     description: '',
     tags: '',
@@ -1867,17 +1868,18 @@ const onSubmit = async (data) => {
                     Pricing
                   </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Selling Price */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Price *
+                        Selling Price *
                       </label>
                       <div className="relative">
                         <input
                           type="number"
                           step="0.01"
                           {...register('price', {
-                            required: 'Price is required',
+                            required: 'Selling price is required',
                             min: 0,
                           })}
                           placeholder="0.00"
@@ -1901,6 +1903,29 @@ const onSubmit = async (data) => {
                         )}
                       </AnimatePresence>
                     </div>
+
+                    {/* 🆕 Buying Price */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Buying Price
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.01"
+                          {...register('buyingPrice', { min: 0 })}
+                          placeholder="0.00"
+                          className="w-full p-4 pl-12 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                        <DollarSign
+                          className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                          size={20}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Cost price for tracking</p>
+                    </div>
+
+                    {/* Compare Price */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Compare Price
@@ -1918,9 +1943,11 @@ const onSubmit = async (data) => {
                           size={20}
                         />
                       </div>
+                      <p className="text-xs text-gray-500 mt-1">Original price for discount</p>
                     </div>
                   </div>
                 </motion.div>
+
 
                 {/* 🆕 NEW: Additional Product Fields with Toggles */}
                 <motion.div variants={itemVariants} className="space-y-4">
