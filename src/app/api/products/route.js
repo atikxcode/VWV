@@ -18,6 +18,7 @@ const RATE_LIMITS = {
   PUBLIC: { requests: 200, windowMs: 60000 },
   ADMIN: { requests: 500, windowMs: 60000 },
   MODERATOR: { requests: 300, windowMs: 60000 },
+  POS: { requests: 300, windowMs: 60000 },
 }
 
 // IP-based upload tracking to prevent abuse
@@ -635,6 +636,22 @@ if (userInfo.role === 'moderator') {
     query[`stock.${userInfo.branch}_stock`] = { $gt: 0 }
   }
   
+} else if (userInfo.role === 'pos') {
+  // 🔧 NEW: POS role - same restrictions as moderator
+  // 🔒 RESTRICTION: POS can only see their own branch data - NO FILTERING ALLOWED
+  if (branch && branch !== userInfo.branch) {
+    return NextResponse.json(
+      { error: 'Access denied: Cannot view other branch data' },
+      { status: 403 }
+    )
+  }
+  
+  // 🔒 POS ALWAYS sees products from their assigned branch only
+  console.log('🏢 POS user restricted to their branch:', userInfo.branch);
+  if (inStock === 'true') {
+    query[`stock.${userInfo.branch}_stock`] = { $gt: 0 }
+  }
+  
 } else if (userInfo.role === 'public') {
   // Filter by branch stock availability for public
   if (branch) {
@@ -666,6 +683,7 @@ if (userInfo.role === 'moderator') {
     ]
   }
 }
+
 
 
 
@@ -736,6 +754,10 @@ if (userInfo.role === 'moderator') {
   }
 }
 
+
+
+
+
 // 🔥 FIXED: Helper function to filter product data based on user role - PRESERVES BRANCH STRUCTURE
 function filterProductByRole(product, userInfo) {
   const filteredProduct = { ...product }
@@ -776,17 +798,38 @@ function filterProductByRole(product, userInfo) {
     console.log('🔧 Public user - filtered stock with branch structure:', filteredProduct.stock)
     
   } else if (userInfo.role === 'moderator' && userInfo.branch) {
-    // Moderator only sees their branch stock
+    // 🔒 Moderator only sees their branch stock
     const branchStock = {}
     if (product.stock) {
       branchStock[`${userInfo.branch}_stock`] = product.stock[`${userInfo.branch}_stock`] || 0
     }
     filteredProduct.stock = branchStock
+    
+    console.log('🔧 Moderator - filtered to branch:', userInfo.branch, 'Stock:', branchStock)
+    
+  } else if (userInfo.role === 'pos' && userInfo.branch) {
+    // 🔧 NEW: POS only sees their branch stock (same restriction as moderator)
+    const branchStock = {}
+    if (product.stock) {
+      branchStock[`${userInfo.branch}_stock`] = product.stock[`${userInfo.branch}_stock`] || 0
+    }
+    filteredProduct.stock = branchStock
+    
+    console.log('🔧 POS user - filtered to branch:', userInfo.branch, 'Stock:', branchStock)
   }
-  // Admin sees everything (no filtering)
+  
+  // 🔥 Admin sees everything (no filtering applied)
+  if (userInfo.role === 'admin') {
+    console.log('🔧 Admin - no filtering applied, full access')
+  }
 
   return filteredProduct
 }
+
+
+
+
+
 
 // POST method implementation - Requires authentication for create/update operations
 export async function POST(req) {

@@ -281,7 +281,7 @@ export async function POST(req) {
           return createAuthError('Only admins can update user roles', 403)
         }
         
-        if (['admin', 'manager', 'moderator', 'cashier', 'viewer', 'user'].includes(role)) {
+        if (['admin', 'manager', 'moderator', 'cashier', 'viewer', 'user', 'pos'].includes(role)) {
           updateData.role = role
         } else {
           return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
@@ -415,7 +415,7 @@ export async function POST(req) {
       email: body.email.toLowerCase().trim(),
       name: body.name.trim(),
       phone: body.phone || '',
-      role: isAdminCreation && body.role && ['admin', 'manager', 'moderator', 'cashier', 'viewer', 'user'].includes(body.role)
+      role: isAdminCreation && body.role && ['admin', 'manager', 'moderator', 'cashier', 'viewer', 'user', 'pos'].includes(body.role)
           ? body.role
           : 'user', // Default role for self-registration
       branch: null, // Users start with no branch, admin assigns later

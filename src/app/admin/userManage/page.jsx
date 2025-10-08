@@ -489,29 +489,34 @@ export default function AdminUserManagement() {
 
 
   // Get role badge styling
-  const getRoleBadge = (role) => {
-    switch (role) {
-      case 'admin':
-        return 'bg-red-100 text-red-800 border-red-200'
-      case 'moderator':
-        return 'bg-blue-100 text-blue-800 border-blue-200'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
+const getRoleBadge = (role) => {
+  switch (role) {
+    case 'admin':
+      return 'bg-red-100 text-red-800 border-red-200'
+    case 'moderator':
+      return 'bg-blue-100 text-blue-800 border-blue-200'
+    case 'pos': 
+      return 'bg-purple-100 text-purple-800 border-purple-200'
+    default:
+      return 'bg-gray-100 text-gray-800 border-gray-200'
   }
+}
+
 
 
   // Get role icon
-  const getRoleIcon = (role) => {
-    switch (role) {
-      case 'admin':
-        return <Crown size={16} />
-      case 'moderator':
-        return <Shield size={16} />
-      default:
-        return <UserCheck size={16} />
+    const getRoleIcon = (role) => {
+      switch (role) {
+        case 'admin':
+          return <Crown size={16} />
+        case 'moderator':
+          return <Shield size={16} />
+        case 'pos': // 🔧 NEW: Add POS icon
+          return <Store size={16} />
+        default:
+          return <UserCheck size={16} />
+      }
     }
-  }
 
 
   if (loading) {
@@ -606,6 +611,7 @@ export default function AdminUserManagement() {
               <option value="admin">Admin</option>
               <option value="moderator">Moderator</option>
               <option value="user">User</option>
+              <option value="pos">POS</option>
             </select>
 
 
@@ -618,6 +624,9 @@ export default function AdminUserManagement() {
               <span>
                 Moderators:{' '}
                 {filteredUsers.filter((u) => u.role === 'moderator').length}
+              </span>
+              <span>
+                POS: {filteredUsers.filter((u) => u.role === 'pos').length} {/* 🔧 NEW: Show POS count */}
               </span>
             </div>
           </div>
@@ -710,6 +719,7 @@ export default function AdminUserManagement() {
                             <option value="user">User</option>
                             <option value="moderator">Moderator</option>
                             <option value="admin">Admin</option>
+                            <option value="pos">POS</option>
                           </select>
                         ) : (
                           <span

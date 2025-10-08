@@ -33,6 +33,7 @@ export default function AdminSidebar() {
     { href: '/admin/ManageProduct', icon: FaPen },
     { href: '/admin/ManageOrders', icon: FaClipboardList },
     { href: '/admin/ProfileUpdate', icon: FaUser },
+    { href: '/admin/Requisition', icon: FaFile },
     { href: '/admin/Offers', icon: FaGifts },
     { href: '/', icon: FaHome },
   ]
