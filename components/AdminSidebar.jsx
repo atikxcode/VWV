@@ -20,6 +20,7 @@ import {
   FaClipboardList,
   FaGifts
   
+  
 } from 'react-icons/fa'
 
 export default function AdminSidebar() {
@@ -35,6 +36,7 @@ export default function AdminSidebar() {
     { href: '/admin/ProfileUpdate', icon: FaUser },
     { href: '/admin/Requisition', icon: FaFile },
     { href: '/admin/Offers', icon: FaGifts },
+    { href: '/admin/HomeManagement', icon: FaCog },
     { href: '/', icon: FaHome },
   ]
 

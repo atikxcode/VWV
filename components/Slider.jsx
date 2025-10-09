@@ -16,50 +16,6 @@ const DEBOUNCE_DELAY = 150
 const AUTOPLAY_DELAY = 3800
 const ANIMATION_DURATION = 400
 
-// Slide data for better maintainability
-const SLIDES_DATA = [
-  {
-    id: 'slide-1',
-    image: '/Slider_Images/Slide_1.jpg',
-    alt: 'Sale up to 70% for Gentleman Vape',
-    title: 'Sale up to 70%',
-    subtitle: 'For Gentleman Vape',
-    description: 'Each café is also carefully designed to incorporate a welcoming and relaxed social setting to complete every customer visit.',
-    buttonText: 'Shop Now',
-    alignment: 'left'
-  },
-  {
-    id: 'slide-2',
-    image: '/Slider_Images/Slide_3.png',
-    alt: 'Starter Kits Marlboro Collection',
-    title: 'Starter Kits Marlboro',
-    subtitle: 'ANOTHER GREAT LOOK',
-    description: 'Each café is also carefully designed to incorporate a welcoming and relaxed social setting to complete every customer visit.',
-    buttonText: 'Explore',
-    alignment: 'center'
-  },
-  {
-    id: 'slide-3',
-    image: '/Slider_Images/Slide_2.jpg',
-    alt: 'New Arrival Offer 10% Style Marlboro',
-    title: 'New Arrival Offer 10%',
-    subtitle: 'STYLE MARLBORO',
-    description: 'Each café is also carefully designed to incorporate a welcoming and relaxed social setting to complete every customer visit.',
-    buttonText: 'Explore',
-    alignment: 'center'
-  },
-  {
-    id: 'slide-4',
-    image: '/Slider_Images/Slide_4.png',
-    alt: 'Premium Starter Kits Collection',
-    title: 'Starter Kits Marlboro',
-    subtitle: 'ANOTHER GREAT LOOK',
-    description: 'Each café is also carefully designed to incorporate a welcoming and relaxed social setting to complete every customer visit.',
-    buttonText: 'Explore',
-    alignment: 'center'
-  }
-]
-
 const handleAnimationComplete = () => {
   // Animation completion callback
 }
@@ -72,24 +28,30 @@ const OptimizedSlide = React.memo(({ slide, index, isActive, isMobile, router })
 
   // Preload critical images
   useEffect(() => {
-    if (index < 2) {
+    if (index < 2 && slide?.image) {
       const img = new Image()
       img.src = slide.image
       img.onload = () => setImageLoaded(true)
       img.onerror = () => setImageError(true)
     }
-  }, [slide.image, index])
+  }, [slide?.image, index])
 
   const alignmentClasses = useMemo(() => {
     const baseClasses = 'absolute inset-0 flex flex-col text-white'
-    return slide.alignment === 'left' 
+    return slide?.alignment === 'left' 
       ? `${baseClasses} items-start justify-center px-6 md:px-10`
+      : slide?.alignment === 'right'
+      ? `${baseClasses} items-end justify-center px-6 md:px-10`
       : `${baseClasses} items-center justify-center text-center px-4`
-  }, [slide.alignment])
+  }, [slide?.alignment])
 
   const handleButtonClick = useCallback(() => {
     router.push('/products')
   }, [router])
+
+  if (!slide) {
+    return null
+  }
 
   return (
     <div 
@@ -100,7 +62,7 @@ const OptimizedSlide = React.memo(({ slide, index, isActive, isMobile, router })
       {/* Optimized Image */}
       <img
         src={slide.image}
-        alt={slide.alt}
+        alt={slide.alt || slide.title}
         className={`w-full h-full object-cover transition-opacity duration-300 ${
           imageLoaded ? 'opacity-100' : 'opacity-0'
         }`}
@@ -127,50 +89,58 @@ const OptimizedSlide = React.memo(({ slide, index, isActive, isMobile, router })
       {/* Text Overlay - Only render when slide is active for performance */}
       {isActive && (
         <div className={alignmentClasses}>
-          <BlurText
-            text={slide.title}
-            delay={300}
-            stepDuration={0.3}
-            animateBy="words"
-            direction="top"
-            onAnimationComplete={handleAnimationComplete}
-            className="text-xs md:text-sm tracking-widest uppercase mb-2 md:mb-4"
-          />
-
-          <BlurText
-            text={slide.subtitle}
-            delay={400}
-            stepDuration={0.3}
-            animateBy="words"
-            direction="top"
-            onAnimationComplete={handleAnimationComplete}
-            className="text-xl md:text-3xl lg:text-5xl font-extrabold tracking-[0.2em] md:tracking-[0.3em] mb-2"
-          />
-
-          <BlurText
-            text={slide.description}
-            delay={500}
-            stepDuration={0.3}
-            animateBy="words"
-            direction="top"
-            onAnimationComplete={handleAnimationComplete}
-            className="w-auto md:max-w-xl mt-2 md:mt-4 text-sm md:text-base leading-relaxed"
-          />
-
-          <button 
-            onClick={handleButtonClick}
-            className="mt-4 md:mt-8 bg-purple-400 hover:bg-purple-500 text-white px-6 md:px-8 py-2 md:py-3 text-xs md:text-sm uppercase tracking-widest transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-300"
-            aria-label={`${slide.buttonText} - ${slide.title}`}
-          >
+          {slide.subtitle && (
             <BlurText
-              text={slide.buttonText}
-              delay={600}
+              text={slide.subtitle}
+              delay={300}
               stepDuration={0.3}
               animateBy="words"
               direction="top"
               onAnimationComplete={handleAnimationComplete}
+              className="text-xs md:text-sm tracking-widest uppercase mb-2 md:mb-4"
             />
-          </button>
+          )}
+
+          {slide.title && (
+            <BlurText
+              text={slide.title}
+              delay={400}
+              stepDuration={0.3}
+              animateBy="words"
+              direction="top"
+              onAnimationComplete={handleAnimationComplete}
+              className="text-xl md:text-3xl lg:text-5xl font-extrabold tracking-[0.2em] md:tracking-[0.3em] mb-2"
+            />
+          )}
+
+          {slide.description && (
+            <BlurText
+              text={slide.description}
+              delay={500}
+              stepDuration={0.3}
+              animateBy="words"
+              direction="top"
+              onAnimationComplete={handleAnimationComplete}
+              className="w-auto md:max-w-xl mt-2 md:mt-4 text-sm md:text-base leading-relaxed"
+            />
+          )}
+
+          {slide.buttonText && (
+            <button 
+              onClick={handleButtonClick}
+              className="mt-4 md:mt-8 bg-purple-400 hover:bg-purple-500 text-white px-6 md:px-8 py-2 md:py-3 text-xs md:text-sm uppercase tracking-widest transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-300"
+              aria-label={`${slide.buttonText} - ${slide.title}`}
+            >
+              <BlurText
+                text={slide.buttonText}
+                delay={600}
+                stepDuration={0.3}
+                animateBy="words"
+                direction="top"
+                onAnimationComplete={handleAnimationComplete}
+              />
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -184,8 +154,54 @@ const Slider = () => {
   const [isMobile, setIsMobile] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const [isClient, setIsClient] = useState(false)
+  const [slides, setSlides] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const swiperRef = useRef(null)
   const debounceTimeoutRef = useRef(null)
+
+  // Fetch slides from API
+  useEffect(() => {
+    const fetchSlides = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const response = await fetch('/api/slider', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          cache: 'no-store', // Ensure fresh data
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch slides')
+        }
+
+        const data = await response.json()
+
+        if (data.success && Array.isArray(data.slides)) {
+          // Filter only active slides and sort by order
+          const activeSlides = data.slides
+            .filter(slide => slide.isActive)
+            .sort((a, b) => (a.order || 0) - (b.order || 0))
+          
+          setSlides(activeSlides)
+        } else {
+          setSlides([])
+        }
+      } catch (err) {
+        console.error('Error fetching slides:', err)
+        setError(err.message)
+        setSlides([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchSlides()
+  }, [])
 
   // Optimized resize handler with debouncing
   const handleResize = useCallback(() => {
@@ -223,13 +239,13 @@ const Slider = () => {
   const swiperConfig = useMemo(() => ({
     direction: isMobile ? 'horizontal' : 'vertical',
     modules: [Autoplay],
-    autoplay: { 
+    autoplay: slides.length > 1 ? { 
       delay: AUTOPLAY_DELAY, 
       disableOnInteraction: false,
       pauseOnMouseEnter: true,
       reverseDirection: false
-    },
-    loop: true,
+    } : false,
+    loop: slides.length > 1,
     slidesPerView: 1,
     spaceBetween: 0,
     speed: 500,
@@ -237,21 +253,47 @@ const Slider = () => {
     touchRatio: 1,
     followFinger: true,
     simulateTouch: true,
-    grabCursor: true,
+    grabCursor: slides.length > 1,
     watchSlidesProgress: true,
     preventInteractionOnTransition: false,
     onSlideChange: handleSlideChange,
     onSwiper: (swiper) => {
       swiperRef.current = swiper
     }
-  }), [isMobile, handleSlideChange])
+  }), [isMobile, handleSlideChange, slides.length])
 
   // Loading state
-  if (!isClient) {
+  if (!isClient || loading) {
     return (
-       <div className="w-full h-[450px] md:h-[800px] bg-gradient-to-br from-purple-50 to-purple-100 flex items-center justify-center">
-    <Loading />
-  </div>
+      <div className="w-full h-[450px] md:h-[800px] bg-gradient-to-br from-purple-50 to-purple-100 flex items-center justify-center">
+        <Loading />
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="w-full h-[450px] md:h-[800px] bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center">
+        <div className="text-center text-red-600">
+          <div className="text-4xl mb-4">⚠️</div>
+          <p className="text-lg font-semibold">Failed to load slides</p>
+          <p className="text-sm mt-2">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  // No slides state
+  if (!slides || slides.length === 0) {
+    return (
+      <div className="w-full h-[450px] md:h-[800px] bg-gradient-to-br from-purple-50 to-purple-100 flex items-center justify-center">
+        <div className="text-center text-gray-600">
+          <div className="text-6xl mb-4">🎨</div>
+          <p className="text-lg font-semibold">No slides available</p>
+          <p className="text-sm mt-2">Check back later for updates</p>
+        </div>
+      </div>
     )
   }
 
@@ -262,9 +304,9 @@ const Slider = () => {
         className="h-[450px] md:h-[800px] lg:h-[800px] xl:h-[800px] w-full"
         style={{ willChange: 'transform' }}
       >
-        {SLIDES_DATA.map((slide, index) => (
+        {slides.map((slide, index) => (
           <SwiperSlide 
-            key={slide.id}
+            key={slide.id || slide._id || index}
             className="h-full w-full relative"
             style={{ willChange: 'transform' }}
           >

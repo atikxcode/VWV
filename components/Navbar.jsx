@@ -309,7 +309,7 @@ const Navbar = () => {
           </div>
 
           <div className=" items-center text-white  md:w-[1000px]">
-            <p className="text-center uppercase text-sm md:text-[14px] tracking-[4px] text-[#83766E] md:leading-[30px]">
+            <p className="text-center uppercase text-sm md:text-[14px] tracking-[4px] text-[#746c67] md:leading-[30px]">
               {' '}
               <span className="text-purple-400 font-bold md:font-semibold md:text-[30px] tracking-[8px] uppercase">
                 WARNING

@@ -22,7 +22,7 @@ const RotationCategory = () => {
             {/* Fixed-size wrapper with overflow-hidden */}
             <div className=" overflow-hidden rounded-full">
               <img
-                src="/Home_Category/16.jpg"
+                src="/Home_Category/starter_kit.png"
                 alt=""
                 className="image md:w-[240px] h-full object-cover "
               />
@@ -59,7 +59,7 @@ const RotationCategory = () => {
             {/* Fixed-size wrapper with overflow-hidden */}
             <div className=" overflow-hidden rounded-full">
               <img
-                src="/Home_Category/17.jpg"
+                src="/Home_Category/e-liquid.png"
                 alt=""
                 className="image w-[240px] h-full object-cover "
               />
@@ -96,7 +96,7 @@ const RotationCategory = () => {
             {/* Fixed-size wrapper with overflow-hidden */}
             <div className=" overflow-hidden rounded-full">
               <img
-                src="/Home_Category/10.jpg"
+                src="/Home_Category/tanks_rda.png"
                 alt=""
                 className="image w-[240px] h-full object-cover "
               />
