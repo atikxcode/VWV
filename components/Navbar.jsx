@@ -240,6 +240,11 @@ const Navbar = () => {
     setShowProfileDropdown(false)
   }
 
+  const handleOrderClick = () => {
+    router.push('/OrderHistory')
+    setShowProfileDropdown(false)
+  }
+
   const handleSearch = async (query) => {
     if (!query.trim()) {
       setSearchResults([])
@@ -543,6 +548,13 @@ const Navbar = () => {
                       <Settings size={18} />
                       <span className="text-sm font-medium">Update Profile</span>
                     </button>
+                    <button
+                      onClick={handleOrderClick}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                    >
+                      <Package size={18} />
+                      <span className="text-sm font-medium">Order History</span>
+                    </button>
 
                     {/* <button
                       onClick={handleSignOut}
@@ -733,6 +745,15 @@ const Navbar = () => {
                 >
                   <Package size={18} />
                   <span className="text-sm font-medium">Track Order</span>
+                </a>
+
+                <a
+                  href="/OrderHistory"
+                  onClick={toggleMobileMenu}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition-colors"
+                >
+                  <Package size={18} />
+                  <span className="text-sm font-medium">Order History</span>
                 </a>
                 <a
                   href="/Contact"
