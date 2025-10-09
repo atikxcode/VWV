@@ -556,7 +556,7 @@ export default function ProductDetailPage() {
   return (
     <div className="min-h-screen">
       {/* Clean Header */}
-      <header className="bg-purple-50 shadow-lg sticky top-0 z-30 mb-10">
+      <header className="bg-purple-50 shadow-lg sticky top-0 z-0 mb-10">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex justify-between items-center">
             <button
