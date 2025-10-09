@@ -15,6 +15,7 @@ import {
   Home,
   Phone,
   Info,
+  Settings,
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -51,14 +52,21 @@ const Navbar = () => {
   const [categories, setCategories] = useState({})
   const [categoriesLoading, setCategoriesLoading] = useState(true)
 
+  // 🔥 NEW: State for user profile data from backend
+  const [userProfile, setUserProfile] = useState(null)
+  const [profileLoading, setProfileLoading] = useState(false)
+
+  // 🔥 NEW: State for profile dropdown
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false)
+  const profileDropdownRef = useRef(null)
+
   // Set isClient to true after component mounts
   useEffect(() => {
     setIsClient(true)
   }, [])
 
-  // 🔥 FIX: Add CSS animations to document head only on client
+  // Add CSS animations to document head only on client
   useEffect(() => {
-    // Create style element if it doesn't exist
     if (typeof document !== 'undefined' && !document.getElementById('navbar-animations')) {
       const style = document.createElement('style')
       style.id = 'navbar-animations'
@@ -88,10 +96,58 @@ const Navbar = () => {
             transform: translateY(-10px);
           }
         }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
       `
       document.head.appendChild(style)
     }
   }, [])
+
+  // 🔥 NEW: Fetch user profile data from backend when user is logged in
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user || !user.email) return
+
+      try {
+        setProfileLoading(true)
+        
+        // Get auth token
+        const token = localStorage.getItem('auth-token') || (await user.getIdToken())
+        
+        const response = await fetch(`/api/user?email=${encodeURIComponent(user.email)}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.user) {
+            setUserProfile(data.user)
+            console.log('✅ User profile loaded:', data.user)
+          }
+        } else {
+          console.error('❌ Failed to fetch user profile')
+        }
+      } catch (error) {
+        console.error('❌ Error fetching user profile:', error)
+      } finally {
+        setProfileLoading(false)
+      }
+    }
+
+    fetchUserProfile()
+  }, [user])
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -117,16 +173,25 @@ const Navbar = () => {
     fetchCategories()
   }, [])
 
+  // 🔥 NEW: Close profile dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
+        setShowProfileDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const toggleSubmenu = (label) => {
     if (openSubmenu === label) {
-      // Closing animation
       setClosingSubmenu(label)
       setTimeout(() => {
         setOpenSubmenu(null)
         setClosingSubmenu(null)
       }, 200)
     } else {
-      // Opening new submenu
       setOpenSubmenu(label)
       setClosingSubmenu(null)
     }
@@ -134,7 +199,6 @@ const Navbar = () => {
 
   const toggleMobileMenu = () => {
     if (mobileMenuOpen) {
-      // Closing animation
       setIsClosing(true)
       setTimeout(() => {
         setMobileMenuOpen(false)
@@ -144,10 +208,8 @@ const Navbar = () => {
         setIsOpening(false)
       }, 300)
     } else {
-      // Opening animation - Set menu open first
       setMobileMenuOpen(true)
       setIsOpening(true)
-      // Use requestAnimationFrame to ensure DOM update before animation
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           setIsOpening(false)
@@ -161,6 +223,8 @@ const Navbar = () => {
     if (mobileMenuOpen) {
       toggleMobileMenu()
     }
+    setShowProfileDropdown(false)
+    setUserProfile(null)
   }
 
   const handleSignIn = () => {
@@ -168,6 +232,12 @@ const Navbar = () => {
     if (mobileMenuOpen) {
       toggleMobileMenu()
     }
+  }
+
+  // 🔥 NEW: Handle profile navigation
+  const handleProfileClick = () => {
+    router.push('/UserUpdateProfile')
+    setShowProfileDropdown(false)
   }
 
   const handleSearch = async (query) => {
@@ -422,11 +492,75 @@ const Navbar = () => {
               )}
             </Link>
 
-            <Link href="/cart">
-              <User />
-            </Link>
+            {/* 🔥 NEW: Profile Picture with Dropdown */}
+            {isClient && user ? (
+              <div 
+                ref={profileDropdownRef}
+                className="relative"
+                onMouseEnter={() => setShowProfileDropdown(true)}
+                onMouseLeave={() => setShowProfileDropdown(false)}
+              >
+                <button className="relative rounded-full overflow-hidden w-10 h-10 border-2 border-purple-400 hover:border-purple-600 transition-all duration-200 flex items-center justify-center">
+                  {userProfile?.profilePicture ? (
+                    <Image
+                      src={userProfile.profilePicture}
+                      alt={userProfile.name || 'User'}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-purple-100 flex items-center justify-center">
+                      <User size={20} className="text-purple-600" />
+                    </div>
+                  )}
+                </button>
 
-            {/* Only render button after client-side hydration */}
+                {/* Dropdown Menu */}
+                {showProfileDropdown && (
+                  <div 
+                    className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50"
+                    style={{
+                      animation: 'fadeIn 0.2s ease-out',
+                    }}
+                  >
+                    {/* User Info */}
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {userProfile?.name || user.name || 'User'}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {user.email}
+                      </p>
+                    </div>
+
+                    {/* Menu Items */}
+                    <button
+                      onClick={handleProfileClick}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                    >
+                      <Settings size={18} />
+                      <span className="text-sm font-medium">Update Profile</span>
+                    </button>
+
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <X size={18} />
+                      <span className="text-sm font-medium">Sign Out</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link href="/RegistrationPage">
+                <User />
+              </Link>
+            )}
+
+            {/* Sign In/Out Button */}
             {isClient && (
               <>
                 {user ? (
@@ -476,11 +610,22 @@ const Navbar = () => {
             transition: 'transform 0.3s ease-in-out',
           }}
         >
-          {/* Sidebar Header */}
+          {/* Sidebar Header - 🔥 UPDATED with profile picture */}
           <div className="bg-gradient-to-r from-purple-400 to-purple-500 px-6 py-5 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                <User size={20} className="text-purple-500" />
+              <div className="w-10 h-10 bg-white rounded-full overflow-hidden flex items-center justify-center">
+                {user && userProfile?.profilePicture ? (
+                  <Image
+                    src={userProfile.profilePicture}
+                    alt={userProfile.name || 'User'}
+                    width={40}
+                    height={40}
+                    className="w-full h-full object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <User size={20} className="text-purple-500" />
+                )}
               </div>
               <div suppressHydrationWarning>
                 <p className="text-white font-semibold text-sm">
@@ -547,7 +692,21 @@ const Navbar = () => {
                   onClick={toggleMobileMenu}
                   className="flex flex-col items-center justify-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
                 >
-                  <User size={24} className="text-purple-600 mb-2" />
+                  {/* 🔥 UPDATED: Show profile picture or User icon */}
+                  {user && userProfile?.profilePicture ? (
+                    <div className="w-6 h-6 rounded-full overflow-hidden mb-2">
+                      <Image
+                        src={userProfile.profilePicture}
+                        alt="Profile"
+                        width={24}
+                        height={24}
+                        className="w-full h-full object-cover"
+                        unoptimized
+                      />
+                    </div>
+                  ) : (
+                    <User size={24} className="text-purple-600 mb-2" />
+                  )}
                   <span className="text-xs font-medium text-gray-700">Profile</span>
                 </Link>
               </div>
