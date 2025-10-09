@@ -22,6 +22,43 @@ import {
 export default function Footer() {
   const [email, setEmail] = React.useState('')
   const [subscribed, setSubscribed] = React.useState(false)
+  
+  // 🔥 State for dynamic categories
+  const [categories, setCategories] = React.useState({})
+  const [categoriesLoading, setCategoriesLoading] = React.useState(true)
+  // 🔥 FIX: Client-only rendering flag
+  const [isClient, setIsClient] = React.useState(false)
+
+  // 🔥 FIX: Set client flag first
+  React.useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  // 🔥 NEW: Fetch categories on component mount
+  React.useEffect(() => {
+    if (!isClient) return
+
+    const fetchCategories = async () => {
+      try {
+        setCategoriesLoading(true)
+        const response = await fetch('/api/products?getCategoriesOnly=true')
+        
+        if (response.ok) {
+          const data = await response.json()
+          setCategories(data.categories || {})
+          console.log('✅ Categories fetched:', data.categories)
+        } else {
+          console.error('❌ Failed to fetch categories')
+        }
+      } catch (error) {
+        console.error('❌ Error fetching categories:', error)
+      } finally {
+        setCategoriesLoading(false)
+      }
+    }
+
+    fetchCategories()
+  }, [isClient])
 
   const handleSubscribe = (e) => {
     e.preventDefault()
@@ -41,7 +78,7 @@ export default function Footer() {
           {/* Company Info */}
           <div className="space-y-6">
             <div>
-              <h3 className="text-2xl font-bold tracking-[8px] text-purple-400 mb-4 text-center">
+              <h3 className="text-2xl font-bold tracking-[8px] text-purple-400 mb-4">
                 V<span className="text-gray-400">ibe</span> W<span className="text-gray-400">ith</span> V<span className="text-gray-400">ape</span>
               </h3>
               <p className="text-sm text-gray-400 leading-relaxed">
@@ -85,55 +122,39 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Quick Links - 🔥 COMPLETELY FIXED */}
           <div>
             <h4 className="text-white font-semibold mb-6 text-lg">Quick Links</h4>
             <ul className="space-y-3">
               <li>
-                <Link
+                <a
                   href="/products"
                   className="text-sm hover:text-purple-400 transition-colors duration-200 flex items-center gap-2 group"
                 >
                   <span className="w-0 h-0.5 bg-purple-400 group-hover:w-4 transition-all duration-300"></span>
                   Shop All Products
-                </Link>
+                </a>
               </li>
-              <li>
-                <Link
-                  href="/products?category=Devices"
-                  className="text-sm hover:text-purple-400 transition-colors duration-200 flex items-center gap-2 group"
-                >
-                  <span className="w-0 h-0.5 bg-purple-400 group-hover:w-4 transition-all duration-300"></span>
-                  Vape Devices
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/products?category=E-Liquids"
-                  className="text-sm hover:text-purple-400 transition-colors duration-200 flex items-center gap-2 group"
-                >
-                  <span className="w-0 h-0.5 bg-purple-400 group-hover:w-4 transition-all duration-300"></span>
-                  E-Liquids
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/products?category=Accessories"
-                  className="text-sm hover:text-purple-400 transition-colors duration-200 flex items-center gap-2 group"
-                >
-                  <span className="w-0 h-0.5 bg-purple-400 group-hover:w-4 transition-all duration-300"></span>
-                  Accessories
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/TrackOrder"
-                  className="text-sm hover:text-purple-400 transition-colors duration-200 flex items-center gap-2 group"
-                >
-                  <span className="w-0 h-0.5 bg-purple-400 group-hover:w-4 transition-all duration-300"></span>
-                  Track Order
-                </Link>
-              </li>
+              {/* 🔥 FIX: Only render after client mount with proper formatting */}
+              {isClient && !categoriesLoading && Object.keys(categories).map((categoryName) => {
+                // Format category name for display (Title Case)
+                const displayName = categoryName
+                  .split('-')
+                  .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                  .join(' ')
+                
+                return (
+                  <li key={categoryName}>
+                    <a
+                      href={`/products?category=${encodeURIComponent(categoryName)}`}
+                      className="text-sm hover:text-purple-400 transition-colors duration-200 flex items-center gap-2 group"
+                    >
+                      <span className="w-0 h-0.5 bg-purple-400 group-hover:w-4 transition-all duration-300"></span>
+                      {displayName}
+                    </a>
+                  </li>
+                )
+              })}
             </ul>
           </div>
 
@@ -142,49 +163,40 @@ export default function Footer() {
             <h4 className="text-white font-semibold mb-6 text-lg">Customer Service</h4>
             <ul className="space-y-3">
               <li>
-                <Link
+                <a
+                  href="/TrackOrder"
+                  className="text-sm hover:text-purple-400 transition-colors duration-200 flex items-center gap-2 group"
+                >
+                  <span className="w-0 h-0.5 bg-purple-400 group-hover:w-4 transition-all duration-300"></span>
+                  Track Order
+                </a>
+              </li>
+              <li>
+                <a
                   href="/Contact"
                   className="text-sm hover:text-purple-400 transition-colors duration-200 flex items-center gap-2 group"
                 >
                   <span className="w-0 h-0.5 bg-purple-400 group-hover:w-4 transition-all duration-300"></span>
                   Contact Us
-                </Link>
+                </a>
               </li>
               <li>
-                <Link
-                  href="#"
-                  className="text-sm hover:text-purple-400 transition-colors duration-200 flex items-center gap-2 group"
-                >
-                  <span className="w-0 h-0.5 bg-purple-400 group-hover:w-4 transition-all duration-300"></span>
-                  Shipping Information
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#"
-                  className="text-sm hover:text-purple-400 transition-colors duration-200 flex items-center gap-2 group"
-                >
-                  <span className="w-0 h-0.5 bg-purple-400 group-hover:w-4 transition-all duration-300"></span>
-                  Returns & Exchanges
-                </Link>
-              </li>
-              <li>
-                <Link
+                <a
                   href="#"
                   className="text-sm hover:text-purple-400 transition-colors duration-200 flex items-center gap-2 group"
                 >
                   <span className="w-0 h-0.5 bg-purple-400 group-hover:w-4 transition-all duration-300"></span>
                   Privacy Policy
-                </Link>
+                </a>
               </li>
               <li>
-                <Link
+                <a
                   href="#"
                   className="text-sm hover:text-purple-400 transition-colors duration-200 flex items-center gap-2 group"
                 >
                   <span className="w-0 h-0.5 bg-purple-400 group-hover:w-4 transition-all duration-300"></span>
                   Terms & Conditions
-                </Link>
+                </a>
               </li>
             </ul>
           </div>
@@ -295,7 +307,7 @@ export default function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <p className="text-center text-xs md:text-sm text-purple-200">
             <span className="font-bold text-purple-100">⚠ WARNING:</span> This product contains nicotine. 
-            Nicotine is an addictive chemical. For adults of legal smoking age only (18+).
+            Nicotine is an addictive chemical. For adults of legal smoking age only (21+).
           </p>
         </div>
       </div>
@@ -304,20 +316,20 @@ export default function Footer() {
       <div className="bg-black border-t border-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-gray-500">
-              © {new Date().getFullYear()} <span className="text-purple-400 font-semibold">VWV</span>. All rights reserved.
+            <p className="text-sm text-gray-500" suppressHydrationWarning>
+              © {isClient ? new Date().getFullYear() : '2025'} <span className="text-purple-400 font-semibold">VWV</span>. All rights reserved.
             </p>
             
             <div className="flex items-center gap-6">
-              <Link href="#" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">
+              <a href="#" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">
                 Privacy Policy
-              </Link>
-              <Link href="#" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">
+              </a>
+              <a href="#" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">
                 Terms of Service
-              </Link>
-              <Link href="#" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">
+              </a>
+              <a href="#" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">
                 Cookie Policy
-              </Link>
+              </a>
             </div>
           </div>
         </div>

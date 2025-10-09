@@ -520,7 +520,7 @@ const Navbar = () => {
                 {/* Dropdown Menu */}
                 {showProfileDropdown && (
                   <div 
-                    className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50"
+                    className="absolute right-0 mt-0 w-56 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50"
                     style={{
                       animation: 'fadeIn 0.2s ease-out',
                     }}
@@ -544,13 +544,13 @@ const Navbar = () => {
                       <span className="text-sm font-medium">Update Profile</span>
                     </button>
 
-                    <button
+                    {/* <button
                       onClick={handleSignOut}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <X size={18} />
                       <span className="text-sm font-medium">Sign Out</span>
-                    </button>
+                    </button> */}
                   </div>
                 )}
               </div>
