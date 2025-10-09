@@ -6,36 +6,33 @@ import {
   ShoppingCart,
   Menu,
   X,
-  Hamburger,
-  HamburgerIcon,
-  AlignLeft,
   User,
   Mail,
   Heart,
   Package,
-  Shield,
-  RefreshCcw,
-  ServerIcon,
+  ChevronDown,
+  ChevronRight,
+  Home,
+  Phone,
+  Info,
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { AuthContext } from '../Provider/AuthProvider' // Adjust path as needed
+import { AuthContext } from '../Provider/AuthProvider'
 import { useRouter } from 'next/navigation'
 import { useCart } from './hooks/useCart.jsx'
 import { useFavorites } from './hooks/useFavorites.jsx'
 
 const Navbar = () => {
-  const { user, logOut } = useContext(AuthContext) // Access user and logout from AuthContext
+  const { user, logOut } = useContext(AuthContext)
   const router = useRouter()
 
-  // Add cart and favorites hooks
   const { getCartItemsCount, isHydrated: cartHydrated } = useCart()
   const { favorites, isHydrated: favoritesHydrated } = useFavorites()
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const searchRef = useRef(null)
 
-  // Search functionality states
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [isSearching, setIsSearching] = useState(false)
@@ -43,23 +40,136 @@ const Navbar = () => {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openSubmenu, setOpenSubmenu] = useState(null)
+  const [closingSubmenu, setClosingSubmenu] = useState(null)
   const [isClosing, setIsClosing] = useState(false)
+  const [isOpening, setIsOpening] = useState(false)
+
+  // Add client-side only rendering state
+  const [isClient, setIsClient] = useState(false)
+
+  // State for dynamic categories
+  const [categories, setCategories] = useState({})
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+
+  // Set isClient to true after component mounts
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  // 🔥 FIX: Add CSS animations to document head only on client
+  useEffect(() => {
+    // Create style element if it doesn't exist
+    if (typeof document !== 'undefined' && !document.getElementById('navbar-animations')) {
+      const style = document.createElement('style')
+      style.id = 'navbar-animations'
+      style.textContent = `
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            max-height: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            max-height: 500px;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes slideUp {
+          from {
+            opacity: 1;
+            max-height: 500px;
+            transform: translateY(0);
+          }
+          to {
+            opacity: 0;
+            max-height: 0;
+            transform: translateY(-10px);
+          }
+        }
+      `
+      document.head.appendChild(style)
+    }
+  }, [])
+
+  // Fetch categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setCategoriesLoading(true)
+        const response = await fetch('/api/products?getCategoriesOnly=true')
+        
+        if (response.ok) {
+          const data = await response.json()
+          setCategories(data.categories || {})
+          console.log('✅ Categories loaded:', data.categories)
+        } else {
+          console.error('❌ Failed to fetch categories')
+        }
+      } catch (error) {
+        console.error('❌ Error fetching categories:', error)
+      } finally {
+        setCategoriesLoading(false)
+      }
+    }
+
+    fetchCategories()
+  }, [])
+
   const toggleSubmenu = (label) => {
-    setOpenSubmenu(openSubmenu === label ? null : label)
+    if (openSubmenu === label) {
+      // Closing animation
+      setClosingSubmenu(label)
+      setTimeout(() => {
+        setOpenSubmenu(null)
+        setClosingSubmenu(null)
+      }, 200)
+    } else {
+      // Opening new submenu
+      setOpenSubmenu(label)
+      setClosingSubmenu(null)
+    }
   }
 
-  const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen)
+  const toggleMobileMenu = () => {
+    if (mobileMenuOpen) {
+      // Closing animation
+      setIsClosing(true)
+      setTimeout(() => {
+        setMobileMenuOpen(false)
+        setIsClosing(false)
+        setOpenSubmenu(null)
+        setClosingSubmenu(null)
+        setIsOpening(false)
+      }, 300)
+    } else {
+      // Opening animation - Set menu open first
+      setMobileMenuOpen(true)
+      setIsOpening(true)
+      // Use requestAnimationFrame to ensure DOM update before animation
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsOpening(false)
+        })
+      })
+    }
+  }
 
-  // Handle logout
   const handleSignOut = () => {
     logOut().then().catch()
+    if (mobileMenuOpen) {
+      toggleMobileMenu()
+    }
   }
 
   const handleSignIn = () => {
     router.push('/RegistrationPage')
+    if (mobileMenuOpen) {
+      toggleMobileMenu()
+    }
   }
 
-  // Search functionality
   const handleSearch = async (query) => {
     if (!query.trim()) {
       setSearchResults([])
@@ -86,7 +196,6 @@ const Navbar = () => {
     }
   }
 
-  // Debounced search
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       handleSearch(searchQuery)
@@ -95,7 +204,6 @@ const Navbar = () => {
     return () => clearTimeout(timeoutId)
   }, [searchQuery])
 
-  // Close search results when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
@@ -152,10 +260,8 @@ const Navbar = () => {
 
         {/* Search field */}
         <div className="relative flex justify-center items-center h-20 w-full">
-          {/* Ultra-Thin Horizontal Line */}
           <div className="absolute top-1/2 left-0 w-full h-[0.5px] bg-gray-300"></div>
 
-          {/* Search Box */}
           <div ref={searchRef} className="relative flex items-center bg-gray-200 rounded-full px-3 py-2 w-[800px] h-[30px] mt-1">
             <input
               className="bg-transparent outline-none text-gray-800 flex-1 placeholder-gray-500 px-2 text-sm"
@@ -193,7 +299,6 @@ const Navbar = () => {
                           onClick={() => handleProductClick(product._id)}
                           className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors flex-shrink-0 w-48"
                         >
-                          {/* Product Image */}
                           <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                             {product.images && product.images.length > 0 && product.images[0]?.url ? (
                               <Image
@@ -211,7 +316,6 @@ const Navbar = () => {
                             )}
                           </div>
                           
-                          {/* Product Details */}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-900 truncate">
                               {product.name}
@@ -242,7 +346,6 @@ const Navbar = () => {
         </div>
 
         {/* Navbar Start */}
-
         <div className=" mx-10 pb-4 flex justify-between">
           {/* WebSite Name */}
           <a
@@ -254,337 +357,47 @@ const Navbar = () => {
             <span className="text-[#83766E]">ape</span>{' '}
           </a>
 
-          {/* Desktop Navigation start */}
-          <div className="hidden xl:flex gap-6 text-sm  tracking-wide">
-            {/* E-LIQUID */}
-            <div className="relative group">
-              <a
-                href="/dummy"
-                className="relative hover:text-purple-400 transition-colors"
-              >
-                E-LIQUID
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
-                <a
-                  href="/new-arrivals/men"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Fruits
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/new-arrivals/women"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Bakery & Dessert
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/new-arrivals/women"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Tobacco
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/new-arrivals/women"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Custard & Cream
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/new-arrivals/women"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Coffee
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/new-arrivals/women"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Menthol / Mint
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
+          {/* Desktop Navigation start - DYNAMIC CATEGORIES */}
+          <div className="hidden xl:flex gap-6 text-sm tracking-wide">
+            {categoriesLoading ? (
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                <span className="text-gray-500 text-xs">Loading menu...</span>
               </div>
-            </div>
-            {/* TANKS */}
-            <div className="relative group">
-              <a
-                href="/shop"
-                className="relative hover:text-purple-400 transition-colors"
-              >
-                TANKS
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
-                <a
-                  href="/shop/clothing"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Rda
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/shop/accessories"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Rta
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/shop/accessories"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Rdta
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/shop/accessories"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Subohm
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/shop/accessories"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Disposable
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-              </div>
-            </div>
-            {/* NIC SALTS */}
-            <div className="relative group">
-              <a
-                href="/contact"
-                className="relative hover:text-purple-400 transition-colors"
-              >
-                NIC SALTS
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
-                <a
-                  href="/contact/support"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Fruits
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/contact/locations"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Bakery & Dessert
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/contact/locations"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Custard & Cream
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/contact/locations"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Coffee
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/contact/locations"
-                  className="relative block py-1 px-4 text-sm text-black  group/sub"
-                >
-                  Menthol / Mint
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-              </div>
-            </div>
-            {/* POD SYSTEM */}
-            <div className="relative group">
-              <a
-                href="/about"
-                className="relative hover:text-purple-400 transition-colors"
-              >
-                POD SYSTEM
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
-                <a
-                  href="/about/story"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Disposable
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/about/team"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Refillable Pod Kit
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/about/team"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Pre-Filled Cartridge
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-              </div>
-            </div>
-            {/* DEVICE */}
-            <div className="relative group">
-              <a
-                href="/about"
-                className="relative hover:text-purple-400 transition-colors"
-              >
-                DEVICE
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
-                <a
-                  href="/about/story"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Kit
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/about/team"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Only Mod
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-              </div>
-            </div>
-            {/* BORO */}
-            <div className="relative group">
-              <a
-                href="/about"
-                className="relative hover:text-purple-400 transition-colors"
-              >
-                BORO
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
-                <a
-                  href="/about/story"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Alo (Boro)
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/about/team"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Boro Bridge and Cartridge
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/about/team"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Boro Accessories and Tools
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-              </div>
-            </div>
-            {/* ACCESSORIES */}
-            <div className="relative group">
-              <a
-                href="/about"
-                className="relative hover:text-purple-400 transition-colors"
-              >
-                ACCESSORIES
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </a>
-              <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
-                <a
-                  href="/about/story"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  SubOhm Coil
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/about/team"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Charger
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/about/team"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Cotton
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/about/team"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Premade Coil
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/about/team"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Battery
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/about/team"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Tank Glass
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/about/team"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Cartridge
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/about/team"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  RBA / RBK
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/about/team"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Wire Spool
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-                <a
-                  href="/about/team"
-                  className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
-                >
-                  Drip Tip
-                  <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                </a>
-              </div>
-            </div>
+            ) : (
+              Object.keys(categories).map((categoryName) => (
+                <div key={categoryName} className="relative group">
+                  <a
+                    href={`/products?category=${encodeURIComponent(categoryName)}`}
+                    className="relative hover:text-purple-400 transition-colors"
+                  >
+                    {categoryName}
+                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                  </a>
+                  
+                  {/* Subcategory Dropdown */}
+                  {categories[categoryName] && categories[categoryName].length > 0 && (
+                    <div className="absolute left-0 mt-0 w-48 bg-white shadow-lg rounded-md py-2 z-10 opacity-0 group-hover:opacity-100 group-hover:visible transition-opacity duration-200 invisible">
+                      {categories[categoryName].map((subcategory) => (
+                        <a
+                          key={subcategory}
+                          href={`/products?category=${encodeURIComponent(categoryName)}&subcategory=${encodeURIComponent(subcategory)}`}
+                          className="relative block px-4 py-2 hover:bg-gray-100 text-gray-800 hover:text-purple-400 group/sub"
+                        >
+                          {subcategory}
+                          <span className="absolute left-1/2 bottom-0 h-0.5 bg-purple-400 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
           {/* Desktop Navigation End */}
 
-          {/* Side Icons  start*/}
-
-          <div className="flex items-center gap-4">
-            {/* Updated Cart Link with Badge */}
+          {/* Side Icons start - HIDDEN ON MOBILE */}
+          <div className="hidden xl:flex items-center gap-4">
             <Link href="/cart" className="relative">
               <ShoppingCart />
               {cartHydrated && getCartItemsCount() > 0 && (
@@ -597,7 +410,6 @@ const Navbar = () => {
               )}
             </Link>
 
-            {/* Updated Favorites Link with Badge */}
             <Link href="/favorites" className="relative">
               <Heart></Heart>
               {favoritesHydrated && favorites.length > 0 && (
@@ -610,546 +422,262 @@ const Navbar = () => {
               )}
             </Link>
 
-            {/* User */}
             <Link href="/cart">
               <User />
             </Link>
 
-            {/* Sign In/Sign Out Button */}
-            {user ? (
-              <button
-                onClick={handleSignOut}
-                className="hidden text-[15px] tracking-widest  xl:block bg-purple-400  px-6 py-2 text-black hover:bg-purple-500 transition-colors duration-200"
-              >
-                Sign Out
-              </button>
-            ) : (
-              <button
-                onClick={handleSignIn}
-                className="hidden text-[15px] tracking-widest  xl:block bg-purple-400  px-6 py-2  text-black hover:bg-purple-500 transition-colors duration-200"
-              >
-                Sign In
-              </button>
+            {/* Only render button after client-side hydration */}
+            {isClient && (
+              <>
+                {user ? (
+                  <button
+                    onClick={handleSignOut}
+                    className="text-[15px] tracking-widest bg-purple-400 px-6 py-2 text-black hover:bg-purple-500 transition-colors duration-200"
+                  >
+                    Sign Out
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSignIn}
+                    className="text-[15px] tracking-widest bg-purple-400 px-6 py-2 text-black hover:bg-purple-500 transition-colors duration-200"
+                  >
+                    Sign In
+                  </button>
+                )}
+              </>
             )}
-
-            {/* Mobile Menu Toggle */}
-            <button className=" xl:hidden ml-2" onClick={toggleMobileMenu}>
-              {mobileMenuOpen ? <X /> : <Menu />}
-            </button>
           </div>
 
-          {/* Side Icons  start*/}
+          {/* Mobile Menu Button - ONLY VISIBLE ON MOBILE */}
+          <button className="xl:hidden ml-2" onClick={toggleMobileMenu}>
+            {mobileMenuOpen ? <X /> : <Menu />}
+          </button>
         </div>
       </div>
 
-      {/* Mobile Menu start */}
+      {/* Overlay for mobile menu */}
       {mobileMenuOpen && (
         <div
-          className="fixed top-0 right-0 w-72 h-full bg-white shadow-xl transform transition-transform duration-300 ease-in-out z-50 overflow-y-auto"
+          className="fixed inset-0 bg-black z-40 xl:hidden"
+          onClick={toggleMobileMenu}
           style={{
-            animation: isClosing
-              ? 'slideOutRight 0.3s ease-in'
-              : 'slideInRight 0.3s ease-out',
+            opacity: isClosing ? 0 : isOpening ? 0 : 0.5,
+            transition: 'opacity 0.3s ease-in-out',
+          }}
+        />
+      )}
+
+      {/* Modern Mobile Sidebar - WITH PROPER OPENING ANIMATION */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed top-0 right-0 w-80 h-full bg-white shadow-2xl z-50 xl:hidden overflow-hidden flex flex-col"
+          style={{
+            transform: isClosing ? 'translateX(100%)' : isOpening ? 'translateX(100%)' : 'translateX(0)',
+            transition: 'transform 0.3s ease-in-out',
           }}
         >
-          <div className="flex justify-end p-4">
+          {/* Sidebar Header */}
+          <div className="bg-gradient-to-r from-purple-400 to-purple-500 px-6 py-5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                <User size={20} className="text-purple-500" />
+              </div>
+              <div suppressHydrationWarning>
+                <p className="text-white font-semibold text-sm">
+                  {user ? 'Welcome Back!' : 'Guest User'}
+                </p>
+                <p className="text-purple-100 text-xs">
+                  {user ? user.email : 'Sign in for more features'}
+                </p>
+              </div>
+            </div>
             <button
-              onClick={() => {
-                setIsClosing(true)
-                setTimeout(() => {
-                  setMobileMenuOpen(false)
-                  setIsClosing(false)
-                  setOpenSubmenu(null)
-                }, 300)
-              }}
-              className="text-gray-700 focus:outline-none"
+              onClick={toggleMobileMenu}
+              className="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-full transition-all"
               aria-label="Close mobile menu"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <X size={24} />
             </button>
           </div>
 
-          <div className="flex flex-col p-4 space-y-2 text-sm  tracking-widest">
-            {/* E-Liquid */}
-            <div className="group">
-              <button
-                onClick={() => toggleSubmenu('E-LIQUID')}
-                className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors "
-                // style={{ animation: 'fadeIn 0.4s ease-out 0.1s' }}
-              >
-                E-LIQUID
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </button>
-              {openSubmenu === 'E-LIQUID' && (
-                <div
-                  className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
-                  style={{
-                    animation:
-                      openSubmenu === 'E-LIQUID'
-                        ? 'slideInRight 0.3s ease-out'
-                        : 'slideOutRight 0.3s ease-in',
-                  }}
+          {/* Sidebar Content - Scrollable */}
+          <div className="flex-1 overflow-y-auto">
+            {/* Quick Action Icons Section */}
+            <div className="border-b border-gray-200 py-4 px-6">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                Quick Access
+              </h3>
+              <div className="grid grid-cols-3 gap-3">
+                <Link
+                  href="/cart"
+                  onClick={toggleMobileMenu}
+                  className="flex flex-col items-center justify-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors relative"
                 >
-                  <a
-                    href="/new-arrivals/men"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
-                  >
-                    Fruits
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Bakery & Dessert
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Tobacco
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Custard & Cream
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Coffee
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Menthol / Mint
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
+                  <ShoppingCart size={24} className="text-purple-600 mb-2" />
+                  {cartHydrated && getCartItemsCount() > 0 && (
+                    <span 
+                      className="absolute top-2 right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+                      suppressHydrationWarning
+                    >
+                      {getCartItemsCount()}
+                    </span>
+                  )}
+                  <span className="text-xs font-medium text-gray-700">Cart</span>
+                </Link>
+
+                <Link
+                  href="/favorites"
+                  onClick={toggleMobileMenu}
+                  className="flex flex-col items-center justify-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors relative"
+                >
+                  <Heart size={24} className="text-purple-600 mb-2" />
+                  {favoritesHydrated && favorites.length > 0 && (
+                    <span 
+                      className="absolute top-2 right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+                      suppressHydrationWarning
+                    >
+                      {favorites.length}
+                    </span>
+                  )}
+                  <span className="text-xs font-medium text-gray-700">Favorites</span>
+                </Link>
+
+                <Link
+                  href="/cart"
+                  onClick={toggleMobileMenu}
+                  className="flex flex-col items-center justify-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+                >
+                  <User size={24} className="text-purple-600 mb-2" />
+                  <span className="text-xs font-medium text-gray-700">Profile</span>
+                </Link>
+              </div>
+            </div>
+
+            {/* Quick Links Section */}
+            <div className="border-b border-gray-200 py-4 px-6">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                Quick Links
+              </h3>
+              <div className="space-y-1">
+                <a
+                  href="/"
+                  onClick={toggleMobileMenu}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition-colors"
+                >
+                  <Home size={18} />
+                  <span className="text-sm font-medium">Home</span>
+                </a>
+                <a
+                  href="/TrackOrder"
+                  onClick={toggleMobileMenu}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition-colors"
+                >
+                  <Package size={18} />
+                  <span className="text-sm font-medium">Track Order</span>
+                </a>
+                <a
+                  href="/Contact"
+                  onClick={toggleMobileMenu}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition-colors"
+                >
+                  <Phone size={18} />
+                  <span className="text-sm font-medium">Contact</span>
+                </a>
+                <a
+                  href="#"
+                  onClick={toggleMobileMenu}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition-colors"
+                >
+                  <Info size={18} />
+                  <span className="text-sm font-medium">About</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Categories Section */}
+            <div className="py-4 px-6">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                Shop by Category
+              </h3>
+              
+              {categoriesLoading ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mb-3"></div>
+                  <span className="text-gray-500 text-sm">Loading categories...</span>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {Object.keys(categories).map((categoryName) => (
+                    <div key={categoryName}>
+                      <button
+                        onClick={() => toggleSubmenu(categoryName)}
+                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition-colors group"
+                      >
+                        <span className="text-sm font-medium">{categoryName}</span>
+                        {categories[categoryName] && categories[categoryName].length > 0 && (
+                          <ChevronDown
+                            size={18}
+                            className={`text-gray-400 group-hover:text-purple-600 transition-transform duration-200 ${
+                              openSubmenu === categoryName ? 'rotate-180' : ''
+                            }`}
+                          />
+                        )}
+                      </button>
+                      
+                      {/* Subcategory List */}
+                      {(openSubmenu === categoryName || closingSubmenu === categoryName) && 
+                       categories[categoryName] && 
+                       categories[categoryName].length > 0 && (
+                        <div
+                          className="ml-4 mt-1 space-y-1 overflow-hidden"
+                          style={{
+                            animation: closingSubmenu === categoryName 
+                              ? 'slideUp 0.2s ease-in forwards' 
+                              : 'slideDown 0.2s ease-out',
+                          }}
+                        >
+                          {categories[categoryName].map((subcategory) => (
+                            <a
+                              key={subcategory}
+                              href={`/products?category=${encodeURIComponent(categoryName)}&subcategory=${encodeURIComponent(subcategory)}`}
+                              onClick={toggleMobileMenu}
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-purple-600 transition-colors group"
+                            >
+                              <ChevronRight size={14} className="text-gray-400 group-hover:text-purple-600" />
+                              <span className="text-sm">{subcategory}</span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-
-            {/* TANKS */}
-            <div className="group">
-              <button
-                onClick={() => toggleSubmenu('TANKS')}
-                className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors "
-                // style={{ animation: 'fadeIn 0.4s ease-out 0.1s' }}
-              >
-                TANKS
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </button>
-              {openSubmenu === 'TANKS' && (
-                <div
-                  className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
-                  style={{
-                    animation:
-                      openSubmenu === 'TANKS'
-                        ? 'slideInRight 0.3s ease-out'
-                        : 'slideOutRight 0.3s ease-in',
-                  }}
-                >
-                  <a
-                    href="/new-arrivals/men"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
-                  >
-                    Rda
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Rta
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Rdta
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Subohm
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Disposable
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                </div>
-              )}
-            </div>
-
-            {/* NIC SALTS */}
-            <div className="group">
-              <button
-                onClick={() => toggleSubmenu('NIC SALTS')}
-                className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors "
-                // style={{ animation: 'fadeIn 0.4s ease-out 0.1s' }}
-              >
-                NIC SALTS
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </button>
-              {openSubmenu === 'NIC SALTS' && (
-                <div
-                  className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
-                  style={{
-                    animation:
-                      openSubmenu === 'NIC SALTS'
-                        ? 'slideInRight 0.3s ease-out'
-                        : 'slideOutRight 0.3s ease-in',
-                  }}
-                >
-                  <a
-                    href="/new-arrivals/men"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
-                  >
-                    Fruits
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Bakery & Dessert
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Tobacco
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Custard & Cream
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Coffee
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Menthol / Mint
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                </div>
-              )}
-            </div>
-
-            {/* POD SYSTEM */}
-            <div className="group">
-              <button
-                onClick={() => toggleSubmenu('POD SYSTEM')}
-                className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors "
-                // style={{ animation: 'fadeIn 0.4s ease-out 0.1s' }}
-              >
-                POD SYSTEM
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </button>
-              {openSubmenu === 'POD SYSTEM' && (
-                <div
-                  className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
-                  style={{
-                    animation:
-                      openSubmenu === 'POD SYSTEM'
-                        ? 'slideInRight 0.3s ease-out'
-                        : 'slideOutRight 0.3s ease-in',
-                  }}
-                >
-                  <a
-                    href="/new-arrivals/men"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
-                  >
-                    Disposable
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Refillable Pod Kit
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Pre-Filled Cartridge
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                </div>
-              )}
-            </div>
-
-            {/* DEVICE */}
-            <div className="group">
-              <button
-                onClick={() => toggleSubmenu('DEVICE')}
-                className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors "
-                // style={{ animation: 'fadeIn 0.4s ease-out 0.1s' }}
-              >
-                DEVICE
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </button>
-              {openSubmenu === 'DEVICE' && (
-                <div
-                  className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
-                  style={{
-                    animation:
-                      openSubmenu === 'DEVICE'
-                        ? 'slideInRight 0.3s ease-out'
-                        : 'slideOutRight 0.3s ease-in',
-                  }}
-                >
-                  <a
-                    href="/new-arrivals/men"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
-                  >
-                    Kit
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Only Mod
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                </div>
-              )}
-            </div>
-
-            {/* BORO */}
-            <div className="group">
-              <button
-                onClick={() => toggleSubmenu('BORO')}
-                className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors "
-                // style={{ animation: 'fadeIn 0.4s ease-out 0.1s' }}
-              >
-                BORO
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </button>
-              {openSubmenu === 'BORO' && (
-                <div
-                  className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
-                  style={{
-                    animation:
-                      openSubmenu === 'BORO'
-                        ? 'slideInRight 0.3s ease-out'
-                        : 'slideOutRight 0.3s ease-in',
-                  }}
-                >
-                  <a
-                    href="/new-arrivals/men"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
-                  >
-                    Alo (Boro)
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Boro Bridge and Cartridge
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Boro Accessories and Tools
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                </div>
-              )}
-            </div>
-
-            {/* ACCESSORIES */}
-            <div className="group">
-              <button
-                onClick={() => toggleSubmenu('ACCESSORIES')}
-                className="relative block mb-2 text-start w-full py-2 px-4 text-gray-800 font-bold hover:text-gray-600 transition-colors "
-                // style={{ animation: 'fadeIn 0.4s ease-out 0.1s' }}
-              >
-                ACCESSORIES
-                <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-              </button>
-              {openSubmenu === 'ACCESSORIES' && (
-                <div
-                  className="ml-4 space-y-1 transform transition-transform duration-300 ease-in-out"
-                  style={{
-                    animation:
-                      openSubmenu === 'E-LIQUID'
-                        ? 'slideInRight 0.3s ease-out'
-                        : 'slideOutRight 0.3s ease-in',
-                  }}
-                >
-                  <a
-                    href="/new-arrivals/men"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.2s' }}
-                  >
-                    SubOhm Coil
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 ease-out"></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Charger
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Cotton
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Premade Coil
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Battery
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Tank Glass
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Cartridge
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    RBA / RBK
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Wire Spool
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                  <a
-                    href="/new-arrivals/women"
-                    className="relative block py-1 px-4 text-sm text-black  group/sub"
-                    // style={{ animation: 'fadeIn 0.4s ease-out 0.3s' }}
-                  >
-                    Drip Tip
-                    <span className="absolute left-1/2 bottom-0 h-0.5 bg-gray-600 w-0 group-hover/sub:w-full transform -translate-x-1/2 transition-all duration-300 "></span>
-                  </a>
-                </div>
-              )}
-            </div>
-
-            {user ? (
-              <button
-                onClick={handleSignOut}
-                className="mt-4  font-bold text-center bg-purple-800 rounded-3xl px-6 py-2 text-sm text-white   transition-colors duration-300"
-              >
-                Sign Out
-              </button>
-            ) : (
-              <Link
-                href="/RegistrationPage"
-                className="mt-4  font-bold text-center bg-purple-800 rounded-3xl px-6 py-2 text-sm text-white   transition-colors duration-300"
-              >
-                Sign In
-              </Link>
-            )}
           </div>
+
+          {/* Sidebar Footer */}
+          {isClient && (
+            <div className="border-t border-gray-200 p-6 bg-gray-50">
+              {user ? (
+                <button
+                  onClick={handleSignOut}
+                  className="w-full bg-purple-400 hover:bg-purple-500 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 shadow-sm"
+                >
+                  Sign Out
+                </button>
+              ) : (
+                <button
+                  onClick={handleSignIn}
+                  className="w-full bg-purple-400 hover:bg-purple-500 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 shadow-sm"
+                >
+                  Sign In / Register
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
-      {/* Mobile Menu End */}
     </div>
   )
 }
