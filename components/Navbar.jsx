@@ -493,7 +493,7 @@ const Navbar = () => {
             </div>
             <button
               onClick={toggleMobileMenu}
-              className="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-full transition-all"
+              className="text-white hover:bg-white hover:text-purple-500 hover:bg-opacity-20 p-2 rounded-full transition-all"
               aria-label="Close mobile menu"
             >
               <X size={24} />
@@ -543,7 +543,7 @@ const Navbar = () => {
                 </Link>
 
                 <Link
-                  href="/cart"
+                  href="/UserUpdateProfile"
                   onClick={toggleMobileMenu}
                   className="flex flex-col items-center justify-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
                 >
