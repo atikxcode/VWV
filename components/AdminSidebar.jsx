@@ -15,6 +15,7 @@ import {
   FaCube,
   FaChartPie,
   FaNewspaper,
+  FaFolder,
   FaUsers,
   FaCubes,
   FaClipboardList,
@@ -37,6 +38,7 @@ export default function AdminSidebar() {
     { href: '/admin/Requisition', icon: FaFile },
     { href: '/admin/Offers', icon: FaGifts },
     { href: '/admin/HomeManagement', icon: FaCog },
+    { href: '/admin/FeaturedCategoriesManagement', icon: FaFolder },
     { href: '/', icon: FaHome },
   ]
 

@@ -1,6 +1,58 @@
-import React from 'react'
+'use client'
+
+import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 
 const RotationCategory = () => {
+  const [categories, setCategories] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchFeaturedCategories = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch('/api/featured-categories')
+        
+        if (response.ok) {
+          const data = await response.json()
+          setCategories(data.categories || [])
+        }
+      } catch (error) {
+        console.error('❌ Error fetching featured categories:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchFeaturedCategories()
+  }, [])
+
+  // Helper function to get background style
+  const getBackgroundStyle = (category) => {
+    if (category.backgroundType === 'color') {
+      return { backgroundColor: category.backgroundColor || '#e5e7eb' }
+    }
+    return {
+      backgroundImage: category.backgroundImage
+        ? `url('${category.backgroundImage}')`
+        : "url('/Home_Category/20.jpg')"
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="container mx-auto flex flex-col items-center gap-8 my-20">
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (categories.length === 0) {
+    return null
+  }
+
   return (
     <div className="container mx-auto flex flex-col items-center gap-8 my-20">
       <div className="flex flex-col items-center gap-6">
@@ -12,117 +64,64 @@ const RotationCategory = () => {
         </p>
       </div>
 
-      <div className="flex flex-wrap  gap-8  justify-center ">
-        {/* BOX-1 */}
-        <div
-          className="py-2 md:py-6 px-2 md:px-6  bg-cover bg-center rounded-3xl"
-          style={{ backgroundImage: "url('/Home_Category/20.jpg')" }}
-        >
-          <div className="group flex flex-col items-center border-[1px] rounded-2xl border-purple-400 py-8 ">
-            {/* Fixed-size wrapper with overflow-hidden */}
-            <div className=" overflow-hidden rounded-full">
-              <img
-                src="/Home_Category/starter_kit.png"
-                alt=""
-                className="image md:w-[240px] h-full object-cover "
-              />
-            </div>
+      <div className="flex flex-wrap gap-8 justify-center">
+        {categories.map((category, index) => (
+          <div
+            key={category.id || index}
+            className="py-2 md:py-6 px-2 md:px-6 bg-cover bg-center rounded-3xl"
+            style={getBackgroundStyle(category)}
+          >
+            <div className="group flex flex-col items-center border-[1px] rounded-2xl border-purple-400 py-8">
+              {/* Image */}
+              <div className="overflow-hidden rounded-full">
+                <img
+                  src={category.productImage || category.image || '/Home_Category/device.png'}
+                  alt={category.title}
+                  className="image md:w-[240px] h-full object-cover"
+                />
+              </div>
 
-            {/* Content */}
-            <div className="flex flex-col items-center mt-4 gap-4">
-              <h2 className="text-[20px] md:text-[26px] font-bold text-black">
-                STARTER KITS
-              </h2>
-              <span className="border-[2px] w-[50px] border-black"></span>
-              <p className="w-[350] md:w-[380px] text-[14px] md:text-[15px] font-bold text-center text-black tracking-wider">
-                Starter kits from incredible brands like SMOK, Suorin,
-                Vaporesso, Voopoo and more
-              </p>
-              <div className="text-black  ">
-                <button className="group font-bold text-[10px] text-black  transition-all duration-300 ">
-                  EXPLORE
-                </button>
-                <span className="text-lg ml-1 transition-all duration-300 group-hover:ml-2 group-hover:text-black text-black">
-                  ›
-                </span>
+              {/* Content */}
+              <div className="flex flex-col items-center mt-4 gap-4">
+                <h2 
+                  className="text-[20px] md:text-[26px] font-bold"
+                  style={{ color: category.titleColor || '#000000' }}
+                >
+                  {category.title}
+                </h2>
+                <span 
+                  className="border-[2px] w-[50px]"
+                  style={{ borderColor: category.titleColor || '#000000' }}
+                ></span>
+                <p 
+                  className="w-[350] md:w-[380px] text-[14px] md:text-[15px] font-bold text-center tracking-wider"
+                  style={{ color: category.descriptionColor || '#000000' }}
+                >
+                  {category.description}
+                </p>
+
+                {/* ✅ EXPLORE LINK - Same pattern as your Navbar */}
+                <Link 
+                  href={`/products?category=${encodeURIComponent(category.categoryParam)}`}
+                  className="group/explore"
+                >
+                  <button 
+                    className="font-bold text-[10px] transition-all duration-300"
+                    style={{ color: category.buttonColor || '#000000' }}
+                  >
+                    {category.buttonText || 'EXPLORE'}
+                  </button>
+                  <span 
+                    className="text-lg ml-1 transition-all duration-300 group-hover/explore:ml-2"
+                    style={{ color: category.buttonColor || '#000000' }}
+                  >
+                    ›
+                  </span>
+                </Link>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* BOX-2 */}
-        <div
-          className="py-2 md:py-6 px-2 md:px-6  bg-cover bg-center rounded-3xl "
-          style={{ backgroundImage: "url('/Home_Category/20.jpg')" }}
-        >
-          <div className="group flex flex-col items-center border-[1px] rounded-2xl border-purple-400 py-8 ">
-            {/* Fixed-size wrapper with overflow-hidden */}
-            <div className=" overflow-hidden rounded-full">
-              <img
-                src="/Home_Category/e-liquid.png"
-                alt=""
-                className="image w-[240px] h-full object-cover "
-              />
-            </div>
-
-            {/* Content */}
-            <div className="flex flex-col items-center mt-4 gap-4">
-              <h2 className="text-[20px] md:text-[26px] font-bold text-black">
-                E LIQUIDS
-              </h2>
-              <span className="border-[2px] w-[50px] border-black"></span>
-              <p className="w-[350] md:w-[380px] text-[14px] md:text-[15px] text-center text-black tracking-wider font-bold">
-                Starter kits from incredible brands like SMOK, Suorin,
-                Vaporesso, Voopoo and more
-              </p>
-              <div className="text-white  ">
-                <button className="group font-bold text-[10px] text-black  transition-all duration-300">
-                  EXPLORE
-                </button>
-                <span className="text-lg ml-1 transition-all duration-300 group-hover:ml-2 group-hover:text-black text-black">
-                  ›
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* BOX-3 */}
-        <div
-          className="py-2 md:py-6 px-2 md:px-6  bg-cover bg-center rounded-3xl"
-          style={{ backgroundImage: "url('/Home_Category/20.jpg')" }}
-        >
-          <div className="group flex flex-col items-center border-[1px] rounded-2xl border-purple-400 py-8 ">
-            {/* Fixed-size wrapper with overflow-hidden */}
-            <div className=" overflow-hidden rounded-full">
-              <img
-                src="/Home_Category/tanks_rda.png"
-                alt=""
-                className="image w-[240px] h-full object-cover "
-              />
-            </div>
-
-            {/* Content */}
-            <div className="flex flex-col items-center mt-4 gap-4">
-              <h2 className="text-[20px] md:text-[26px] font-bold text-black">
-                TANKS AND RDA
-              </h2>
-              <span className="border-[2px] w-[50px] border-black"></span>
-              <p className="w-[350] md:w-[380px] text-[14px] md:text-[15px] text-center text-black tracking-wider font-bold">
-                Starter kits from incredible brands like SMOK, Suorin,
-                Vaporesso, Voopoo and more
-              </p>
-              <div className="text-white  ">
-                <button className="group font-bold text-[10px] text-black  transition-all duration-300">
-                  EXPLORE
-                </button>
-                <span className="text-lg ml-1 transition-all duration-300 group-hover:ml-2 group-hover:text-black text-black">
-                  ›
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   )
