@@ -128,7 +128,12 @@ const OptimizedSlide = React.memo(({ slide, index, isActive, isMobile, router })
           {slide.buttonText && (
             <button 
               onClick={handleButtonClick}
-              className="mt-4 md:mt-8 bg-purple-400 hover:bg-purple-500 text-white px-6 md:px-8 py-2 md:py-3 text-xs md:text-sm uppercase tracking-widest transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-300"
+              className="uppercase bg-purple-400 px-12 md:px-16 py-3 md:py-4 font-bold text-white text-[12px] 
+                transition-all duration-300 ease-in-out
+                hover:shadow-[0_0_15px_4px_rgba(128,0,255,0.7)]
+                hover:bg-purple-500
+                active:scale-95
+                focus:outline-none focus:ring-2 focus:ring-purple-300"
               aria-label={`${slide.buttonText} - ${slide.title}`}
             >
               <BlurText

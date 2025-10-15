@@ -750,7 +750,7 @@ const SliderManagement = ({ getAuthToken }) => {
               <form onSubmit={handleSaveSlide} className="p-6 space-y-6">
                 {/* Image Upload */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <label className=" text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                     <ImageIcon size={16} className="text-purple-600" />
                     Slide Image *
                   </label>
@@ -805,7 +805,7 @@ const SliderManagement = ({ getAuthToken }) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Title */}
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                       <Type size={16} className="text-purple-600" />
                       Title *
                     </label>
@@ -823,7 +823,7 @@ const SliderManagement = ({ getAuthToken }) => {
 
                   {/* Subtitle */}
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                       <Type size={16} className="text-purple-600" />
                       Subtitle *
                     </label>
@@ -843,7 +843,7 @@ const SliderManagement = ({ getAuthToken }) => {
 
                   {/* Description */}
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                       <FileText size={16} className="text-purple-600" />
                       Description
                     </label>
@@ -1034,7 +1034,7 @@ const RecommendationManagement = ({ getAuthToken }) => {
     headerSubtitle: '',
     mainTitle: '',
     mainSubtitle: '',
-    buttonText: 'Explore Now',
+    buttonText: '',
     buttonLink: '/products',
     isActive: true,
   })
@@ -1665,7 +1665,7 @@ const RecommendationManagement = ({ getAuthToken }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <label className=" text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <Type size={16} className="text-purple-600" />
                   Button Text
                 </label>
@@ -1680,7 +1680,7 @@ const RecommendationManagement = ({ getAuthToken }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <LinkIcon size={16} className="text-purple-600" />
                   Button Link
                 </label>
