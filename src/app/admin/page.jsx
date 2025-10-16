@@ -30,7 +30,12 @@ import {
   FaSearch,
   FaFilter,
   FaDownload,
-  FaSync
+  FaSync,
+  FaClipboardList,
+  FaFile,
+  FaGift,
+  FaCog,
+  FaFolder
 } from 'react-icons/fa'
 import { AuthContext } from '../../../Provider/AuthProvider'
 
@@ -42,6 +47,11 @@ const colors = {
   warning: 'from-amber-500 to-orange-600',
   danger: 'from-red-500 to-rose-600',
   info: 'from-cyan-500 to-blue-600',
+  teal: 'from-teal-500 to-cyan-600',
+  orange: 'from-orange-500 to-red-500',
+  violet: 'from-violet-500 to-purple-600',
+  lime: 'from-lime-500 to-green-500',
+  rose: 'from-rose-500 to-pink-600',
 }
 
 const containerVariants = {
@@ -84,14 +94,19 @@ export default function AdminDashboard() {
     totalRevenue: 0
   })
 
-  // Your sidebar options
+  // Updated sidebar options with new items
   const sidebarOptions = [
     { href: '/admin/statsManage', icon: FaChartLine, label: 'Stats Management', color: colors.primary },
     { href: '/admin/userManage', icon: FaUsers, label: 'User Management', color: colors.info },
     { href: '/admin/SellPage', icon: FaCubes, label: 'Sell Page', color: colors.success },
     { href: '/admin/AddProduct', icon: FaPlus, label: 'Add Product', color: colors.warning },
     { href: '/admin/ManageProduct', icon: FaPen, label: 'Manage Products', color: colors.secondary },
+    { href: '/admin/ManageOrders', icon: FaClipboardList, label: 'Manage Orders', color: colors.teal },
     { href: '/admin/ProfileUpdate', icon: FaUser, label: 'Profile Update', color: colors.danger },
+    { href: '/admin/Requisition', icon: FaFile, label: 'Requisition', color: colors.orange },
+    { href: '/admin/Offers', icon: FaGift, label: 'Offers', color: colors.violet },
+    { href: '/admin/HomeManagement', icon: FaCog, label: 'Home Management', color: colors.lime },
+    { href: '/admin/FeaturedCategoriesManagement', icon: FaFolder, label: 'Featured Categories', color: colors.rose },
     { href: '/', icon: FaHome, label: 'Home', color: 'from-gray-500 to-gray-600' },
   ]
 
@@ -208,65 +223,54 @@ export default function AdminDashboard() {
       darkMode ? 'bg-gray-900 text-white' : 'bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50'
     }`}>
       
-
-
-     
-
       {/* Main Content */}
       <div className="relative z-10">
- 
         {/* Dashboard Content */}
         <main className="p-6">
-       
-
-
-            {/* Quick Actions */}
-            <motion.div
-              variants={cardVariants}
-              className={`rounded-2xl ${
-                darkMode ? 'bg-gray-800/50' : 'bg-white/80'
-              } backdrop-blur-xl border border-gray-200 dark:border-gray-700 shadow-xl p-8`}
-            >
-              <div className="flex items-center gap-3 mb-8">
-                <div className="w-12 h-12 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
-                  <FaArrowRight className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold">Quick Actions</h2>
-                  <p className="text-gray-600 dark:text-gray-400">Frequently used management tools</p>
-                </div>
+          {/* Quick Actions */}
+          <motion.div
+            variants={cardVariants}
+            className={`rounded-2xl ${
+              darkMode ? 'bg-gray-800/50' : 'bg-white/80'
+            } backdrop-blur-xl border border-gray-200 dark:border-gray-700 shadow-xl p-8`}
+          >
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-12 h-12 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
+                <FaArrowRight className="text-white" />
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {sidebarOptions.filter(option => option.href !== '/').map((action, index) => {
-                  const Icon = action.icon
-                  return (
-                    <motion.div
-                      key={action.href}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      whileHover={{ scale: 1.05, y: -4 }}
+              <div>
+                <h2 className="text-2xl font-bold">Quick Actions</h2>
+                <p className="text-gray-600 dark:text-gray-400">Frequently used management tools</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {sidebarOptions.filter(option => option.href !== '/').map((action, index) => {
+                const Icon = action.icon
+                return (
+                  <motion.div
+                    key={action.href}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ scale: 1.05, y: -4 }}
+                  >
+                    <Link
+                      href={action.href}
+                      className={`block p-6 rounded-xl bg-gradient-to-r ${action.color} text-white shadow-lg hover:shadow-xl transition-all group`}
                     >
-                      <Link
-                        href={action.href}
-                        className={`block p-6 rounded-xl bg-gradient-to-r ${action.color} text-white shadow-lg hover:shadow-xl transition-all group`}
-                      >
-                        <div className="flex items-center justify-between mb-4">
-                          <Icon className="w-8 h-8" />
-                          <FaArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                        </div>
-                        <h3 className="text-lg font-semibold mb-2">{action.label}</h3>
-                        <p className="text-sm opacity-90">Click to access {action.label.toLowerCase()}</p>
-                      </Link>
-                    </motion.div>
-                  )
-                })}
-              </div>
-            </motion.div>
-
-
-          
+                      <div className="flex items-center justify-between mb-4">
+                        <Icon className="w-8 h-8" />
+                        <FaArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2">{action.label}</h3>
+                      <p className="text-sm opacity-90">Click to access {action.label.toLowerCase()}</p>
+                    </Link>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </motion.div>
         </main>
       </div>
     </div>
