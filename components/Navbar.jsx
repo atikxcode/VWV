@@ -113,41 +113,103 @@ const Navbar = () => {
   }, [])
 
   // 🔥 NEW: Fetch user profile data from backend when user is logged in
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (!user || !user.email) return
+useEffect(() => {
+  const fetchUserProfile = async () => {
+    if (!user || !user.email) return
 
-      try {
-        setProfileLoading(true)
-        
-        // Get auth token
-        const token = localStorage.getItem('auth-token') || (await user.getIdToken())
-        
-        const response = await fetch(`/api/user?email=${encodeURIComponent(user.email)}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          if (data.user) {
-            setUserProfile(data.user)
-            console.log('✅ User profile loaded:', data.user)
-          }
-        } else {
-          console.error('❌ Failed to fetch user profile')
+    try {
+      setProfileLoading(true)
+      
+      // Get auth token
+      let token = localStorage.getItem('auth-token')
+      
+      // If no token in localStorage, get from Firebase
+      if (!token || token === 'undefined' || token === 'null') {
+        try {
+          token = await user.getIdToken(true) // Force fresh token
+          localStorage.setItem('auth-token', token)
+        } catch (tokenError) {
+          console.error('❌ Failed to get token - logging out:', tokenError)
+          handleSignOut()
+          return
         }
-      } catch (error) {
-        console.error('❌ Error fetching user profile:', error)
-      } finally {
-        setProfileLoading(false)
       }
-    }
+      
+      const response = await fetch(`/api/user?email=${encodeURIComponent(user.email)}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
 
-    fetchUserProfile()
-  }, [user])
+      if (response.status === 401) {
+        // Token is invalid or expired - check error type
+        const errorData = await response.json().catch(() => ({}))
+        
+        // Check if it's specifically an invalid token (tampered/malformed)
+        if (errorData.error?.includes('Invalid token') || 
+            errorData.error?.includes('incorrect algorithm') ||
+            errorData.errorCode === 'INVALID_TOKEN') {
+          console.error('❌ Invalid token detected - logging out immediately')
+          handleSignOut()
+          return
+        }
+        
+        // Otherwise, try to refresh for expired tokens
+        console.warn('⚠️ Token expired, attempting to refresh...')
+        
+        try {
+          const freshToken = await user.getIdToken(true) // Force refresh
+          localStorage.setItem('auth-token', freshToken)
+          
+          // Retry with fresh token
+          const retryResponse = await fetch(`/api/user?email=${encodeURIComponent(user.email)}`, {
+            headers: {
+              'Authorization': `Bearer ${freshToken}`,
+              'Content-Type': 'application/json',
+            },
+          })
+          
+          if (retryResponse.ok) {
+            const data = await retryResponse.json()
+            if (data.user) {
+              setUserProfile(data.user)
+              console.log('✅ User profile loaded with refreshed token:', data.user)
+            }
+          } else {
+            // Refresh failed - logout
+            console.error('❌ Token refresh failed - logging out')
+            handleSignOut()
+          }
+        } catch (refreshError) {
+          // Token refresh failed - logout
+          console.error('❌ Token refresh error - logging out:', refreshError)
+          handleSignOut()
+        }
+      } else if (response.ok) {
+        const data = await response.json()
+        if (data.user) {
+          setUserProfile(data.user)
+          console.log('✅ User profile loaded:', data.user)
+        }
+      } else {
+        console.error('❌ Failed to fetch user profile - logging out')
+        handleSignOut()
+      }
+    } catch (error) {
+      console.error('❌ Error fetching user profile:', error)
+      // Any error during authentication should logout
+      console.error('❌ Authentication error - logging out')
+      handleSignOut()
+    } finally {
+      setProfileLoading(false)
+    }
+  }
+
+  fetchUserProfile()
+}, [user])
+
+
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -538,9 +600,47 @@ const Navbar = () => {
                       <p className="text-xs text-gray-500 truncate">
                         {user.email}
                       </p>
+                      {/* 🔥 NEW: Show role badge */}
+                      {userProfile?.role && (userProfile.role === 'admin' || userProfile.role === 'moderator') && (
+                        <span className={`inline-block mt-1 px-2 py-0.5 text-xs font-semibold rounded ${
+                          userProfile.role === 'admin' 
+                            ? 'bg-red-100 text-red-600' 
+                            : 'bg-blue-100 text-blue-600'
+                        }`}>
+                          {userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1)}
+                        </span>
+                      )}
                     </div>
 
                     {/* Menu Items */}
+                    {/* 🔥 NEW: Admin Panel Link */}
+                    {userProfile?.role === 'admin' && (
+                      <button
+                        onClick={() => {
+                          router.push('/admin')
+                          setShowProfileDropdown(false)
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <Settings size={18} />
+                        <span className="text-sm font-medium">Admin Panel</span>
+                      </button>
+                    )}
+
+                    {/* 🔥 NEW: Moderator Panel Link */}
+                    {userProfile?.role === 'moderator' && (
+                      <button
+                        onClick={() => {
+                          router.push('/moderator')
+                          setShowProfileDropdown(false)
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-blue-600 hover:bg-blue-50 transition-colors"
+                      >
+                        <Settings size={18} />
+                        <span className="text-sm font-medium">Moderator Panel</span>
+                      </button>
+                    )}
+
                     <button
                       onClick={handleProfileClick}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors"
@@ -555,16 +655,9 @@ const Navbar = () => {
                       <Package size={18} />
                       <span className="text-sm font-medium">Order History</span>
                     </button>
-
-                    {/* <button
-                      onClick={handleSignOut}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      <X size={18} />
-                      <span className="text-sm font-medium">Sign Out</span>
-                    </button> */}
                   </div>
                 )}
+
               </div>
             ) : (
               <Link href="/RegistrationPage">
@@ -738,6 +831,31 @@ const Navbar = () => {
                   <Home size={18} />
                   <span className="text-sm font-medium">Home</span>
                 </a>
+
+                {/* 🔥 NEW: Admin Panel Link for Mobile */}
+                {user && userProfile?.role === 'admin' && (
+                  <a
+                    href="/admin"
+                    onClick={toggleMobileMenu}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                  >
+                    <Settings size={18} />
+                    <span className="text-sm font-medium">Admin Panel</span>
+                  </a>
+                )}
+
+                {/* 🔥 NEW: Moderator Panel Link for Mobile */}
+                {user && userProfile?.role === 'moderator' && (
+                  <a
+                    href="/moderator"
+                    onClick={toggleMobileMenu}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                  >
+                    <Settings size={18} />
+                    <span className="text-sm font-medium">Moderator Panel</span>
+                  </a>
+                )}
+
                 <a
                   href="/TrackOrder"
                   onClick={toggleMobileMenu}
@@ -773,6 +891,7 @@ const Navbar = () => {
                 </a>
               </div>
             </div>
+
 
             {/* Categories Section */}
             <div className="py-4 px-6">
