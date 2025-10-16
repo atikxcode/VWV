@@ -390,8 +390,7 @@ useEffect(() => {
           <div className="flex flex-row gap-4">
             <a href="/TrackOrder">Track</a>
             <a href="/Contact">Contact</a>
-            <a href="#">Support</a>
-            <a href="#">About</a>
+            <a href="/About">About</a>
           </div>
         </div>
 
